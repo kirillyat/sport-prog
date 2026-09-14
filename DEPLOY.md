@@ -147,10 +147,10 @@ docker compose logs --tail 30
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name sport.ai.msu.ru;
+    server_name algo.ai.msu.ru;
 
-    ssl_certificate     /etc/letsencrypt/live/sport.ai.msu.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/sport.ai.msu.ru/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/algo.ai.msu.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/algo.ai.msu.ru/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
