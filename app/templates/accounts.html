@@ -19,6 +19,7 @@
 
 <h2>{{ icon("shield") }} Способы входа</h2>
 <div class="grid two">
+  {% if settings.telegram_enabled or user.telegram_id %}
   <div class="card stretch">
     <div class="row between">
       <h3>{{ icon("send") }} Telegram</h3>
@@ -42,6 +43,7 @@
       <a class="btn small push-bottom" href="/login/telegram/link">{{ icon("link") }} Привязать</a>
     {% endif %}
   </div>
+  {% endif %}
 
   <div class="card stretch">
     <div class="row between">

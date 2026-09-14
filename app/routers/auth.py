@@ -93,7 +93,7 @@ async def _resolve_oidc_user(session: SessionDep, claims: dict, groups: set[str]
 @router.get("/login/telegram/link")
 async def link_telegram_start(request: Request, session: SessionDep, user: CurrentUser):
     """Привязка Telegram к уже существующей учётке (например, входу через OIDC)."""
-    if not (settings.telegram_bot_token and settings.telegram_bot_username):
+    if not settings.telegram_enabled:
         message = quote("Telegram-бот не настроен")
         return RedirectResponse(f"/accounts?err={message}", status_code=303)
 
@@ -224,7 +224,7 @@ async def login_page(request: Request, session: SessionDep, user: OptionalUser):
         return RedirectResponse("/", status_code=303)
 
     token = None
-    if settings.telegram_bot_token and settings.telegram_bot_username:
+    if settings.telegram_enabled:
         token = LoginToken(
             code=secrets.token_urlsafe(9).replace("-", "_"),
             expires_at=utcnow() + timedelta(seconds=settings.login_code_ttl_seconds),

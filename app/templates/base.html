@@ -119,6 +119,6 @@
 </div>
 <script src="/static/countdown.js?v={{ asset_version }}" defer></script>
 <script src="/static/theme.js?v={{ asset_version }}" defer></script>
-<script src="/static/telegram-login.js?v={{ asset_version }}" defer></script>
+{% if settings.telegram_enabled %}<script src="/static/telegram-login.js?v={{ asset_version }}" defer></script>{% endif %}
 </body>
 </html>

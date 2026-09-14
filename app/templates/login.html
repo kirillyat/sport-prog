@@ -40,14 +40,6 @@
       <span id="tg-status">Ждём подтверждения… код живёт {{ settings.login_code_ttl_seconds // 60 }} минут.</span>
     </div>
   </div>
-  {% else %}
-  <div class="card callout warn">
-    <h3>{{ icon("alert") }} Telegram-вход не настроен</h3>
-    <p class="small muted" style="margin:0">
-      Задай <code class="mono">TELEGRAM_BOT_TOKEN</code> и <code class="mono">TELEGRAM_BOT_USERNAME</code>
-      в <code class="mono">.env</code>, затем перезапусти приложение.
-    </p>
-  </div>
   {% endif %}
 
   {% if oidc_enabled %}
@@ -72,6 +64,17 @@
       </div>
       <button type="submit">{{ icon("chevron") }} Войти</button>
     </form>
+  </div>
+  {% endif %}
+
+  {# Пустая страница входа хуже честной ошибки: сказать это можно только здесь. #}
+  {% if not deep_link and not oidc_enabled and not dev_login %}
+  <div class="card callout warn">
+    <h3>{{ icon("alert") }} Входить нечем</h3>
+    <p class="small muted" style="margin:0">
+      Ни один способ входа не настроен. Включи бота, OIDC-провайдера или
+      dev-вход в <code class="mono">.env</code> и перезапусти приложение.
+    </p>
   </div>
   {% endif %}
 </div>

@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     session_cookie: str = "sport_session"
 
     @property
+    def telegram_enabled(self) -> bool:
+        """Без токена и имени бота ни входа через бота, ни уведомлений нет."""
+        return bool(self.telegram_bot_token.strip() and self.telegram_bot_username.strip())
+
+    @property
     def oidc_enabled(self) -> bool:
         return bool(self.oidc_issuer.strip() and self.oidc_client_id.strip())
 

@@ -13,7 +13,8 @@
   <h3>{{ icon("shield") }} Подтверди, что ты студент МГУ</h3>
   <p class="small" style="margin:0 0 12px">
     Вход через {{ settings.oidc_provider_name }} открывает вступление в группы
-    и задания клуба. Telegram остаётся для входа и уведомлений.
+    и задания клуба.{% if settings.telegram_enabled %} Telegram остаётся для входа
+    и уведомлений.{% endif %}
   </p>
   <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} Войти через {{ settings.oidc_provider_name }}</a>
 </div>

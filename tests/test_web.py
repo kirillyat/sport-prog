@@ -499,3 +499,28 @@ async def test_bad_parameter_shows_a_page_not_json(session, client):
     assert response.status_code == 400
     assert "Не получилось" in response.text
     assert "detail" not in response.text
+
+
+async def test_login_page_without_bot_is_silent_about_telegram(session, client, monkeypatch):
+    """Незаполненный .env — забота админа, студенту на странице входа он ни к чему."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "telegram_bot_token", "")
+    monkeypatch.setattr(settings, "telegram_bot_username", "")
+
+    page = await client.get("/login")
+    assert "Telegram" not in page.text
+    assert "TELEGRAM_BOT_TOKEN" not in page.text
+
+
+async def test_accounts_page_without_bot_hides_telegram(session, client, monkeypatch):
+    """Кнопка «Привязать» вела бы на редирект с ошибкой — значит, её быть не должно."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "telegram_bot_token", "")
+    monkeypatch.setattr(settings, "telegram_bot_username", "")
+
+    await _login(client, "Аня", teacher=True)
+    page = await client.get("/accounts")
+    assert "Способы входа" in page.text
+    assert "/login/telegram/link" not in page.text

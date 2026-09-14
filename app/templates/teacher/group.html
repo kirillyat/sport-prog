@@ -11,6 +11,7 @@
   <a class="btn ghost small" href="/feed?group_id={{ group.id }}">{{ icon("activity") }} Лента группы</a>
 </div>
 
+{% if settings.telegram_enabled %}
 <div class="card">
   <h3>{{ icon("send") }} Telegram-чат группы</h3>
   <p class="small muted" style="margin-top:0">
@@ -26,12 +27,13 @@
     <button type="submit">{{ icon("check") }} Сохранить</button>
   </form>
 </div>
+{% endif %}
 
 <h2>{{ icon("users") }} Состав ({{ members | length }})</h2>
 {% if members %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Студент</th><th>Telegram</th><th>Аккаунты</th><th></th></tr></thead>
+    <thead><tr><th>Студент</th>{% if settings.telegram_enabled %}<th>Telegram</th>{% endif %}<th>Аккаунты</th><th></th></tr></thead>
     <tbody>
     {% for member in members %}
       <tr>
@@ -41,7 +43,9 @@
             <a href="/u/{{ member.id }}">{{ member.display_name }}</a>
           </span>
         </td>
+        {% if settings.telegram_enabled %}
         <td class="small muted">{% if member.telegram_username %}@{{ member.telegram_username }}{% else %}—{% endif %}</td>
+        {% endif %}
         <td class="small">
           {% for account in member.accounts %}
             <span class="badge {{ 'ok' if account.is_verified else 'warn' }}">
