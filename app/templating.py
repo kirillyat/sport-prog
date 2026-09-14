@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 from app.models import SolveStatus
+from app.services import course
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -208,6 +209,7 @@ templates.env.globals["brand_logo"] = _find_asset(LOGO_NAMES)
 templates.env.globals["brand_logo_dark"] = _find_asset(LOGO_DARK_NAMES)
 templates.env.globals["favicon_asset"] = _find_asset(FAVICON_NAMES)
 templates.env.globals["brand_mark"] = _find_asset(MARK_NAMES)
+templates.env.globals["course_available"] = course.is_available()
 templates.env.globals["settings"] = settings
 templates.env.globals["SolveStatus"] = SolveStatus
 templates.env.globals["now"] = lambda: datetime.now(UTC)

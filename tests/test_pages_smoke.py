@@ -25,7 +25,7 @@ from app.models import (
 )
 
 PAGES = [
-    "/", "/materials", "/announcements", "/feed", "/leaderboard", "/accounts", "/me",
+    "/", "/materials", "/course", "/announcements", "/feed", "/leaderboard", "/accounts", "/me",
     "/teacher", "/teacher/groups", "/teacher/sets", "/teacher/assignments",
     "/teacher/students", "/teacher/announcements", "/teacher/problems",
     "/teacher/problems/unlinked",

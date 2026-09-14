@@ -19,6 +19,7 @@ from app.routers import (
     accounts,
     announcements,
     auth,
+    course,
     feed,
     leaderboard,
     materials,
@@ -98,6 +99,7 @@ app.include_router(accounts.router)
 app.include_router(announcements.router)
 app.include_router(feed.router)
 app.include_router(materials.router)
+app.include_router(course.router)
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
 

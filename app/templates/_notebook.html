@@ -1,0 +1,27 @@
+{# Показ ноутбука. Один и тот же вид у материалов и у курса — значит, одно место. #}
+{% macro notebook_body(cells) -%}
+<div class="notebook">
+  {% for cell in cells %}
+    {% if cell.kind == "markdown" %}
+      <div class="nb-md">{{ cell.html | safe }}</div>
+    {% elif cell.kind == "code" %}
+      <div class="nb-code">
+        <span class="nb-lang">{{ cell.language }}</span>
+        <pre><code>{{ cell.source }}</code></pre>
+        {% for out in cell.outputs %}
+          {% if out.kind == "text" %}<pre class="nb-out">{{ out.text }}</pre>
+          {% elif out.kind == "image" %}<img class="nb-img" src="{{ out.src }}" alt="вывод ячейки">
+          {% else %}<p class="small muted nb-out">{{ out.text }} — смотри в скачанном файле</p>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <pre class="nb-raw">{{ cell.source }}</pre>
+    {% endif %}
+  {% endfor %}
+</div>
+<p class="small muted">
+  Показ упрощённый: формулы остаются в исходном виде, интерактивный вывод не
+  рисуется. Полный ноутбук — в скачанном файле.
+</p>
+{%- endmacro %}

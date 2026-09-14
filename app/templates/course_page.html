@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/course">курс</a></p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+<div class="card nb-md">{{ rendered | safe }}</div>
+{% endblock %}

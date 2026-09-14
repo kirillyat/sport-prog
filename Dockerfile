@@ -17,6 +17,7 @@ RUN pip install --upgrade pip \
 
 # Пакет не устанавливаем: WORKDIR=/app, поэтому `import app` работает как есть.
 COPY app ./app
+COPY course ./course
 COPY migrations ./migrations
 COPY alembic.ini entrypoint.sh ./
 RUN chmod +x entrypoint.sh

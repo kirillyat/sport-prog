@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}Курс — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">курс</p>
+    <h1>Алгоритмы и структуры данных</h1>
+    <p class="sub">Первый семестр: конспекты лекций, практики и домашние задания по неделям.</p>
+  </div>
+  <div class="row" style="gap:8px">
+    <a class="btn ghost small" href="/course/about">{{ icon("book") }} О курсе</a>
+    <a class="btn ghost small" href="/course/authors">{{ icon("users") }} Авторы</a>
+  </div>
+</div>
+
+{% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
+
+{% if weeks %}
+<div class="grid two">
+  {% for week in weeks %}
+  <div class="card stretch">
+    <div class="row between">
+      <h3 style="margin:0"><a href="{{ week.url }}">{{ week.title }}</a></h3>
+      {% if not week.slots %}<span class="badge" title="материалы ещё не выложены">впереди</span>{% endif %}
+    </div>
+    {% if week.lecture_title %}
+    <p class="small" style="margin:8px 0 0"><span class="muted">лекция:</span> {{ week.lecture_title }}</p>
+    {% endif %}
+    {% if week.seminar_title %}
+    <p class="small" style="margin:4px 0 0"><span class="muted">семинар:</span> {{ week.seminar_title }}</p>
+    {% endif %}
+    {% if week.slots %}
+    <div class="row push-bottom" style="gap:6px; flex-wrap:wrap">
+      {% for slot in week.slots %}
+      <a class="btn ghost small" href="{{ week.url }}/{{ slot.key }}">{{ slot.label }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">{{ empty("layers", "Курс ещё не выгружен на портал.") }}</div>
+{% endif %}
+{% endblock %}

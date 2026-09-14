@@ -35,8 +35,9 @@ dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-# Файлы миграций генерирует Alembic — его форматирование не правим.
-extend-exclude = ["migrations/versions"]
+# Миграции генерирует Alembic, а course/ — чужой контент из репозитория курса:
+# ни то, ни другое мы не форматируем.
+extend-exclude = ["migrations/versions", "course"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
