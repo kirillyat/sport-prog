@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 import httpx
@@ -27,6 +28,18 @@ def _problem_external_id(problem: dict) -> str | None:
     # Задачи из архива acmsguru приходят без contestId.
     name = problem.get("problemsetName")
     return f"{name}:{index}" if name else None
+
+
+def submission_url(problem_slug: str | None, submission_id: str) -> str | None:
+    """Публичная страница посылки: код видно всем, авторизация не нужна.
+
+    Номер контеста берём из слага задачи («1234a» → 1234). У задач из архива
+    acmsguru контеста нет, и страницы посылки в таком виде тоже — тогда None.
+    """
+    match = re.match(r"^(\d+)", problem_slug or "")
+    if not match:
+        return None
+    return f"https://codeforces.com/contest/{match.group(1)}/submission/{submission_id}"
 
 
 def _problem_url(problem: dict) -> str:

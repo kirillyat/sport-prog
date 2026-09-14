@@ -193,3 +193,21 @@ async def test_only_user_narrows_feed_to_one_person(session, world):
 
     feed = await build_feed(session, world["anya"], only_user=world["borya"])
     assert [item.user.display_name for item in feed] == ["Боря"]
+
+
+async def test_codeforces_item_links_to_the_public_submission(session, world):
+    """Кода решения у нас нет, но у Codeforces страница посылки открыта всем."""
+    anya, codeforces = world["anya"], world["problems"][1]
+    await _accept(session, world, anya, codeforces, BASE, "312456789")
+
+    item = (await build_feed(session, anya))[0]
+    assert item.submission_url == "https://codeforces.com/contest/4/submission/312456789"
+
+
+async def test_leetcode_item_has_no_submission_link(session, world):
+    """У LeetCode публичной страницы посылки нет — ссылке в никуда не место."""
+    anya, leetcode = world["anya"], world["problems"][0]
+    await _accept(session, world, anya, leetcode, BASE, "9911")
+
+    item = (await build_feed(session, anya))[0]
+    assert item.submission_url is None

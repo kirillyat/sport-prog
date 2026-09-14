@@ -22,6 +22,7 @@ from app.models import (
     Submission,
     User,
 )
+from app.platforms.codeforces import submission_url as codeforces_submission_url
 
 DEFAULT_LIMIT = 60
 
@@ -34,10 +35,24 @@ class FeedItem:
     solved_at: datetime
     problem: Problem | None = None
     assignment: Assignment | None = None
+    submission: Submission | None = None
 
     @property
     def url(self) -> str | None:
         return self.problem.url if self.problem else None
+
+    @property
+    def submission_url(self) -> str | None:
+        """Где посмотреть исходник решения.
+
+        У Codeforces страница посылки публичная. У LeetCode такой страницы нет
+        вообще: `/submissions/detail/` открывается только автору, а код лежит
+        за запросом, которому нужна его сессия. Поэтому для LeetCode — None,
+        и лучше ничего не показать, чем показать ссылку в никуда.
+        """
+        if self.submission is None or self.platform != Platform.codeforces:
+            return None
+        return codeforces_submission_url(self.submission.problem_slug, self.submission.external_id)
 
     @property
     def difficulty_badge(self) -> tuple[str, str] | None:
@@ -168,6 +183,8 @@ async def build_feed(
             func.min(Submission.submitted_at).label("solved_at"),
             func.max(Submission.problem_id).label("problem_id"),
             func.max(Submission.problem_title).label("title"),
+            # Своя первичка, а не внешний номер: max() по строке дал бы чепуху.
+            func.max(Submission.id).label("submission_row_id"),
         )
         .where(Submission.is_accepted.is_(True), Submission.user_id.in_(user_ids))
         .group_by(Submission.user_id, Submission.platform, key)
@@ -191,6 +208,16 @@ async def build_feed(
             await session.execute(select(Problem).where(Problem.id.in_(problem_ids)))
         ).scalars()
     }
+    submissions = {
+        s.id: s
+        for s in (
+            await session.execute(
+                select(Submission).where(
+                    Submission.id.in_({r.submission_row_id for r in rows if r.submission_row_id})
+                )
+            )
+        ).scalars()
+    }
     index = await _assignment_index(session, list(users))
 
     feed: list[FeedItem] = []
@@ -207,6 +234,7 @@ async def build_feed(
                 solved_at=row.solved_at,
                 problem=problem,
                 assignment=_match_assignment(index, row.user_id, row.problem_id, row.solved_at),
+                submission=submissions.get(row.submission_row_id),
             )
         )
     return feed

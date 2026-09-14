@@ -28,6 +28,10 @@
           <span class="badge">{{ icon("code") }}{{ item.platform.title }}</span>
           {% set d = item.difficulty_badge %}
           {% if d %}<span class="badge {{ d[1] }}">{{ d[0] }}</span>{% endif %}
+          {% if item.submission_url %}
+            <a class="badge" href="{{ item.submission_url }}" target="_blank" rel="noopener"
+               title="исходник решения на Codeforces">{{ icon("external") }}посылка</a>
+          {% endif %}
           {% if item.assignment %}
             <a class="badge info" href="/assignments/{{ item.assignment.id }}">
               {{ icon("tasks") }}{{ item.assignment.title }}
