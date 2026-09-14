@@ -33,6 +33,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
 )
+# httpx на INFO печатает полный URL запроса, а у Telegram API токен бота —
+# часть пути. Иначе он лежал бы в открытом виде в `docker compose logs`.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("app")
 
 SECRET_HELP = """
