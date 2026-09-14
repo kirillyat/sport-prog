@@ -1,4 +1,4 @@
-"""Раздел «Теория»: преподаватель публикует материалы, студенты скачивают."""
+"""Раздел «Материалы»: преподаватель публикует файлы, студенты скачивают."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.services import materials, notebook
 from app.services.progress import groups_for_user
 from app.templating import templates
 
-router = APIRouter(tags=["theory"])
+router = APIRouter(tags=["materials"])
 
 
 def _back(message: str | None = None, error: str | None = None) -> RedirectResponse:
@@ -25,7 +25,7 @@ def _back(message: str | None = None, error: str | None = None) -> RedirectRespo
     if error:
         params.append("err=" + quote(error))
     suffix = ("?" + "&".join(params)) if params else ""
-    return RedirectResponse(f"/theory{suffix}", status_code=303)
+    return RedirectResponse(f"/materials{suffix}", status_code=303)
 
 
 async def _visible_to(session: SessionDep, user) -> list[Material]:
@@ -37,8 +37,8 @@ async def _visible_to(session: SessionDep, user) -> list[Material]:
     return list((await session.execute(stmt)).scalars().all())
 
 
-@router.get("/theory")
-async def theory_page(request: Request, session: SessionDep, user: CurrentUser):
+@router.get("/materials")
+async def materials_page(request: Request, session: SessionDep, user: CurrentUser):
     groups = []
     if user.is_teacher:
         groups = list(
@@ -50,7 +50,7 @@ async def theory_page(request: Request, session: SessionDep, user: CurrentUser):
         )
     return templates.TemplateResponse(
         request,
-        "theory.html",
+        "materials.html",
         {
             "user": user,
             "items": await _visible_to(session, user),
@@ -63,7 +63,7 @@ async def theory_page(request: Request, session: SessionDep, user: CurrentUser):
     )
 
 
-@router.post("/theory")
+@router.post("/materials")
 async def publish_material(
     session: SessionDep,
     user: TeacherUser,
@@ -110,7 +110,7 @@ async def publish_material(
     return _back(message="Материал опубликован" + suffix)
 
 
-@router.get("/theory/{material_id}/download")
+@router.get("/materials/{material_id}/download")
 async def download_material(session: SessionDep, user: CurrentUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None or item not in await _visible_to(session, user):
@@ -127,7 +127,7 @@ async def download_material(session: SessionDep, user: CurrentUser, material_id:
     )
 
 
-@router.get("/theory/{material_id}/view")
+@router.get("/materials/{material_id}/view")
 async def view_material(request: Request, session: SessionDep, user: CurrentUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None or item not in await _visible_to(session, user):
@@ -158,7 +158,7 @@ async def view_material(request: Request, session: SessionDep, user: CurrentUser
     )
 
 
-@router.post("/theory/{material_id}/delete")
+@router.post("/materials/{material_id}/delete")
 async def delete_material(session: SessionDep, user: TeacherUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None:

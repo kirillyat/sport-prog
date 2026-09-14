@@ -230,7 +230,7 @@ def assignment_button(item: Assignment) -> tuple[str, str]:
 
 
 def material_button(item: Material) -> tuple[str, str]:
-    return ("Открыть на портале", portal_url(f"/theory/{item.id}/view"))
+    return ("Открыть на портале", portal_url(f"/materials/{item.id}/view"))
 
 
 def announcement_text(item: Announcement) -> str:

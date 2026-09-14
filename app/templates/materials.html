@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Теория — {{ settings.app_name }}{% endblock %}
+{% block title %}Материалы — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">материалы</p>
-    <h1>Теория</h1>
+    <p class="eyebrow">библиотека</p>
+    <h1>Материалы</h1>
     <p class="sub">Ноутбуки с семинаров, конспекты и разборы.</p>
   </div>
 </div>
@@ -13,7 +13,7 @@
 {% if user.is_teacher %}
 <details class="formula" style="margin-bottom:18px" {% if not items %}open{% endif %}>
   <summary>{{ icon("plus") }} Опубликовать материал</summary>
-  <form method="post" action="/theory" enctype="multipart/form-data" style="margin-top:12px">
+  <form method="post" action="/materials" enctype="multipart/form-data" style="margin-top:12px">
     <div class="grid two">
       <div class="field">
         <label for="file">Файл</label>
@@ -55,13 +55,13 @@
     </p>
     <div class="row" style="margin-top:12px; gap:8px">
       {% if item.can_preview %}
-      <a class="btn small" href="/theory/{{ item.id }}/view">{{ icon("book") }} Смотреть</a>
-      <a class="btn ghost small" href="/theory/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
+      <a class="btn small" href="/materials/{{ item.id }}/view">{{ icon("book") }} Смотреть</a>
+      <a class="btn ghost small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
       {% else %}
-      <a class="btn small" href="/theory/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
+      <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
       {% endif %}
       {% if user.is_teacher %}
-      <form method="post" action="/theory/{{ item.id }}/delete"
+      <form method="post" action="/materials/{{ item.id }}/delete"
             onsubmit="return confirm('Удалить «{{ item.title }}»?')">
         <button class="danger small" type="submit">{{ icon("trash") }}</button>
       </form>

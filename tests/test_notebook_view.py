@@ -48,10 +48,10 @@ def _upload(name: str, content: bytes):
 
 async def test_notebook_shows_markdown_code_and_images(session, client):
     await _teacher(client)
-    await client.post("/theory", files=_upload("seminar.ipynb", NB_WITH_EVERYTHING))
+    await client.post("/materials", files=_upload("seminar.ipynb", NB_WITH_EVERYTHING))
     item = await session.scalar(select(Material))
 
-    page = (await client.get(f"/theory/{item.id}/view")).text
+    page = (await client.get(f"/materials/{item.id}/view")).text
     assert "<h2>Сортировки</h2>" in page                      # markdown отрисован
     assert "<strong>вставок</strong>" in page
     assert "print(&#39;привет&#39;)" in page                  # код экранирован
@@ -62,10 +62,10 @@ async def test_notebook_shows_markdown_code_and_images(session, client):
 async def test_notebook_never_brings_its_own_scripts(session, client):
     """Ни markdown-ячейка, ни вывод не должны выполниться на нашем домене."""
     await _teacher(client)
-    await client.post("/theory", files=_upload("seminar.ipynb", NB_WITH_EVERYTHING))
+    await client.post("/materials", files=_upload("seminar.ipynb", NB_WITH_EVERYTHING))
     item = await session.scalar(select(Material))
 
-    page = (await client.get(f"/theory/{item.id}/view")).text
+    page = (await client.get(f"/materials/{item.id}/view")).text
     assert "<script>alert(1)</script>" not in page
     assert "<script>alert(2)</script>" not in page
     assert "вывод в формате text/html" in page
@@ -73,30 +73,30 @@ async def test_notebook_never_brings_its_own_scripts(session, client):
 
 async def test_view_button_only_for_files_we_can_show(session, client):
     await _teacher(client)
-    await client.post("/theory", files=_upload("seminar.ipynb", PLAIN_NOTEBOOK))
-    await client.post("/theory", files=_upload("archive.zip", b"PK-archive"))
+    await client.post("/materials", files=_upload("seminar.ipynb", PLAIN_NOTEBOOK))
+    await client.post("/materials", files=_upload("archive.zip", b"PK-archive"))
 
-    assert (await client.get("/theory")).text.count("Смотреть") == 1
+    assert (await client.get("/materials")).text.count("Смотреть") == 1
 
     archive = await session.scalar(select(Material).where(Material.filename == "archive.zip"))
-    refused = await client.get(f"/theory/{archive.id}/view")
+    refused = await client.get(f"/materials/{archive.id}/view")
     assert "можно только скачать" in refused.text
 
 
 async def test_broken_notebook_falls_back_to_plain_text(session, client):
     await _teacher(client)
-    await client.post("/theory", files=_upload("broken.ipynb", b"{not json"))
+    await client.post("/materials", files=_upload("broken.ipynb", b"{not json"))
     item = await session.scalar(select(Material))
 
-    assert "{not json" in (await client.get(f"/theory/{item.id}/view")).text
+    assert "{not json" in (await client.get(f"/materials/{item.id}/view")).text
 
 
 async def test_markdown_file_is_rendered(session, client):
     await _teacher(client)
-    await client.post("/theory", files=_upload("notes.md", "# Лекция 3\n\nТекст.".encode()))
+    await client.post("/materials", files=_upload("notes.md", "# Лекция 3\n\nТекст.".encode()))
     item = await session.scalar(select(Material))
 
-    assert "<h1>Лекция 3</h1>" in (await client.get(f"/theory/{item.id}/view")).text
+    assert "<h1>Лекция 3</h1>" in (await client.get(f"/materials/{item.id}/view")).text
 
 
 async def test_stranger_cannot_view_a_group_material(session, client):
@@ -106,10 +106,10 @@ async def test_stranger_cannot_view_a_group_material(session, client):
     group = Group(title="Осень", join_code="VIEW01")
     session.add_all([group, User(display_name="Чужой", role=Role.student)])
     await session.commit()
-    await client.post("/theory", files=_upload("seminar.ipynb", PLAIN_NOTEBOOK),
+    await client.post("/materials", files=_upload("seminar.ipynb", PLAIN_NOTEBOOK),
                       data={"group_id": str(group.id)})
     item = await session.scalar(select(Material))
 
     await client.post("/logout")
     await client.post("/login/dev", data={"name": "Чужой"})
-    assert "не найден" in (await client.get(f"/theory/{item.id}/view")).text
+    assert "не найден" in (await client.get(f"/materials/{item.id}/view")).text

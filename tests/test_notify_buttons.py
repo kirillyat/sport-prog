@@ -50,8 +50,8 @@ def api(monkeypatch):
 def test_button_needs_a_public_address():
     assert notify.button_markup(*BUTTON) is not None
     # Локальный адрес Telegram не примет, да и нажать его с телефона нельзя.
-    assert notify.button_markup("Открыть", "http://localhost:8000/theory") is None
-    assert notify.button_markup("Открыть", "http://127.0.0.1:8000/theory") is None
+    assert notify.button_markup("Открыть", "http://localhost:8000/materials") is None
+    assert notify.button_markup("Открыть", "http://127.0.0.1:8000/materials") is None
     assert notify.button_markup("Открыть", "ftp://example.com/file") is None
 
 
@@ -68,12 +68,12 @@ async def test_message_carries_the_button(api):
 
 async def test_local_address_falls_back_to_a_link_in_the_text(api):
     fake = api()
-    local = ("Открыть на портале", "http://localhost:8000/theory")
+    local = ("Открыть на портале", "http://localhost:8000/materials")
     assert await notify.send_many([42], "Текст", local) == 1
 
     payload = fake.calls[0]
     assert "reply_markup" not in payload
-    assert 'href="http://localhost:8000/theory"' in payload["text"]
+    assert 'href="http://localhost:8000/materials"' in payload["text"]
 
 
 async def test_refused_button_is_retried_without_it(api):
@@ -104,7 +104,7 @@ def test_buttons_point_where_expected(monkeypatch):
     material = Material(id=4, title="Семинар", stored_name="a", filename="a.ipynb",
                         content_type="text/plain", size=1)
     assert notify.assignment_button(assignment)[1] == "https://sport.ai.msu.ru/assignments/7"
-    assert notify.material_button(material)[1] == "https://sport.ai.msu.ru/theory/4/view"
+    assert notify.material_button(material)[1] == "https://sport.ai.msu.ru/materials/4/view"
 
     # У анонса своя ссылка — она важнее портала.
     contest = Announcement(title="Раунд", url="https://codeforces.com/contest/1",
