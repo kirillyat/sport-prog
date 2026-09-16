@@ -24,7 +24,7 @@ def asset_version() -> str:
     return str(int(newest))
 
 
-# Логотип клуба: если в app/static/ лежит файл — берём его, иначе рисуем
+# Логотип портала: если в app/static/ лежит файл — берём его, иначе рисуем
 # встроенный знак. SVG предпочтительнее PNG: он не мылится на ретине.
 LOGO_NAMES = ("logo.svg", "logo.png", "logo.webp")
 LOGO_DARK_NAMES = ("logo-dark.svg", "logo-dark.png", "logo-dark.webp")

@@ -3,7 +3,7 @@
 {% block title %}Объявления — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <h1>Объявления</h1>
-<p class="sub">Анонс соревнования с отсчётом или новость клуба.</p>
+<p class="sub">Анонс соревнования с отсчётом или объявление.</p>
 
 <div class="card">
   <h3>{{ icon("megaphone") }} Новое объявление</h3>
@@ -38,7 +38,7 @@
       <div class="field">
         <label for="group_id">Кому</label>
         <select id="group_id" name="group_id">
-          <option value="">Всему клубу</option>
+          <option value="">Всем</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
@@ -62,7 +62,7 @@
           {{ item.title }}
           {% if item.url %}<br><a class="small mono" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url[:52] }}{% if item.url | length > 52 %}…{% endif %}</a>{% endif %}
         </td>
-        <td class="small muted">{{ item.group.title if item.group else "весь клуб" }}</td>
+        <td class="small muted">{{ item.group.title if item.group else "всем" }}</td>
         <td class="small muted">{{ item.starts_at | dt if item.starts_at else item.created_at | ago }}</td>
         <td>
           {% set state = item.state(now_ts) %}

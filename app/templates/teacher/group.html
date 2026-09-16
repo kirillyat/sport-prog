@@ -16,7 +16,7 @@
   <h3>{{ icon("send") }} Telegram-чат группы</h3>
   <p class="small muted" style="margin-top:0">
     Объявления и задания группы уйдут сюда. Id чата подскажет бот по
-    <span class="mono">/id</span>. Пусто — шлём в общий чат клуба.
+    <span class="mono">/id</span>. Пусто — шлём в общий чат.
   </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/chat" class="inline-form">
     <div class="field" style="flex:1; min-width:220px;">
@@ -89,7 +89,12 @@
   </div>
   <div>
     <h2>{{ icon("activity") }} Что решают</h2>
-    <div class="card">{{ feed_list(feed_items, show_day=False) }}</div>
+    <div class="card">
+      {{ feed_list(feed_items, show_day=False) }}
+      <p class="small muted" style="margin:10px 0 0">
+        Решения преподавателей здесь не показываются.
+      </p>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="auth-shell">
   {% if brand_mark %}
-  {# Только знак: название клуба на этой странице и так стоит заголовком. #}
+  {# Только знак: название портала на этой странице и так стоит заголовком. #}
   <div class="auth-logo bare">
     <span class="brand-mark auth-mark" role="img" aria-label="{{ settings.app_short_name }}"
           style="--mark: url('/static/{{ brand_mark }}?v={{ asset_version }}')"></span>

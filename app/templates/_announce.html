@@ -21,7 +21,7 @@
   </div>
 
   <div class="row small muted announce-meta">
-    <span class="badge">{{ item.group.title if item.group else "весь клуб" }}</span>
+    <span class="badge">{{ item.group.title if item.group else "всем" }}</span>
     {% if item.starts_at %}
       <span>{{ icon("calendar") }} {{ item.starts_at | dt }}{% if item.ends_at %} — {{ item.ends_at | dt("%H:%M") }}{% endif %}</span>
     {% else %}

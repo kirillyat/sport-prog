@@ -212,7 +212,7 @@ async def test_unconfirmed_user_cannot_join_a_group(session, client, monkeypatch
 
 
 async def test_unconfirmed_user_is_not_a_club_member(session, client, monkeypatch):
-    """Ни на табло, ни в клубном задании: в клуб он ещё не вступил."""
+    """Ни на табло, ни в общем задании: студенчество ещё не подтверждено."""
     from app.config import settings
     from app.models import Assignment, ProblemSet, Role
     from app.services.leaderboard import build_leaderboard

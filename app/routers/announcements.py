@@ -12,7 +12,7 @@ router = APIRouter(tags=["announcements"])
 
 
 def visible_announcements_stmt(user: User):
-    """Объявления клуба плюс объявления групп, в которых состоит пользователь."""
+    """Общие объявления плюс объявления групп, в которых состоит пользователь."""
     stmt = select(Announcement)
     if not user.is_teacher:
         my_groups = select(GroupMembership.group_id).where(GroupMembership.user_id == user.id)

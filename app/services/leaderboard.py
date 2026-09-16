@@ -1,4 +1,4 @@
-"""Табло клуба.
+"""Табло группы.
 
 Одна метрика: сколько задач из выданных человек закрыл до дедлайна. Задачи
 назначает преподаватель, и у всех в группе они одни и те же — поэтому
@@ -83,7 +83,7 @@ async def _group_member_ids(session: AsyncSession, group_id: int) -> set[int]:
 async def _users_in_scope(session: AsyncSession, group_id: int | None) -> list[User]:
     """Преподаватели вне рейтинга: они выдают задания, а не соревнуются.
 
-    Неподтверждённые тоже: пока вуз не подтверждён, человек в клуб не вступил.
+    Неподтверждённые тоже: пока вуз не подтверждён, человек не участник.
     """
     stmt = select(User).where(
         User.is_active.is_(True), User.role != Role.teacher, confirmed_clause()

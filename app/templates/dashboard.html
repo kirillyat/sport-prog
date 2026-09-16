@@ -6,14 +6,14 @@
 {% block content %}
 <p class="eyebrow">главная</p>
 <h1>Привет, {{ user.display_name }}</h1>
-<p class="sub">Задания и жизнь клуба.</p>
+<p class="sub">Задания, материалы и объявления.</p>
 
 {% if not confirmed %}
 <div class="card callout warn">
   <h3>{{ icon("shield") }} Подтверди, что ты студент МГУ</h3>
   <p class="small" style="margin:0 0 12px">
     Вход через {{ settings.oidc_provider_name }} открывает вступление в группы
-    и задания клуба.{% if settings.telegram_enabled %} Telegram остаётся для входа
+    и задания.{% if settings.telegram_enabled %} Telegram остаётся для входа
     и уведомлений.{% endif %}
   </p>
   <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} Войти через {{ settings.oidc_provider_name }}</a>

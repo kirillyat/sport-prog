@@ -1,6 +1,6 @@
 """Уведомления в Telegram.
 
-Адресат выбирается так: если у группы (или у клуба) задан общий чат — пишем
+Адресат выбирается так: если у группы (или общий) задан чат — пишем
 туда одним сообщением, иначе бот пишет каждому участнику лично. Личное задание
 всегда уходит только самому студенту.
 
@@ -113,7 +113,7 @@ async def _personal_chats(
         stmt = stmt.join(GroupMembership, GroupMembership.user_id == User.id).where(
             GroupMembership.group_id == group_id
         )
-    # Иначе адресат — весь клуб.
+    # Иначе адресат — все.
     return list((await session.execute(stmt)).scalars().all())
 
 

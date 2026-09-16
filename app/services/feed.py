@@ -19,6 +19,7 @@ from app.models import (
     Platform,
     Problem,
     ProblemSetItem,
+    Role,
     Submission,
     User,
 )
@@ -69,9 +70,13 @@ class FeedItem:
 async def visible_user_ids(
     session: AsyncSession, viewer: User, group_id: int | None = None
 ) -> list[int]:
-    """Чьи решения показываем: преподавателю — всех, студенту — только одногруппников."""
+    """Чьи решения показываем: преподавателю — всех студентов, студенту — одногруппников.
+
+    Преподавателей в ленте нет ни у кого, включая их самих: лента — про то, как
+    идёт группа, а решения преподавателя в этой картине только сбивают счёт.
+    """
     if viewer.is_teacher:
-        stmt = select(User.id).where(User.is_active.is_(True))
+        stmt = select(User.id).where(User.is_active.is_(True), User.role != Role.teacher)
         if group_id is not None:
             stmt = stmt.join(GroupMembership, GroupMembership.user_id == User.id).where(
                 GroupMembership.group_id == group_id
@@ -84,11 +89,16 @@ async def visible_user_ids(
     stmt = (
         select(GroupMembership.user_id)
         .join(User, User.id == GroupMembership.user_id)
-        .where(GroupMembership.group_id.in_(my_groups), User.is_active.is_(True))
+        .where(
+            GroupMembership.group_id.in_(my_groups),
+            User.is_active.is_(True),
+            User.role != Role.teacher,
+        )
         .distinct()
     )
     ids = set((await session.execute(stmt)).scalars().all())
-    ids.add(viewer.id)
+    if not viewer.is_teacher:
+        ids.add(viewer.id)
     return sorted(ids)
 
 

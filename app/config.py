@@ -13,8 +13,8 @@ INSECURE_SECRET = "dev-insecure-change-me"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Клуб спортивного программирования ФИИ МГУ"
-    app_short_name: str = "СП ФИИ МГУ"
+    app_name: str = "Алгоритмы ФИИ МГУ"
+    app_short_name: str = "Алгоритмы"
     display_timezone: str = "Europe/Moscow"
     base_url: str = "http://localhost:8000"
     secret_key: str = INSECURE_SECRET
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     telegram_bot_username: str = ""
     # Telegram id преподавателей через запятую. Id не меняется, в отличие от логина.
     teacher_telegram_ids: str = ""
-    # Чат или канал клуба для уведомлений (id вида -1001234567890). Пусто — не слать.
+    # Общий чат или канал для уведомлений (id вида -1001234567890). Пусто — не слать.
     telegram_notify_chat_id: str = ""
     # За сколько минут до старта события напоминать.
     reminder_minutes_before: int = 60

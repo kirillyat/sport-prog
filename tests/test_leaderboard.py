@@ -156,7 +156,7 @@ async def test_hard_deadline_leaves_nothing_for_latecomers(session, world):
 
 
 async def test_club_wide_assignment_counts_for_everyone(session, world):
-    """Задание без группы — для всего клуба."""
+    """Задание без группы — для всех."""
     session.add(Assignment(title="Всем", problem_set_id=world["set"].id, assigned_at=BASE))
     await session.commit()
     await _accept(session, world, world["borya"], world["problems"][0],

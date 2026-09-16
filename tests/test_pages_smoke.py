@@ -63,7 +63,7 @@ class GetForms(HTMLParser):
 
 @pytest.fixture
 async def world(session, client):
-    """Минимальный, но непустой клуб: группа, студент, список задач, задание."""
+    """Минимальный, но непустой портал: группа, студент, список задач, задание."""
     await client.post("/login/dev", data={"name": "Кирилл", "teacher": "true"})
     teacher = await session.scalar(select(User).where(User.display_name == "Кирилл"))
     teacher.role = Role.teacher

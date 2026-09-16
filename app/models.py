@@ -212,7 +212,7 @@ class Group(Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Telegram-чат группы для уведомлений. Пусто — уходит в общий чат клуба.
+    # Telegram-чат группы для уведомлений. Пусто — уходит в общий чат.
     telegram_chat_id: Mapped[str | None] = mapped_column(String(32))
 
     memberships: Mapped[list[GroupMembership]] = relationship(
@@ -282,7 +282,7 @@ class ProblemSetItem(Base):
 class Assignment(Base):
     __tablename__ = "assignments"
     __table_args__ = (
-        # Либо группа, либо один студент, либо (оба NULL) весь клуб.
+        # Либо группа, либо один студент, либо (оба NULL) все сразу.
         CheckConstraint(
             "group_id IS NULL OR user_id IS NULL",
             name="ck_assignment_single_target",
@@ -293,7 +293,7 @@ class Assignment(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     problem_set_id: Mapped[int] = mapped_column(ForeignKey("problem_sets.id", ondelete="CASCADE"))
-    # Обе ссылки пусты — задание для всего клуба.
+    # Обе ссылки пусты — задание для всех.
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     assigned_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -311,7 +311,7 @@ class Assignment(Base):
 
 
 class Announcement(Base):
-    """Объявление клуба: анонс контеста, сбор, организационная новость."""
+    """Объявление: анонс контеста, сбор, организационная новость."""
 
     __tablename__ = "announcements"
 
@@ -321,7 +321,7 @@ class Announcement(Base):
     # Ссылка на соревнование или регистрацию.
     url: Mapped[str | None] = mapped_column(String(500))
     url_label: Mapped[str | None] = mapped_column(String(80))
-    # NULL — объявление для всего клуба, иначе только для этой группы.
+    # NULL — объявление для всех, иначе только для этой группы.
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
     # К чему ведём обратный отсчёт и когда всё закончится.
     starts_at: Mapped[datetime | None] = mapped_column()
@@ -386,7 +386,7 @@ class Material(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
-    # Пусто — материал для всего клуба.
+    # Пусто — материал для всех.
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
     # Имя на диске — случайное: пользовательское в путь не попадает никогда.
     stored_name: Mapped[str] = mapped_column(String(80), unique=True)

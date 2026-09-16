@@ -4,7 +4,7 @@
 {% block content %}
 <h1>{{ assignment.title }}</h1>
 <p class="sub">
-  {{ assignment.group.title if assignment.group else ("персональное" if assignment.user_id else "весь клуб") }} ·
+  {{ assignment.group.title if assignment.group else ("персональное" if assignment.user_id else "всем") }} ·
   выдано {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
     · дедлайн {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} (жёсткий){% endif %}

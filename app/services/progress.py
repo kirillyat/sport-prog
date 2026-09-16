@@ -92,7 +92,7 @@ async def participants_for_assignment(session: AsyncSession, assignment: Assignm
             GroupMembership.group_id == assignment.group_id
         )
     else:
-        # Задание всему клубу: студенты, подтвердившие вуз. Преподаватель его выдал,
+        # Задание всем: студенты, подтвердившие вуз. Преподаватель его выдал,
         # а не получил, и в матрице ему делать нечего.
         stmt = stmt.where(User.role != Role.teacher, confirmed_clause())
     return list((await session.execute(stmt.order_by(User.display_name))).scalars().all())
@@ -195,7 +195,7 @@ async def assignments_for_user(session: AsyncSession, user: User) -> list[Assign
         .where(
             (Assignment.user_id == user.id)
             | (Assignment.group_id.in_(group_ids))
-            # Задание всему клубу: обе ссылки пусты.
+            # Задание всем: обе ссылки пусты.
             | ((Assignment.group_id.is_(None)) & (Assignment.user_id.is_(None))),
         )
         .order_by(Assignment.assigned_at.desc())

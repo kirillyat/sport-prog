@@ -133,7 +133,7 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
     stats = await user_stats(session, target)
     groups = await groups_for_user(session, target)
 
-    # Место в рейтинге и баллы — иначе профиль живёт отдельно от клуба.
+    # Место в рейтинге и баллы — иначе профиль живёт отдельно от табло.
     # Считаем в первой группе студента: общего табло у портала нет.
     accounts = list(
         (

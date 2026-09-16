@@ -211,3 +211,23 @@ async def test_leetcode_item_has_no_submission_link(session, world):
 
     item = (await build_feed(session, anya))[0]
     assert item.submission_url is None
+
+
+async def test_teachers_never_appear_in_the_feed(session, world):
+    """Лента про то, как идёт группа: решения преподавателя сбивают эту картину."""
+    teacher, problem = world["teacher"], world["problems"][0]
+    account = PlatformAccount(
+        user_id=teacher.id, platform=Platform.leetcode, handle="teacher", verified_at=BASE
+    )
+    session.add(account)
+    await session.commit()
+    session.add(Submission(
+        user_id=teacher.id, platform_account_id=account.id, platform=problem.platform,
+        external_id="t1", problem_id=problem.id, problem_slug=problem.slug,
+        problem_title=problem.title, verdict="Accepted", is_accepted=True, submitted_at=BASE,
+    ))
+    await session.commit()
+
+    # Ни студенту, ни самому преподавателю.
+    assert all(item.user.id != teacher.id for item in await build_feed(session, world["anya"]))
+    assert all(item.user.id != teacher.id for item in await build_feed(session, teacher))

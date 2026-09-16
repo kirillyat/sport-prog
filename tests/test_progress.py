@@ -180,7 +180,7 @@ async def test_hard_deadline_does_not_count_late_solves(session, world):
 
 
 async def test_club_wide_assignment_includes_everyone(session, world):
-    """Без группы и без студента — задание для всего клуба."""
+    """Без группы и без студента — задание для всех."""
     from app.models import Assignment
 
     assignment = Assignment(title="Всем", problem_set_id=world["set"].id, assigned_at=BASE)

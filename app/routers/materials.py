@@ -31,7 +31,7 @@ def _back(message: str | None = None, error: str | None = None) -> RedirectRespo
 async def _visible_to(session: SessionDep, user) -> list[Material]:
     stmt = select(Material).order_by(Material.published_at.desc())
     if not user.is_teacher:
-        # Материал без группы — общий для клуба, остальные только своей группе.
+        # Материал без группы — общий для всех, остальные только своей группе.
         mine = [g.id for g in await groups_for_user(session, user)]
         stmt = stmt.where(Material.group_id.is_(None) | Material.group_id.in_(mine))
     return list((await session.execute(stmt)).scalars().all())

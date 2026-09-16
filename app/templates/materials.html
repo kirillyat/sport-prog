@@ -26,7 +26,7 @@
       <div class="field">
         <label for="group_id">Кому</label>
         <select id="group_id" name="group_id">
-          <option value="">Всему клубу</option>
+          <option value="">Всем</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
@@ -47,7 +47,7 @@
   <div class="card material">
     <div class="row between" style="align-items:flex-start; gap:10px">
       <h3 style="margin:0">{{ icon("book") }} {{ item.title }}</h3>
-      <span class="badge">{{ item.group.title if item.group else "весь клуб" }}</span>
+      <span class="badge">{{ item.group.title if item.group else "всем" }}</span>
     </div>
     {% if item.description %}<p class="small" style="margin:8px 0 0">{{ item.description }}</p>{% endif %}
     <p class="small muted" style="margin:8px 0 0">

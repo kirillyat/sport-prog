@@ -3,7 +3,7 @@
 {% block title %}Задания — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <h1>Задания</h1>
-<p class="sub">Список задач с дедлайном — для группы, одного студента или всего клуба.</p>
+<p class="sub">Список задач с дедлайном — для группы, одного студента или всех сразу.</p>
 
 <div class="card">
   <h3>{{ icon("plus") }} Новое задание</h3>
@@ -27,7 +27,7 @@
       <div class="field">
         <label for="group_id">Кому</label>
         <select id="group_id" name="group_id">
-          <option value="">Всему клубу</option>
+          <option value="">Всем</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
@@ -74,7 +74,7 @@
     {% for assignment in assignments %}
       <tr>
         <td><a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a></td>
-        <td class="small muted">{{ assignment.group.title if assignment.group else ("персонально" if assignment.user_id else "весь клуб") }}</td>
+        <td class="small muted">{{ assignment.group.title if assignment.group else ("персонально" if assignment.user_id else "всем") }}</td>
         <td class="small muted">{{ assignment.assigned_at | ago }}</td>
         <td class="small muted">
           {% if assignment.deadline %}

@@ -179,3 +179,19 @@ async def test_markdown_tables_are_rendered(session, client):
     page = (await client.get(f"/materials/{item.id}/view")).text
     assert "<table>" in page and "<th>Операция</th>" in page
     assert "| Операция |" not in page
+
+
+async def test_svg_drawn_inside_markdown_is_shown(session, client):
+    """В конспектах блок-схемы вписаны в markdown разметкой — их надо показать."""
+    await _teacher(client)
+    svg = ("Блок-схема.\n\n<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'>"
+           "<circle r='3'/><script>alert(4)</script></svg>\n\nДальше текст.")
+    notebook = json.dumps({"cells": [{"cell_type": "markdown", "source": svg}]}).encode()
+    await client.post("/materials", files=_upload("lecture.ipynb", notebook))
+    item = await session.scalar(select(Material))
+
+    page = (await client.get(f"/materials/{item.id}/view")).text
+    assert 'src="data:image/svg+xml;base64,' in page
+    assert "Дальше текст." in page                 # текст вокруг рисунка не съеден
+    assert "circle r=" not in page                 # разметка svg на страницу не попала
+    assert "alert(4)" not in page                  # и скрипт из неё тоже

@@ -177,8 +177,31 @@ def _text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
+# Рисунок, вписанный в markdown-ячейку прямо разметкой: в конспектах так делают
+# блок-схемы. Сырой HTML мы не пускаем на страницу, поэтому вынимаем svg до
+# разбора и возвращаем уже картинкой.
+SVG_IN_MARKDOWN = re.compile(r"<svg\b[^>]*>.*?</svg>", re.S | re.I)
+
+# Метка из области для частного использования: в тексте конспекта её быть не может.
+_SVG_MARK = "\ue000svg{}\ue000"
+
+
 def render_markdown(source: str) -> str:
-    return _md.render(source)
+    found: list[str] = []
+
+    def stash(match: re.Match[str]) -> str:
+        found.append(match.group(0))
+        return f"\n\n{_SVG_MARK.format(len(found) - 1)}\n\n"
+
+    source = SVG_IN_MARKDOWN.sub(stash, source)
+    rendered = _md.render(source)
+    for index, svg in enumerate(found):
+        payload = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+        # Тот же приём, что и для вывода ячейки: внутри <img> svg не исполняет
+        # скрипты и не ходит наружу за ресурсами.
+        image = f'<img class="nb-img" src="data:{SVG_MIME};base64,{payload}" alt="рисунок">'
+        rendered = rendered.replace(_SVG_MARK.format(index), image)
+    return rendered
 
 
 def _output(raw: dict) -> Output | None:

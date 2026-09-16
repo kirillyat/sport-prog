@@ -327,7 +327,7 @@ async def test_assignment_form_creates_marathon(session, client):
     assert "Задание выдано" in response.text
 
     item = await session.scalar(select(Assignment))
-    assert item.group_id is None and item.user_id is None      # весь клуб
+    assert item.group_id is None and item.user_id is None      # всем
     assert item.hard_deadline is True
     assert item.deadline is not None
 
