@@ -166,3 +166,16 @@ async def test_svg_output_is_shown_as_an_image(session, client):
     assert 'src="data:image/svg+xml;base64,' in page
     # В разметку страницы svg не попал: внутри <img> он безопасен, инлайном — нет.
     assert "circle r=" not in page
+
+
+async def test_markdown_tables_are_rendered(session, client):
+    """В конспектах есть таблицы: без правила table они шли столбиком палок."""
+    await _teacher(client)
+    table = "| Операция | Действие |\n|---|---|\n| `a + b` | сумма |\n"
+    notebook = json.dumps({"cells": [{"cell_type": "markdown", "source": table}]}).encode()
+    await client.post("/materials", files=_upload("lecture.ipynb", notebook))
+    item = await session.scalar(select(Material))
+
+    page = (await client.get(f"/materials/{item.id}/view")).text
+    assert "<table>" in page and "<th>Операция</th>" in page
+    assert "| Операция |" not in page

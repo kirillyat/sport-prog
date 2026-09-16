@@ -116,6 +116,9 @@ def _render_math_block(self, tokens, idx, options, env):  # noqa: ARG001
 
 # html=False: сырой HTML внутри markdown экранируется, а не выполняется.
 _md = MarkdownIt("commonmark", {"html": False, "linkify": False, "typographer": False})
+# Таблицы и зачёркивание CommonMark не знает, а в конспектах они есть: без них
+# таблица операций показывалась столбиком палок.
+_md.enable(["table", "strikethrough"])
 _md.use(dollarmath_plugin, double_inline=True)
 _md.add_render_rule("math_inline", _render_math_inline)
 _md.add_render_rule("math_block", _render_math_block)

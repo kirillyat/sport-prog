@@ -563,6 +563,9 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .nb-md h1 { font-size: 22px; } .nb-md h2 { font-size: 18px; } .nb-md h3 { font-size: 15px; }
 .nb-md code { font-family: var(--mono); font-size: 12px; background: var(--inv-bg); color: var(--inv-text); padding: 1px 4px; }
 .nb-md pre code { background: none; color: inherit; padding: 0; }
+.nb-md table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; display: block; overflow-x: auto; }
+.nb-md th, .nb-md td { border: 1px solid var(--line-soft); padding: 5px 9px; text-align: left; vertical-align: top; }
+.nb-md th { font-family: var(--display); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 2px solid var(--line); }
 .nb-md blockquote { margin: 10px 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--text-2); }
 .nb-code { border: 2px solid var(--ink); position: relative; }
 .nb-lang { position: absolute; top: 0; right: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; background: var(--inv-bg); color: var(--inv-text); padding: 2px 7px; }
