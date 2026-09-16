@@ -99,6 +99,12 @@ class SolveStatus(enum.StrEnum):
     solved_before = "solved_before"      # решена до выдачи задания — не засчитываем
 
 
+class ReviewStatus(enum.StrEnum):
+    pending = "pending"     # прислано, ждёт преподавателя
+    accepted = "accepted"
+    rejected = "rejected"   # зачёт по этой задаче снимается
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -301,6 +307,9 @@ class Assignment(Base):
     # Жёсткий дедлайн: после срока решение не засчитывается вовсе. Так делаются марафоны.
     hard_deadline: Mapped[bool] = mapped_column(Boolean, default=False)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    # Требовать вместе с посылкой сам текст решения файлом. Нужно там, где
+    # платформа исходник не отдаёт: у LeetCode его видно только автору.
+    requires_solution: Mapped[bool] = mapped_column(Boolean, default=False)
     # Засчитывать решения, сделанные ДО выдачи задания. По умолчанию нет.
     count_prior_solves: Mapped[bool] = mapped_column(Boolean, default=False)
     # Когда напомнили о дедлайне. Пусто — ещё не напоминали.
@@ -412,6 +421,41 @@ class Material(Base):
         if self.size < 1024 * 1024:
             return f"{self.size / 1024:.0f} КБ"
         return f"{self.size / 1024 / 1024:.1f} МБ"
+
+
+class SolutionUpload(Base):
+    """Решение задачи, присланное студентом файлом.
+
+    Одно на пару «задание × задача»: повторная отправка заменяет файл и снова
+    отправляет его на проверку. Отклонённое решение снимает зачёт по задаче —
+    иначе проверка была бы отметкой без последствий.
+    """
+
+    __tablename__ = "solution_uploads"
+    __table_args__ = (
+        UniqueConstraint(
+            "assignment_id", "problem_id", "user_id", name="uq_solution_per_problem"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), index=True
+    )
+    problem_id: Mapped[int] = mapped_column(ForeignKey("problems.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    filename: Mapped[str] = mapped_column(String(200))
+    stored_name: Mapped[str] = mapped_column(String(80))
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    submitted_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    status: Mapped[ReviewStatus] = mapped_column(
+        EnumStr(ReviewStatus), default=ReviewStatus.pending
+    )
+    comment: Mapped[str | None] = mapped_column(String(500))
+    reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    reviewed_at: Mapped[datetime | None] = mapped_column()
 
 
 class BonusPoint(Base):

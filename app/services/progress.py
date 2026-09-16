@@ -13,7 +13,9 @@ from app.models import (
     GroupMembership,
     Problem,
     ProblemSetItem,
+    ReviewStatus,
     Role,
+    SolutionUpload,
     SolveStatus,
     Submission,
     User,
@@ -27,14 +29,23 @@ class Cell:
     status: SolveStatus = SolveStatus.not_solved
     solved_at: datetime | None = None
     first_ever_at: datetime | None = None
+    # Проверка присланного решения. None — задание файла не требует либо
+    # студент его ещё не прислал.
+    review: ReviewStatus | None = None
+
+    @property
+    def rejected(self) -> bool:
+        return self.review == ReviewStatus.rejected
 
     @property
     def counts(self) -> bool:
         """Засчитывается ли решение в прогресс по заданию."""
-        return self.status in SOLVED_STATUSES
+        return self.status in SOLVED_STATUSES and not self.rejected
 
     @property
     def icon(self) -> str:
+        if self.rejected:
+            return "✗"
         return {
             SolveStatus.solved_in_time: "✓",
             SolveStatus.solved_late: "✓",
@@ -174,6 +185,14 @@ async def compute_progress(
         [p.id for p in problems],
         assignment.assigned_at,
     )
+    reviews: dict[tuple[int, int], ReviewStatus] = {}
+    if assignment.requires_solution:
+        stmt = select(
+            SolutionUpload.user_id, SolutionUpload.problem_id, SolutionUpload.status
+        ).where(SolutionUpload.assignment_id == assignment.id)
+        for user_id, problem_id, status in (await session.execute(stmt)).all():
+            reviews[(user_id, problem_id)] = status
+
     for (user_id, problem_id), (first_ever, first_after) in times.items():
         status, solved_at = _status(
             first_ever,
@@ -183,7 +202,10 @@ async def compute_progress(
             assignment.hard_deadline,
         )
         progress.cells[(user_id, problem_id)] = Cell(
-            status=status, solved_at=solved_at, first_ever_at=first_ever
+            status=status,
+            solved_at=solved_at,
+            first_ever_at=first_ever,
+            review=reviews.get((user_id, problem_id)),
         )
     return progress
 

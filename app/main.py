@@ -23,6 +23,7 @@ from app.routers import (
     feed,
     leaderboard,
     materials,
+    solutions,
     student,
     teacher,
 )
@@ -101,6 +102,7 @@ app.include_router(announcements.router)
 app.include_router(feed.router)
 app.include_router(materials.router, dependencies=[Depends(section_required("materials"))])
 app.include_router(course.router, dependencies=[Depends(section_required("course"))])
+app.include_router(solutions.router)
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
 

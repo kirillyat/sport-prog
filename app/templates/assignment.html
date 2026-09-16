@@ -22,11 +22,27 @@
   </div>
 </div>
 
+{% if ok %}<div class="flash ok">{{ icon("check") }}<span>{{ ok }}</span></div>{% endif %}
+{% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
+
+{% if assignment.requires_solution %}
+<div class="card callout">
+  <h3>{{ icon("shield") }} К задачам нужно прислать решение</h3>
+  <p class="small" style="margin:0">
+    Кроме посылки на платформе приложите сам текст решения: {{ solution_hint }},
+    до {{ solution_mb }} МБ. Преподаватель его читает; отклонённое решение снимает
+    зачёт по задаче. Прислать можно повторно — тогда проверка начнётся заново.
+  </p>
+</div>
+{% endif %}
+
 {% if problems %}
 <div class="card table-wrap" style="padding:6px">
   <table>
     <thead>
-      <tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Статус</th><th>Когда</th><th>Первым</th></tr>
+      <tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Статус</th><th>Когда</th>
+        {% if assignment.requires_solution %}<th>Решение</th>{% endif %}
+        <th>Первым</th></tr>
     </thead>
     <tbody>
     {% for problem in problems %}
@@ -52,6 +68,30 @@
           {% elif cell.first_ever_at %}{{ cell.first_ever_at | ago }}
           {% else %}—{% endif %}
         </td>
+        {% if assignment.requires_solution %}
+        {% set mine = my_solutions.get(problem.id) %}
+        <td class="small">
+          {% if mine %}
+            {% if mine.status.value == "accepted" %}
+              <a class="badge ok" href="/solutions/{{ mine.id }}">{{ icon("check") }} принято</a>
+            {% elif mine.status.value == "rejected" %}
+              <a class="badge err" href="/solutions/{{ mine.id }}">{{ icon("alert") }} отклонено</a>
+            {% else %}
+              <a class="badge warn" href="/solutions/{{ mine.id }}">{{ icon("clock") }} на проверке</a>
+            {% endif %}
+            <br>
+          {% endif %}
+          <form method="post" enctype="multipart/form-data"
+                action="/assignments/{{ assignment.id }}/solutions/{{ problem.id }}"
+                class="row" style="gap:6px; margin-top:4px">
+            <input type="file" name="file" required
+                   style="max-width:190px; font-size:11px">
+            <button class="ghost small" type="submit">
+              {{ icon("plus") }} {{ "Заменить" if mine else "Прислать" }}
+            </button>
+          </form>
+        </td>
+        {% endif %}
         <td class="small">
           {% set first = progress.first_solver(problem.id) %}
           {% if first %}<a class="badge first" href="/u/{{ first.id }}">{{ icon("flame") }}{{ first.display_name }}</a>

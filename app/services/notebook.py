@@ -26,7 +26,7 @@ from markdown_it import MarkdownIt
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from pygments import highlight as pygments_highlight
 from pygments.formatters import HtmlFormatter
-from pygments.lexers import get_lexer_by_name
+from pygments.lexers import get_lexer_by_name, get_lexer_for_filename
 from pygments.util import ClassNotFound
 
 # Разметка MathML, которую пропускаем наружу. Список закрытый: latex2mathml
@@ -124,6 +124,17 @@ _md.add_render_rule("math_inline", _render_math_inline)
 _md.add_render_rule("math_block", _render_math_block)
 _md.add_render_rule("math_inline_double", _render_math_inline)
 _md.add_render_rule("math_block_label", _render_math_block)
+
+
+def highlight_file(source: str, filename: str) -> str:
+    """Подсветка исходника: язык определяем по расширению файла."""
+    if len(source) > MAX_HIGHLIGHT_BYTES:
+        return html.escape(source)
+    try:
+        lexer = get_lexer_for_filename(filename, source)
+    except ClassNotFound:
+        return html.escape(source)
+    return pygments_highlight(source, lexer, _formatter)
 
 
 def highlight(source: str, language: str) -> str:

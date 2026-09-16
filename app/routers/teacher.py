@@ -18,15 +18,18 @@ from app.models import (
     Group,
     GroupMembership,
     Platform,
+    Problem,
     ProblemSet,
     ProblemSetItem,
+    ReviewStatus,
     Role,
+    SolutionUpload,
     Submission,
     User,
     utcnow,
 )
 from app.routers.leaderboard import PERIODS
-from app.services import export, features
+from app.services import export, features, solutions
 from app.services.catalog import get_state, problem_count, sync_catalog
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
@@ -224,6 +227,47 @@ async def remove_member(session: SessionDep, user: TeacherUser, group_id: int, u
         await session.delete(membership)
         await session.commit()
     return _redirect(f"/teacher/groups/{group_id}", message="Студент+исключён")
+
+
+async def _review_rows(session: SessionDep, uploads: list) -> list[dict]:
+    """Подтягиваем к решениям автора, задачу и задание одним проходом."""
+    rows = []
+    for upload in uploads:
+        rows.append(
+            {
+                "upload": upload,
+                "author": await session.get(User, upload.user_id),
+                "problem": await session.get(Problem, upload.problem_id),
+                "assignment": await session.get(Assignment, upload.assignment_id),
+            }
+        )
+    return rows
+
+
+@router.get("/reviews")
+async def reviews_page(request: Request, session: SessionDep, user: TeacherUser):
+    waiting = await solutions.pending(session)
+    done = list(
+        (
+            await session.execute(
+                select(SolutionUpload)
+                .where(SolutionUpload.status != ReviewStatus.pending)
+                .order_by(SolutionUpload.reviewed_at.desc())
+                .limit(20)
+            )
+        ).scalars()
+    )
+    return templates.TemplateResponse(
+        request,
+        "teacher/reviews.html",
+        {
+            "user": user,
+            "rows": await _review_rows(session, waiting),
+            "reviewed": await _review_rows(session, done),
+            "ok": request.query_params.get("ok"),
+            "error": request.query_params.get("err"),
+        },
+    )
 
 
 @router.get("/features")
@@ -452,6 +496,7 @@ async def create_assignment(
     deadline: str = Form(""),
     hard_deadline: bool = Form(False),
     count_prior_solves: bool = Form(False),
+    requires_solution: bool = Form(False),
 ):
     """Все правила задаются здесь: потом меняются только название и описание."""
     title = title.strip()
@@ -482,6 +527,7 @@ async def create_assignment(
         hard_deadline=hard_deadline,
         created_by_id=user.id,
         count_prior_solves=count_prior_solves,
+        requires_solution=requires_solution,
     )
     session.add(assignment)
     await session.commit()

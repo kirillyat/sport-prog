@@ -20,6 +20,7 @@ from app.models import (
     utcnow,
 )
 from app.routers.announcements import upcoming_for_dashboard
+from app.services import solutions
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import (
@@ -104,6 +105,12 @@ async def assignment_detail(
     # кто закрыл задачу первым.
     everyone = await participants_for_assignment(session, assignment)
     progress = await compute_progress(session, assignment, everyone or [user])
+
+    mine: dict[int, object] = {}
+    if assignment.requires_solution:
+        found = await solutions.for_assignment(session, assignment.id, [user.id])
+        mine = {problem_id: upload for (_, problem_id), upload in found.items()}
+
     return templates.TemplateResponse(
         request,
         "assignment.html",
@@ -112,6 +119,11 @@ async def assignment_detail(
             "assignment": assignment,
             "progress": progress,
             "problems": progress.problems,
+            "my_solutions": mine,
+            "solution_hint": solutions.EXTENSIONS_HINT,
+            "solution_mb": solutions.MAX_BYTES // 1024 // 1024,
+            "ok": request.query_params.get("ok"),
+            "error": request.query_params.get("err"),
         },
     )
 
