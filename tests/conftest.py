@@ -48,6 +48,7 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     from app import ticker
     from app.db import get_session
     from app.main import app
+    from app.services import features
 
     async def _override() -> AsyncIterator[AsyncSession]:
         yield session
@@ -55,6 +56,7 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     app.dependency_overrides[get_session] = _override
     # Middleware строки событий открывает сессии сам, минуя dependency override.
     monkeypatch.setattr(ticker, "SessionLocal", db)
+    monkeypatch.setattr(features, "SessionLocal", db)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://test", follow_redirects=True

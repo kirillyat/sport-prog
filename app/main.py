@@ -7,14 +7,14 @@ import mimetypes
 from collections.abc import AsyncIterator
 from urllib.parse import quote
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.bot import run_bot
 from app.config import settings
-from app.deps import Forbidden, RedirectToLogin
+from app.deps import Forbidden, RedirectToLogin, section_required
 from app.routers import (
     accounts,
     announcements,
@@ -27,6 +27,7 @@ from app.routers import (
     teacher,
 )
 from app.scheduler import run_scheduler
+from app.services import features
 from app.templating import STATIC_DIR, templates
 from app.ticker import load_ticker
 
@@ -98,8 +99,8 @@ app.include_router(student.router)
 app.include_router(accounts.router)
 app.include_router(announcements.router)
 app.include_router(feed.router)
-app.include_router(materials.router)
-app.include_router(course.router)
+app.include_router(materials.router, dependencies=[Depends(section_required("materials"))])
+app.include_router(course.router, dependencies=[Depends(section_required("course"))])
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
 
@@ -112,6 +113,17 @@ async def attach_ticker(request: Request, call_next):
     except Exception:  # строка — украшение, страницу из-за неё не роняем
         logger.exception("не удалось собрать ticker")
         request.state.ticker = None
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def attach_features(request: Request, call_next):
+    """Какие разделы показывать этому человеку — нужно рейке на каждой странице."""
+    try:
+        request.state.sections_on = await features.load_for_request(request)
+    except Exception:  # флаги не должны ронять страницу; молчим и показываем всё
+        logger.exception("не удалось прочитать флаги разделов")
+        request.state.sections_on = {section.key for section in features.SECTIONS}
     return await call_next(request)
 
 

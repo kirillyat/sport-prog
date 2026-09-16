@@ -233,6 +233,21 @@ class GroupMembership(Base):
     user: Mapped[User] = relationship(back_populates="memberships")
 
 
+class FeatureFlag(Base):
+    """Видимость раздела портала: отдельно студентам, отдельно преподавателям.
+
+    Строки нет — раздел открыт всем: пустая таблица означает портал в полном
+    составе, и это правильное поведение по умолчанию для нового стенда.
+    """
+
+    __tablename__ = "feature_flags"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    for_students: Mapped[bool] = mapped_column(Boolean, default=True)
+    for_teachers: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
 class ProblemSet(Base):
     __tablename__ = "problem_sets"
 

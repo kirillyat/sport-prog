@@ -38,9 +38,12 @@ def _find_asset(names: tuple[str, ...]) -> str | None:
         if (STATIC_DIR / name).is_file():
             return name
     return None
+from app.services.features import features_context  # noqa: E402
 from app.ticker import ticker_context  # noqa: E402
 
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR), context_processors=[ticker_context])
+templates = Jinja2Templates(
+    directory=str(TEMPLATES_DIR), context_processors=[ticker_context, features_context]
+)
 
 try:
     LOCAL_TZ = ZoneInfo(settings.display_timezone)

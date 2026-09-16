@@ -26,7 +26,7 @@ from app.models import (
     utcnow,
 )
 from app.routers.leaderboard import PERIODS
-from app.services import export
+from app.services import export, features
 from app.services.catalog import get_state, problem_count, sync_catalog
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
@@ -224,6 +224,43 @@ async def remove_member(session: SessionDep, user: TeacherUser, group_id: int, u
         await session.delete(membership)
         await session.commit()
     return _redirect(f"/teacher/groups/{group_id}", message="Студент+исключён")
+
+
+@router.get("/features")
+async def features_page(request: Request, session: SessionDep, user: TeacherUser):
+    flags = await features.load(session)
+    rows = [
+        {
+            "section": section,
+            "for_students": flags.get(section.key, features.DEFAULT)[0],
+            "for_teachers": flags.get(section.key, features.DEFAULT)[1],
+        }
+        for section in features.SECTIONS
+    ]
+    return templates.TemplateResponse(
+        request,
+        "teacher/features.html",
+        {
+            "user": user,
+            "rows": rows,
+            "ok": request.query_params.get("ok"),
+            "error": request.query_params.get("err"),
+        },
+    )
+
+
+@router.post("/features")
+async def save_features(request: Request, session: SessionDep, user: TeacherUser):
+    """Галочки приходят только для включённых — остальное считаем выключенным."""
+    form = await request.form()
+    for section in features.SECTIONS:
+        await features.save(
+            session,
+            section.key,
+            for_students=f"{section.key}:students" in form,
+            for_teachers=f"{section.key}:teachers" in form,
+        )
+    return _redirect("/teacher/features", message="Видимость+разделов+сохранена")
 
 
 @router.post("/groups/{group_id}/archive")

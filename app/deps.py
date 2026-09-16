@@ -66,3 +66,16 @@ async def require_teacher(request: Request, session: SessionDep) -> User:
 CurrentUser = Annotated[User, Depends(require_user)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 TeacherUser = Annotated[User, Depends(require_teacher)]
+
+
+def section_required(key: str):
+    """Закрытый раздел не должен открываться по прямому адресу — проверяем на сервере."""
+
+    async def guard(session: SessionDep, user: CurrentUser) -> None:
+        from app.services import features
+
+        if not features.allows(await features.load(session), key, user):
+            raise Forbidden("Раздел сейчас закрыт преподавателем", user)
+
+    return guard
+

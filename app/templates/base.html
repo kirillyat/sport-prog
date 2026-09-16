@@ -34,8 +34,8 @@
 {%- endmacro %}
 {% macro navitems() -%}
   {{ navlink("/", "tasks", "Задания") }}
-  {{ navlink("/materials", "book", "Материалы") }}
-  {% if course_available %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
+  {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
+  {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
   {{ navlink("/announcements", "megaphone", "Анонсы") }}
   {{ navlink("/feed", "activity", "Лента") }}
   {{ navlink("/leaderboard", "trophy", "Лидерборд") }}

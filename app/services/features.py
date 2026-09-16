@@ -1,0 +1,111 @@
+"""Видимость разделов портала: флаги для студентов и преподавателей отдельно.
+
+Зачем: раздел бывает готов у преподавателя раньше, чем у студентов, — курс
+выложен наполовину, материалы ещё правятся. Вместо выкладки по кускам
+преподаватель закрывает раздел студентам и открывает, когда готов.
+
+Флага в базе нет — раздел открыт всем. Поэтому новый стенд поднимается
+в полном составе, а таблица наполняется только осознанными запретами.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.db import SessionLocal
+from app.models import FeatureFlag, User, utcnow
+from app.security import read_session
+
+
+@dataclass(frozen=True, slots=True)
+class Section:
+    key: str
+    title: str
+    path: str
+    hint: str
+
+
+# Что вообще можно закрыть. Добавить раздел — добавить строку сюда.
+SECTIONS: tuple[Section, ...] = (
+    Section("materials", "Материалы", "/materials",
+            "Ноутбуки с семинаров, конспекты и разборы, которые выкладывает преподаватель"),
+    Section("course", "Курс", "/course",
+            "Недели курса «Алгоритмы и структуры данных» с конспектами и практиками"),
+)
+
+SECTION_BY_KEY = {section.key: section for section in SECTIONS}
+
+# Раздел, про который в базе ничего не сказано, открыт обеим ролям.
+DEFAULT = (True, True)
+
+Flags = dict[str, tuple[bool, bool]]
+
+
+async def load(session: AsyncSession) -> Flags:
+    rows = (await session.execute(select(FeatureFlag))).scalars().all()
+    return {row.key: (row.for_students, row.for_teachers) for row in rows}
+
+
+async def save(session: AsyncSession, key: str, *, for_students: bool, for_teachers: bool) -> None:
+    if key not in SECTION_BY_KEY:
+        return
+    stmt = sqlite_insert(FeatureFlag).values(
+        key=key, for_students=for_students, for_teachers=for_teachers, updated_at=utcnow()
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[FeatureFlag.key],
+        set_={
+            "for_students": stmt.excluded.for_students,
+            "for_teachers": stmt.excluded.for_teachers,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+
+def allows(flags: Flags, key: str, user: User | None) -> bool:
+    """Открыт ли раздел этому человеку. Роль решает, какой из двух флагов смотреть."""
+    if key not in SECTION_BY_KEY:
+        return True
+    for_students, for_teachers = flags.get(key, DEFAULT)
+    if user is None:
+        return False
+    return for_teachers if user.is_teacher else for_students
+
+
+def visible(flags: Flags, user: User | None) -> set[str]:
+    return {section.key for section in SECTIONS if allows(flags, section.key, user)}
+
+
+# --- то же самое, но для каждой страницы ------------------------------------
+#
+# Рейка слева рисуется в base.html, то есть флаги нужны любому шаблону. Берём
+# их в middleware — как и бегущую строку, — и кладём в контекст. Запрос к SQLite
+# тут копеечный: в таблице столько строк, сколько закрытых разделов.
+
+SKIP_PREFIXES = ("/static", "/healthz", "/login", "/logout")
+
+
+async def load_for_request(request) -> set[str]:
+    if request.method != "GET" or request.url.path.startswith(SKIP_PREFIXES):
+        return set()
+    token = request.cookies.get(settings.session_cookie)
+    user_id = read_session(token) if token else None
+    if user_id is None:
+        return set()
+
+    async with SessionLocal() as session:
+        user = await session.get(User, user_id)
+        if user is None or not user.is_active:
+            return set()
+        return visible(await load(session), user)
+
+
+def features_context(request) -> dict:
+    return {"sections_on": getattr(request.state, "sections_on", None) or set()}
