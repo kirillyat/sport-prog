@@ -8,21 +8,22 @@
     <h1>Лидерборд</h1>
     <p class="sub">
       {% if my_place and rows | length > 1 %}Твоё место — <strong>{{ my_place }}</strong> из {{ rows | length }}.{% endif %}
-      В зачёт идут задачи, решённые после выдачи и до дедлайна.
+      Табло считается по группе: у разных групп разные задания, общий зачёт
+      сравнивал бы несравнимое. В зачёт идут задачи, решённые после выдачи и до дедлайна.
       При равном счёте выше тот, кто закончил раньше.
     </p>
   </div>
   {% if user.is_teacher %}
   <a class="btn ghost small" style="align-self:flex-end"
-     href="/teacher/export/leaderboard.csv?group_id={{ group_id or "" }}&period={{ period }}">
+     href="/teacher/export/leaderboard.csv?group_id={{ group_id }}&period={{ period }}">
     {{ icon("download") }} CSV
   </a>
   {% endif %}
+  {% if groups %}
   <form method="get" action="/leaderboard" class="inline-form">
     <div class="field">
       <label for="group_id">Группа</label>
       <select id="group_id" name="group_id" onchange="this.form.submit()">
-        <option value="">Все</option>
         {% for group in groups %}
         <option value="{{ group.id }}" {% if group_id == group.id %}selected{% endif %}>{{ group.title }}</option>
         {% endfor %}
@@ -37,7 +38,10 @@
       </select>
     </div>
   </form>
+  {% endif %}
 </div>
+
+{% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
 
 {% if rows %}
 {# Подиум имеет смысл от трёх участников и только когда кто-то что-то решил. #}
@@ -90,6 +94,11 @@
     </tbody>
   </table>
 </div>
+{% elif not groups %}
+<div class="card">{{ empty("users",
+  "Табло считается по группе. " ~ ("Заведи группу и выдай ей задание." if user.is_teacher
+  else "Вступи в группу по коду от преподавателя — тогда появится и табло."),
+  "/teacher/groups" if user.is_teacher else "/", "К группам" if user.is_teacher else "На главную") }}</div>
 {% else %}
 <div class="card">{{ empty("trophy", "Пока никого. Нужны назначенные задания и решённые задачи.") }}</div>
 {% endif %}

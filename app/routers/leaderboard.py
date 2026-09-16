@@ -39,10 +39,12 @@ async def leaderboard_page(
     else:
         groups = await groups_for_user(session, user)
 
-    if group_id is not None and all(g.id != group_id for g in groups):
-        group_id = None
+    # Общего табло нет: сравнивать студентов из разных групп не за что —
+    # задания у них разные. Не выбрана группа или выбрана чужая — берём первую свою.
+    if group_id is None or all(g.id != group_id for g in groups):
+        group_id = groups[0].id if groups else None
 
-    rows = await build_leaderboard(session, group_id=group_id, since=since)
+    rows = await build_leaderboard(session, group_id=group_id, since=since) if group_id else []
     my_place = next((i + 1 for i, r in enumerate(rows) if r.user.id == user.id), None)
 
     return templates.TemplateResponse(
@@ -56,5 +58,6 @@ async def leaderboard_page(
             "period": period,
             "periods": PERIODS,
             "my_place": my_place,
+            "error": request.query_params.get("err"),
         },
     )

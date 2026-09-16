@@ -10,7 +10,15 @@ from sqlalchemy import func, select
 from app.access import is_confirmed
 from app.config import settings
 from app.deps import CurrentUser, SessionDep
-from app.models import Assignment, Group, GroupMembership, Platform, User, utcnow
+from app.models import (
+    Assignment,
+    Group,
+    GroupMembership,
+    Platform,
+    PlatformAccount,
+    User,
+    utcnow,
+)
 from app.routers.announcements import upcoming_for_dashboard
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
@@ -126,7 +134,19 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
     groups = await groups_for_user(session, target)
 
     # Место в рейтинге и баллы — иначе профиль живёт отдельно от клуба.
-    board = await build_leaderboard(session)
+    # Считаем в первой группе студента: общего табло у портала нет.
+    accounts = list(
+        (
+            await session.execute(
+                select(PlatformAccount)
+                .where(PlatformAccount.user_id == target.id)
+                .order_by(PlatformAccount.platform)
+            )
+        ).scalars()
+    )
+
+    place_group = groups[0] if groups else None
+    board = await build_leaderboard(session, group_id=place_group.id) if place_group else []
     place = next((i + 1 for i, row in enumerate(board) if row.user.id == target.id), None)
     score = next((row for row in board if row.user.id == target.id), None)
 
@@ -156,6 +176,8 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
             "groups": groups,
             "place": place,
             "place_of": len(board),
+            "place_group": place_group,
+            "accounts": accounts,
             "score": score,
             "assignment_cards": assignment_cards,
             "recent": await build_feed(session, viewer, only_user=target, limit=5),
@@ -163,10 +185,10 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
             "can_rename": viewer.id == target.id or viewer.is_teacher,
             "can_sync": bool(
                 (viewer.id == target.id or viewer.is_teacher)
-                and [a for a in target.accounts if a.is_verified]
+                and [a for a in accounts if a.is_verified]
             ),
             "last_synced": max(
-                (a.last_synced_at for a in target.accounts if a.last_synced_at), default=None
+                (a.last_synced_at for a in accounts if a.last_synced_at), default=None
             ),
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),

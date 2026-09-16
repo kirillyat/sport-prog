@@ -77,7 +77,7 @@ async def world(session, client):
 
 
 async def test_leaderboard_export_has_a_row_per_student(client, world):
-    response = await client.get("/teacher/export/leaderboard.csv")
+    response = await client.get(f"/teacher/export/leaderboard.csv?group_id={world['group'].id}")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert "attachment" in response.headers["content-disposition"]
@@ -93,13 +93,15 @@ async def test_leaderboard_export_has_a_row_per_student(client, world):
     assert by_name["Боря"][9] == "нет"
 
 
-async def test_leaderboard_export_respects_the_group_filter(client, world, session):
+async def test_leaderboard_export_is_always_about_one_group(client, world, session):
+    """Общего табло нет, поэтому и выгрузки «по всем» тоже: без группы — отказ."""
     outsider = User(display_name="Вова", role=Role.student)
     session.add(outsider)
     await session.commit()
 
-    everyone = decode((await client.get("/teacher/export/leaderboard.csv")).content)
-    assert {row[1] for row in everyone[1:]} == {"Аня", "Боря", "Вова"}
+    without_group = await client.get("/teacher/export/leaderboard.csv")
+    assert not without_group.headers["content-type"].startswith("text/csv")
+    assert "Выбери группу" in without_group.text
 
     group_id = world["group"].id
     narrowed = await client.get(f"/teacher/export/leaderboard.csv?group_id={group_id}")

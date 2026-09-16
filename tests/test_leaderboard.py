@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from app.models import (
     Assignment,
@@ -261,3 +262,45 @@ async def test_teachers_stay_out_of_the_ranking(session, world):
 
     in_group = await build_leaderboard(session, group_id=world["group"].id)
     assert [r.user.display_name for r in in_group] == ["Боря"]
+
+
+# --- страница табло: только по группам ---------------------------------------
+
+
+async def _login(client, name, teacher=False):
+    data = {"name": name}
+    if teacher:
+        data["teacher"] = "true"
+    await client.post("/login/dev", data=data)
+
+
+async def test_board_page_has_no_all_option(session, client):
+    """Общего зачёта нет: у разных групп разные задания, сравнивать нечего."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Осень"})
+
+    page = (await client.get("/leaderboard")).text
+    assert '<option value="">Все</option>' not in page
+    assert "Осень" in page
+
+
+async def test_board_defaults_to_the_first_own_group(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group).where(Group.title == "Алгоритмы"))
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    await client.post("/groups/join", data={"join_code": group.join_code})
+
+    page = (await client.get("/leaderboard")).text
+    assert f'value="{group.id}" selected' in page
+
+
+async def test_student_without_groups_sees_an_explanation(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/logout")
+    await _login(client, "Аня")
+
+    page = (await client.get("/leaderboard")).text
+    assert "Вступи в группу" in page

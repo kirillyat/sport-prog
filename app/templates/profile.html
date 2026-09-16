@@ -56,9 +56,9 @@
       {% for group in groups %}<span class="badge">{{ group.title }}</span>{% endfor %}
       {% if not groups %}<span>без группы</span>{% endif %}
     </div>
-    {% if target.accounts %}
+    {% if accounts %}
     <div class="row small" style="margin-top:8px">
-      {% for account in target.accounts %}
+      {% for account in accounts %}
         <a class="badge {{ 'ok' if account.is_verified else 'warn' }}"
            href="{{ account.profile_url }}" target="_blank" rel="noopener">
           {{ icon("code") }}{{ account.platform.title }}: {{ account.handle }}
@@ -83,7 +83,8 @@
     {% if score %}
     <div class="value">{{ score.solved }}{% if score.assigned %}<span class="of">/{{ score.assigned }}</span>{% endif %}</div>
     <div class="label">
-      задач зачтено{% if place and place_of > 1 %} · {{ place }}-е место из {{ place_of }}{% endif %}
+      задач зачтено{% if place and place_of > 1 %} ·
+      {{ place }}-е место из {{ place_of }}{% if place_group %} в «{{ place_group.title }}»{% endif %}{% endif %}
     </div>
     {% else %}
     <div class="value">—</div>

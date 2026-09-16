@@ -534,6 +534,8 @@ async def export_assignment(session: SessionDep, user: TeacherUser, assignment_i
 async def export_leaderboard(
     session: SessionDep, user: TeacherUser, group_id: OptionalInt = None, period: str = "all"
 ):
+    if group_id is None:
+        return _redirect("/leaderboard", error="Выбери+группу:+общего+табло+нет")
     days = PERIODS.get(period, PERIODS["all"])[1]
     since = utcnow() - timedelta(days=days) if days else None
     rows = await build_leaderboard(session, group_id=group_id, since=since)
