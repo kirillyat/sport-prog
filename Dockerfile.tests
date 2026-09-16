@@ -1,0 +1,24 @@
+# Образ для прогона тестов на сервере перед выкаткой.
+#
+# Зависимости те же, что у приложения, плюс pytest и ruff. Код внутрь не
+# копируем — его подкладывают томом при запуске: тогда слой с зависимостями
+# переиспользуется, пока не менялся pyproject, и прогон не начинается
+# с установки пакетов.
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app \
+    RUFF_CACHE_DIR=/tmp/ruff
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+RUN pip install --upgrade pip \
+ && python -c "import tomllib;print(chr(10).join(tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']))" > /tmp/requirements.txt \
+ && pip install -r /tmp/requirements.txt \
+ && pip install pytest pytest-asyncio ruff
+
+# Кеш pytest в примонтированный код не пишем: он подключается только на чтение.
+CMD ["pytest", "-q", "-p", "no:cacheprovider"]
