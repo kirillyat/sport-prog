@@ -232,3 +232,21 @@ async def test_student_cannot_review(session, client, world):
     assert "может преподаватель" in response.text
     await session.refresh(upload)
     assert upload.status == ReviewStatus.pending
+
+
+async def test_matrix_shows_who_has_not_sent_a_file(session, client, world):
+    """Преподавателю нужен список должников, а не только крестики в клетках."""
+    await _login(client, "Кирилл", teacher=True)
+    page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
+    assert "Решения" in page
+    assert "не сдал 1" in page
+
+    await client.post("/logout")
+    await _login(client, "Аня")
+    await _send(client, world)
+    await client.post("/logout")
+
+    await _login(client, "Кирилл", teacher=True)
+    page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
+    assert "не сдал" not in page          # долг закрыт
+    assert "1/1" in page                  # прислано столько же, сколько задач

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import secrets
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import select
@@ -162,6 +163,40 @@ async def review(
     upload.reviewed_by_id = reviewer_id
     upload.reviewed_at = utcnow()
     await session.commit()
+
+
+@dataclass(slots=True)
+class Tally:
+    """Сколько решений студент прислал по заданию и что с ними стало."""
+
+    total: int = 0          # задач в задании
+    sent: int = 0
+    waiting: int = 0
+    rejected: int = 0
+
+    @property
+    def missing(self) -> int:
+        return self.total - self.sent
+
+    @property
+    def complete(self) -> bool:
+        return self.missing == 0 and self.rejected == 0
+
+
+def tally(
+    uploads: dict[tuple[int, int], SolutionUpload], user_id: int, problem_ids: list[int]
+) -> Tally:
+    out = Tally(total=len(problem_ids))
+    for problem_id in problem_ids:
+        upload = uploads.get((user_id, problem_id))
+        if upload is None:
+            continue
+        out.sent += 1
+        if upload.status == ReviewStatus.pending:
+            out.waiting += 1
+        elif upload.status == ReviewStatus.rejected:
+            out.rejected += 1
+    return out
 
 
 async def pending(session: AsyncSession, limit: int = 100) -> list[SolutionUpload]:

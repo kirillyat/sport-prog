@@ -50,6 +50,7 @@
                title="{{ problem.title }}">{{ loop.index }}</a></th>
         {% endfor %}
         <th>Итого</th>
+        {% if assignment.requires_solution %}<th>Решения</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -63,12 +64,26 @@
         </td>
         {% for problem in progress.problems %}
           {% set cell = progress.cell(student.id, problem.id) %}
-          <td><span class="cell {{ cell.status.value }}"
-                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else 'не решено' }}">
-            {% if cell.counts %}{{ icon("check") }}{% elif cell.status == SolveStatus.solved_before %}•{% endif %}
+          {% set upload = uploads.get((student.id, problem.id)) if assignment.requires_solution %}
+          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}"
+                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else 'не решено' }}{% if assignment.requires_solution %} · {{ 'решение не сдано' if not upload else 'решение: ' ~ upload.status.value }}{% endif %}">
+            {% if upload %}<a href="/solutions/{{ upload.id }}">{{ cell.icon }}</a>
+            {% elif cell.counts %}{{ icon("check") }}
+            {% elif cell.status == SolveStatus.solved_before %}•{% endif %}
           </span></td>
         {% endfor %}
         <td class="num"><strong>{{ progress.solved_count(student.id) }}/{{ progress.total_problems }}</strong></td>
+        {% if assignment.requires_solution %}
+        {% set tally = files.get(student.id) %}
+        <td class="small">
+          {% if tally %}
+            <span class="{{ 'muted' if tally.complete }}">{{ tally.sent }}/{{ tally.total }}</span>
+            {% if tally.missing %}<span class="badge bad" title="не прислал файл">{{ icon("alert") }} не сдал {{ tally.missing }}</span>{% endif %}
+            {% if tally.waiting %}<span class="badge warn" title="ждёт проверки">{{ icon("clock") }} {{ tally.waiting }}</span>{% endif %}
+            {% if tally.rejected %}<span class="badge err" title="отклонено — зачёт снят">{{ icon("alert") }} {{ tally.rejected }}</span>{% endif %}
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        {% endif %}
       </tr>
     {% endfor %}
     </tbody>

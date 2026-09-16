@@ -553,10 +553,30 @@ async def assignment_matrix(
 
     participants = await participants_for_assignment(session, assignment)
     progress = await compute_progress(session, assignment, participants)
+
+    files: dict[int, solutions.Tally] = {}
+    uploads: dict[tuple[int, int], SolutionUpload] = {}
+    if assignment.requires_solution:
+        uploads = await solutions.for_assignment(
+            session, assignment.id, [p.id for p in participants]
+        )
+        problem_ids = [p.id for p in progress.problems]
+        files = {
+            student.id: solutions.tally(uploads, student.id, problem_ids)
+            for student in participants
+        }
+
     return templates.TemplateResponse(
         request,
         "teacher/assignment.html",
-        {"user": user, "assignment": assignment, "progress": progress, **_flash(request)},
+        {
+            "user": user,
+            "assignment": assignment,
+            "progress": progress,
+            "files": files,
+            "uploads": uploads,
+            **_flash(request),
+        },
     )
 
 
