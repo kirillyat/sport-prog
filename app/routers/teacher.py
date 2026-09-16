@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import string
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse, Response
@@ -184,6 +185,19 @@ async def group_detail(request: Request, session: SessionDep, user: TeacherUser,
         .where(Assignment.group_id == group_id)
         .order_by(Assignment.assigned_at.desc()),
     )
+    # Кого можно добавить: активные студенты, которых в группе ещё нет.
+    # Преподавателей не предлагаем — в матрице им делать нечего.
+    in_group = select(GroupMembership.user_id).where(GroupMembership.group_id == group_id)
+    candidates = await _all(
+        session,
+        select(User)
+        .where(
+            User.is_active.is_(True),
+            User.role != Role.teacher,
+            User.id.not_in(in_group),
+        )
+        .order_by(User.display_name),
+    )
     return templates.TemplateResponse(
         request,
         "teacher/group.html",
@@ -191,6 +205,7 @@ async def group_detail(request: Request, session: SessionDep, user: TeacherUser,
             "user": user,
             "group": group,
             "members": members,
+            "candidates": candidates,
             "assignments": assignments,
             "feed_items": await build_feed(session, user, group_id=group_id, limit=20),
             **_flash(request),
@@ -214,6 +229,38 @@ async def set_group_chat(
     await session.commit()
     message = "Чат+группы+сохранён" if chat else "Чат+группы+отвязан"
     return _redirect(f"/teacher/groups/{group_id}", message=message)
+
+
+@router.post("/groups/{group_id}/members")
+async def add_member(
+    session: SessionDep, user: TeacherUser, group_id: int, user_id: int = Form(...)
+):
+    """Добавить студента в группу руками: код вступления подходит не всем.
+
+    Кто-то приходит в середине семестра, кого-то перевели из другой группы,
+    а кто-то просто не дошёл до кода. Списывать это на самообслуживание —
+    значит оставлять преподавателя без инструмента.
+    """
+    group = await session.get(Group, group_id)
+    if group is None:
+        return _redirect("/teacher/groups", error="Группа+не+найдена")
+
+    student = await session.get(User, user_id)
+    if student is None or not student.is_active:
+        return _redirect(f"/teacher/groups/{group_id}", error="Студент+не+найден")
+    if student.is_teacher:
+        return _redirect(f"/teacher/groups/{group_id}", error="Преподавателя+в+группу+не+добавляем")
+
+    existing = await session.scalar(
+        select(GroupMembership).where(
+            GroupMembership.group_id == group_id, GroupMembership.user_id == user_id
+        )
+    )
+    if existing is None:
+        session.add(GroupMembership(group_id=group_id, user_id=user_id))
+        await session.commit()
+    name = quote(student.display_name)
+    return _redirect(f"/teacher/groups/{group_id}", message=f"{name}+в+группе")
 
 
 @router.post("/groups/{group_id}/remove/{user_id}")

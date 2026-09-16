@@ -30,6 +30,26 @@
 {% endif %}
 
 <h2>{{ icon("users") }} Состав ({{ members | length }})</h2>
+{% if candidates %}
+<div class="card">
+  <form method="post" action="/teacher/groups/{{ group.id }}/members" class="inline-form">
+    <div class="field" style="flex:1; min-width:240px">
+      <label for="user_id">Добавить студента</label>
+      <select id="user_id" name="user_id" required>
+        <option value="" disabled selected>выбери из списка</option>
+        {% for student in candidates %}
+        <option value="{{ student.id }}">{{ student.display_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit">{{ icon("plus") }} Добавить</button>
+  </form>
+  <p class="small muted" style="margin:8px 0 0">
+    Обычно студент вступает сам по коду <span class="badge mono">{{ group.join_code }}</span>.
+    Вручную — когда человек пришёл в середине семестра или перешёл из другой группы.
+  </p>
+</div>
+{% endif %}
 {% if members %}
 <div class="card table-wrap" style="padding:6px">
   <table>

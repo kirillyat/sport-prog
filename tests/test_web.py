@@ -597,3 +597,62 @@ async def test_student_cannot_remove_anyone(session, client):
     assert await session.scalar(
         select(GroupMembership).where(GroupMembership.user_id == anya.id)
     )
+
+
+async def test_teacher_adds_a_student_to_a_group(session, client):
+    """Код вступления подходит не всем: кто-то приходит в середине семестра."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+
+    await _login(client, "Аня")          # просто вошла, в группу не вступала
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    await client.post("/logout")
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.get(f"/teacher/groups/{group.id}")
+    assert "Добавить студента" in page.text and "Аня" in page.text
+
+    response = await client.post(f"/teacher/groups/{group.id}/members", data={"user_id": anya.id})
+    assert "в группе" in response.text
+    assert await session.scalar(
+        select(GroupMembership).where(
+            GroupMembership.group_id == group.id, GroupMembership.user_id == anya.id
+        )
+    )
+
+
+async def test_adding_the_same_student_twice_is_harmless(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+    await _login(client, "Аня")
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    await client.post("/logout")
+
+    await _login(client, "Кирилл", teacher=True)
+    for _ in range(2):
+        await client.post(f"/teacher/groups/{group.id}/members", data={"user_id": anya.id})
+
+    rows = list(
+        (
+            await session.execute(
+                select(GroupMembership).where(GroupMembership.user_id == anya.id)
+            )
+        ).scalars()
+    )
+    assert len(rows) == 1
+
+
+async def test_student_cannot_add_anyone_to_a_group(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    response = await client.post(f"/teacher/groups/{group.id}/members", data={"user_id": anya.id})
+    assert "только для преподавателя" in response.text
