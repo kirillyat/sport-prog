@@ -23,4 +23,6 @@ jobs:
     runs-on: algo
     steps:
       - name: Забрать main и выкатить
-        run: /usr/local/bin/sport-autodeploy
+        # Дублируем вывод в общий лог: тогда историю видно и в интерфейсе
+        # Gitea, и на сервере — вперемешку с выкатками по таймеру.
+        run: /usr/local/bin/sport-autodeploy 2>&1 | tee -a /srv/autodeploy.log
