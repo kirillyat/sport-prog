@@ -234,6 +234,36 @@ p.sub { color: var(--text-2); margin: 0 0 24px; max-width: 64ch; font-size: 15px
 a.card { display: block; color: inherit; transition: background .12s, color .12s; }
 a.card:hover { background: var(--inv-bg); color: var(--inv-text); text-decoration: none; }
 a.card:hover .muted, a.card:hover h3 .icon { color: inherit; opacity: .85; }
+
+/* ============================================================
+   Инвертированные блоки: карточка под курсором, шаг онбординга,
+   закреплённое объявление.
+
+   Меняем сами переменные, а не каждый вложенный элемент: бейдж, полоса
+   прогресса и линейки красятся «чернилами», и на чёрном фоне они просто
+   исчезали. Правка по месту чинила бы то, что уже есть, и ломалась бы
+   на каждой новой детали внутри.
+   ============================================================ */
+a.card:hover, .step:hover, .announce.pinned, .podium-card.p1 {
+  --ink: var(--inv-text);
+  --text: var(--inv-text);
+  --text-2: var(--inv-text);
+  --muted: var(--inv-text);
+  --line: var(--inv-text);
+  --line-soft: color-mix(in srgb, var(--inv-text) 35%, transparent);
+  --panel: var(--inv-bg);
+  --panel-2: var(--inv-bg);
+}
+/* Заливка бейджа внутри такого блока стала бы фоном в фон — оставляем контур. */
+a.card:hover .badge, .step:hover .badge,
+.announce.pinned .badge, .podium-card.p1 .badge {
+  background: transparent; color: var(--inv-text); border-color: var(--inv-text);
+}
+/* Красный несёт смысл сам по себе — его не трогаем. */
+a.card:hover .badge.bad, .step:hover .badge.bad,
+.announce.pinned .badge.bad, .podium-card.p1 .badge.bad {
+  background: var(--err); color: var(--err-text); border-color: var(--err);
+}
 .card.stretch { display: flex; flex-direction: column; }
 .card.stretch .push-bottom { margin-top: auto; padding-top: 12px; }
 .callout { border-left-width: 14px; }
