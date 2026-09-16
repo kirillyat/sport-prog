@@ -5,7 +5,7 @@ import hashlib
 import httpx
 from sqlalchemy import select
 
-from app.models import Group, Platform, Problem, Role, User
+from app.models import Group, GroupMembership, Platform, Problem, Role, User
 from app.templating import gravatar_url
 
 
@@ -524,3 +524,76 @@ async def test_accounts_page_without_bot_hides_telegram(session, client, monkeyp
     page = await client.get("/accounts")
     assert "Способы входа" in page.text
     assert "/login/telegram/link" not in page.text
+
+
+async def test_student_can_be_in_several_groups(session, client):
+    """Кодов может быть два: членство не заменяется, а добавляется."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    await client.post("/teacher/groups", data={"title": "Структуры"})
+    groups = list((await session.execute(select(Group).order_by(Group.title))).scalars())
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    for group in groups:
+        await client.post("/groups/join", data={"join_code": group.join_code})
+
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    mine = list(
+        (
+            await session.execute(
+                select(GroupMembership).where(GroupMembership.user_id == anya.id)
+            )
+        ).scalars()
+    )
+    assert len(mine) == 2
+    page = (await client.get("/")).text
+    assert "Алгоритмы" in page and "Структуры" in page
+
+
+async def test_teacher_removes_student_from_one_group_only(session, client):
+    """Исключение из группы не выкидывает студента из остальных и не трогает решения."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    await client.post("/teacher/groups", data={"title": "Структуры"})
+    algo, structures = list(
+        (await session.execute(select(Group).order_by(Group.title))).scalars()
+    )
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    await client.post("/groups/join", data={"join_code": algo.join_code})
+    await client.post("/groups/join", data={"join_code": structures.join_code})
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    await client.post("/logout")
+
+    await _login(client, "Кирилл", teacher=True)
+    response = await client.post(f"/teacher/groups/{algo.id}/remove/{anya.id}")
+    assert response.status_code == 200
+
+    left = list(
+        (
+            await session.execute(
+                select(GroupMembership).where(GroupMembership.user_id == anya.id)
+            )
+        ).scalars()
+    )
+    assert [m.group_id for m in left] == [structures.id]
+
+
+async def test_student_cannot_remove_anyone(session, client):
+    """Исключение — право преподавателя, и проверяется оно на сервере."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    await client.post("/groups/join", data={"join_code": group.join_code})
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+
+    response = await client.post(f"/teacher/groups/{group.id}/remove/{anya.id}")
+    assert "только для преподавателя" in response.text
+    assert await session.scalar(
+        select(GroupMembership).where(GroupMembership.user_id == anya.id)
+    )
