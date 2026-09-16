@@ -1,36 +1,13 @@
-# Выкатка портала через Gitea Actions.
-#
-# Раннер зарегистрирован с меткой `algo:host` и выполняет шаги прямо на нашей
-# виртуалке, а не в контейнере. Это сделано намеренно: выкатка и так живёт
-# в скриптах на этой машине, и запускать их из контейнера значило бы городить
-# docker внутри docker ради того же самого.
-#
-# Тесты прогоняются внутри sport-deploy, до подмены контейнера: сломанное
-# просто не доедет до прода.
-#
-# Важно: наличие каталога .gitea/workflows отключает .github/workflows для
-# Gitea — тамошний ci.yml остаётся для GitHub и здесь не запускается.
 name: Выкатка
 
 on:
   push:
     branches: [main]
-  # Ручной запуск кнопкой «Run workflow» на вкладке Actions.
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: algo
-    defaults:
-      run:
-        # Шага checkout у нас нет, поэтому рабочего каталога задачи не
-        # существует — без этой строки act падает молча, ещё до команды.
-        working-directory: /srv/sport
     steps:
-      - name: Забрать main и выкатить
-        # Вывод дублируем в общий лог сервера: тогда историю видно и в Gitea,
-        # и на машине — там же, где выкатки по таймеру.
-        run: |
-          { echo "=== $(date -Is) задача Actions ==="; id; echo "PATH=$PATH"; \
-            ls -l /usr/local/bin/sport-autodeploy; } >> /srv/actions-debug.log 2>&1
-          /usr/local/bin/sport-autodeploy >> /srv/autodeploy.log 2>&1
+      - name: Проба
+        run: echo "привет с раннера"
