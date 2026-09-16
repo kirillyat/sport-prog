@@ -299,6 +299,26 @@ async def set_gravatar(
     return RedirectResponse("/me?ok=" + quote(word), status_code=303)
 
 
+@router.post("/groups/{group_id}/leave")
+async def leave_group(session: SessionDep, user: CurrentUser, group_id: int):
+    """Выйти из группы. Вернуться можно тем же кодом, так что подтверждения нет."""
+    membership = await session.scalar(
+        select(GroupMembership).where(
+            GroupMembership.group_id == group_id, GroupMembership.user_id == user.id
+        )
+    )
+    if membership is None:
+        return RedirectResponse("/?err=Ты+не+в+этой+группе", status_code=303)
+
+    group = await session.get(Group, group_id)
+    await session.delete(membership)
+    await session.commit()
+    title = quote(group.title if group else "группа")
+    return RedirectResponse(
+        f"/?ok={title}:+ты+вышел.+Вернуться+можно+по+коду+группы", status_code=303
+    )
+
+
 @router.post("/groups/join")
 async def join_group(session: SessionDep, user: CurrentUser, join_code: str = Form(...)):
     if not is_confirmed(user):

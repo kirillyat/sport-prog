@@ -656,3 +656,40 @@ async def test_student_cannot_add_anyone_to_a_group(session, client):
     anya = await session.scalar(select(User).where(User.display_name == "Аня"))
     response = await client.post(f"/teacher/groups/{group.id}/members", data={"user_id": anya.id})
     assert "только для преподавателя" in response.text
+
+
+async def test_student_leaves_a_group_and_can_come_back(session, client):
+    """Выход возвращается тем же кодом, поэтому подтверждения у кнопки нет."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    await client.post("/groups/join", data={"join_code": group.join_code})
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+
+    page = await client.get("/")
+    assert f"/groups/{group.id}/leave" in page.text
+
+    left = await client.post(f"/groups/{group.id}/leave")
+    assert "ты вышел" in left.text
+    assert not await session.scalar(
+        select(GroupMembership).where(GroupMembership.user_id == anya.id)
+    )
+
+    await client.post("/groups/join", data={"join_code": group.join_code})
+    assert await session.scalar(
+        select(GroupMembership).where(GroupMembership.user_id == anya.id)
+    )
+
+
+async def test_leaving_a_foreign_group_changes_nothing(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Алгоритмы"})
+    group = await session.scalar(select(Group))
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    response = await client.post(f"/groups/{group.id}/leave")
+    assert "не в этой группе" in response.text

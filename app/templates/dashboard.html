@@ -80,7 +80,17 @@
     <h2>{{ icon("users") }} Группы</h2>
     <div class="card">
       {% if groups %}
-        <p style="margin-top:0">{% for group in groups %}<span class="badge info">{{ group.title }}</span> {% endfor %}</p>
+        <div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:12px">
+          {% for group in groups %}
+          <span class="row" style="gap:4px; flex-wrap:nowrap">
+            <span class="badge info">{{ group.title }}</span>
+            <form method="post" action="/groups/{{ group.id }}/leave">
+              <button class="ghost small" type="submit"
+                      title="выйти из группы — вернуться можно по коду">{{ icon("logout") }}</button>
+            </form>
+          </span>
+          {% endfor %}
+        </div>
       {% else %}
         <p class="small muted" style="margin-top:0">Ты пока не состоишь ни в одной группе.</p>
       {% endif %}
