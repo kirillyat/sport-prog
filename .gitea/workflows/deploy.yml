@@ -21,6 +21,11 @@ on:
 jobs:
   deploy:
     runs-on: algo
+    defaults:
+      run:
+        # Шага checkout у нас нет, поэтому рабочего каталога задачи не
+        # существует — без этой строки act падает молча, ещё до команды.
+        working-directory: /srv/sport
     steps:
       - name: Забрать main и выкатить
         # Вывод дублируем в общий лог сервера: тогда историю видно и в Gitea,
