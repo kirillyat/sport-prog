@@ -54,7 +54,9 @@ async def test_notebook_shows_markdown_code_and_images(session, client):
     page = (await client.get(f"/materials/{item.id}/view")).text
     assert "<h2>Сортировки</h2>" in page                      # markdown отрисован
     assert "<strong>вставок</strong>" in page
-    assert "print(&#39;привет&#39;)" in page                  # код экранирован
+    # Код подсвечен Pygments: имя и строка — в своих тегах.
+    assert '<span class="nb">print</span>' in page
+    assert '<span class="s1">\'привет\'</span>' in page
     assert 'src="data:image/png;base64,iVBORw0KGgo="' in page
     assert "ValueError: нет" in page and ESC not in page      # без служебных кодов цвета
 
@@ -113,3 +115,54 @@ async def test_stranger_cannot_view_a_group_material(session, client):
     await client.post("/logout")
     await client.post("/login/dev", data={"name": "Чужой"})
     assert "не найден" in (await client.get(f"/materials/{item.id}/view")).text
+
+
+NB_MATH_AND_SVG = json.dumps({
+    "nbformat": 4,
+    "metadata": {"language_info": {"name": "python"}},
+    "cells": [
+        {"cell_type": "markdown",
+         "source": "Сложность $O(n \\log n)$.\n\n$$\n\\sum_{i=1}^{n} a_i\n$$\n"},
+        {"cell_type": "markdown", "source": "$\\text{<img src=x onerror=alert(3)>}$"},
+        {"cell_type": "code", "source": "plot()\n", "outputs": [
+            {"output_type": "display_data",
+             "data": {"image/svg+xml":
+                      "<svg xmlns='http://www.w3.org/2000/svg'><circle r='4'/></svg>"}},
+        ]},
+    ],
+}).encode()
+
+
+async def test_formulas_become_mathml(session, client):
+    """Формулы рисует браузер сам: MathML вместо доллара с исходником."""
+    await _teacher(client)
+    await client.post("/materials", files=_upload("lecture.ipynb", NB_MATH_AND_SVG))
+    item = await session.scalar(select(Material))
+
+    page = (await client.get(f"/materials/{item.id}/view")).text
+    assert "<math" in page
+    assert "$O(n \\log n)$" not in page          # исходник не показываем
+    assert 'class="math-block"' in page          # выключная формула — отдельным блоком
+
+
+async def test_math_cannot_smuggle_a_tag(session, client):
+    """latex2mathml пропускает содержимое \\text{...} как есть — чистим сами."""
+    await _teacher(client)
+    await client.post("/materials", files=_upload("lecture.ipynb", NB_MATH_AND_SVG))
+    item = await session.scalar(select(Material))
+
+    page = (await client.get(f"/materials/{item.id}/view")).text
+    assert "onerror" not in page
+    assert "<img src=x" not in page
+
+
+async def test_svg_output_is_shown_as_an_image(session, client):
+    """SVG внутри <img> не исполняет скрипты и не ходит наружу — так и отдаём."""
+    await _teacher(client)
+    await client.post("/materials", files=_upload("lecture.ipynb", NB_MATH_AND_SVG))
+    item = await session.scalar(select(Material))
+
+    page = (await client.get(f"/materials/{item.id}/view")).text
+    assert 'src="data:image/svg+xml;base64,' in page
+    # В разметку страницы svg не попал: внутри <img> он безопасен, инлайном — нет.
+    assert "circle r=" not in page

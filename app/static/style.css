@@ -43,6 +43,12 @@
   --accent: #1d4ed8;     /* только ссылки */
   --err: #c1121f;        /* только ошибки, просрочка, live */
   --err-text: #ffffff;
+  /* Подсветка кода: словарь такой же скупой, как и весь портал —
+     структура начертанием, литералы цветом ссылки, комментарии тише. */
+  --code-key: #111111;
+  --code-str: #1d4ed8;
+  --code-com: #6e6030;
+  --code-num: #7a4b00;
 
   --rule: 3px;
   --display: "Unbounded", "Arial Black", Impact, sans-serif;
@@ -74,6 +80,10 @@
     --accent: #9dbcff;
     --err: #ff5a5a;
     --err-text: #111111;
+    --code-key: #f4c430;
+    --code-str: #9dbcff;
+    --code-com: #a8975a;
+    --code-num: #e8b96a;
   }
   :root[data-theme="auto"] .only-light { display: none; }
   :root[data-theme="auto"] .only-dark { display: block; }
@@ -96,6 +106,10 @@
   --accent: #9dbcff;
   --err: #ff5a5a;
   --err-text: #111111;
+  --code-key: #f4c430;
+  --code-str: #9dbcff;
+  --code-com: #a8975a;
+  --code-num: #e8b96a;
 }
 :root[data-theme="dark"] .only-light { display: none; }
 :root[data-theme="dark"] .only-dark { display: block; }
@@ -556,3 +570,18 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .nb-out { border-top: 2px dashed var(--line); color: var(--text-2); white-space: pre-wrap; }
 .nb-img { display: block; max-width: 100%; border-top: 2px dashed var(--line); padding: 12px 14px; }
 .nb-raw { white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px; overflow-x: auto; margin: 0; }
+
+/* Подсветка кода (классы Pygments). Цветов немного: смысл несёт начертание. */
+.nb-code .k, .nb-code .kn, .nb-code .kc, .nb-code .kd, .nb-code .kr, .nb-code .ow { color: var(--code-key); font-weight: 700; }
+.nb-code .nf, .nb-code .nc, .nb-code .nd { color: var(--code-key); font-weight: 600; }
+.nb-code .s, .nb-code .s1, .nb-code .s2, .nb-code .sb, .nb-code .sd, .nb-code .se, .nb-code .sh, .nb-code .si, .nb-code .sx, .nb-code .sr, .nb-code .ss { color: var(--code-str); }
+.nb-code .c, .nb-code .c1, .nb-code .cm, .nb-code .cs, .nb-code .cp { color: var(--code-com); font-style: italic; }
+.nb-code .m, .nb-code .mi, .nb-code .mf, .nb-code .mh, .nb-code .mo, .nb-code .il { color: var(--code-num); }
+.nb-code .nb, .nb-code .bp { color: var(--code-key); }
+.nb-code .err { color: var(--err); }
+
+/* Формулы. MathML браузер рисует сам — нам остаются размер и прокрутка. */
+.nb-md math, .nb-out math { font-size: 1.05em; }
+.math-block { display: block; overflow-x: auto; margin: 12px 0; text-align: center; }
+.math-block math { font-size: 1.15em; }
+.math-raw { font-family: var(--mono); font-size: 12px; color: var(--err); }

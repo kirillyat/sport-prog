@@ -7,9 +7,10 @@
     {% elif cell.kind == "code" %}
       <div class="nb-code">
         <span class="nb-lang">{{ cell.language }}</span>
-        <pre><code>{{ cell.source }}</code></pre>
+        <pre><code>{{ cell.html | safe }}</code></pre>
         {% for out in cell.outputs %}
           {% if out.kind == "text" %}<pre class="nb-out">{{ out.text }}</pre>
+          {% elif out.kind == "math" %}<div class="nb-out math-block">{{ out.text | safe }}</div>
           {% elif out.kind == "image" %}<img class="nb-img" src="{{ out.src }}" alt="вывод ячейки">
           {% else %}<p class="small muted nb-out">{{ out.text }} — смотри в скачанном файле</p>
           {% endif %}
@@ -21,7 +22,7 @@
   {% endfor %}
 </div>
 <p class="small muted">
-  Показ упрощённый: формулы остаются в исходном виде, интерактивный вывод не
-  рисуется. Полный ноутбук — в скачанном файле.
+  Показ упрощённый: интерактивный вывод — виджеты, таблицы pandas, графики
+  с масштабированием — не рисуется. Полный ноутбук — в скачанном файле.
 </p>
 {%- endmacro %}

@@ -24,6 +24,12 @@ dependencies = [
     "itsdangerous>=2.2,<3",
     # Показ ноутбуков и конспектов. Чистый Python, html внутри markdown экранирует.
     "markdown-it-py>=3,<4",
+    # Формулы $...$ в markdown — отдельным типом токенов, а не регуляркой.
+    "mdit-py-plugins>=0.4,<1",
+    # TeX → MathML: формулы рисует сам браузер, ни JS, ни шрифтов не нужно.
+    "latex2mathml>=3.77,<4",
+    # Подсветка кода на сервере — по той же причине.
+    "pygments>=2.18,<3",
 ]
 
 [tool.setuptools]
