@@ -54,7 +54,7 @@
                title="{{ problem.title }}">{{ loop.index }}</a></th>
         {% endfor %}
         <th>{{ _("Итого") }}</th>
-        {% if assignment.requires_solution %}<th>{{ _("Решения") }}</th>{% endif %}
+        {% if assignment.requires_solution %}<th>{{ _("Код") }}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -69,9 +69,9 @@
         {% for problem in progress.problems %}
           {% set cell = progress.cell(student.id, problem.id) %}
           {% set upload = uploads.get((student.id, problem.id)) if assignment.requires_solution %}
-          {% set no_file = assignment.requires_solution and not upload %}
-          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}{{ ' no-file' if no_file }}"
-                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else _('не решено') }}{% if assignment.requires_solution %} · {{ _('решение не сдано') if not upload else _('решение:') ~ ' ' ~ upload.status.value }}{% endif %}">
+          {% set no_code = assignment.requires_solution and not upload %}
+          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}{{ ' no-code' if no_code }}"
+                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else _('не решено') }}{% if assignment.requires_solution %} · {{ _('код не сдан') if not upload else _('код:') ~ ' ' ~ upload.status.value }}{% endif %}">
             {% if upload %}<a href="/solutions/{{ upload.id }}">{{ cell.icon }}</a>
             {% elif cell.counts %}{{ icon("check") }}
             {% elif cell.status == SolveStatus.solved_before %}•{% endif %}
@@ -83,7 +83,7 @@
         <td class="small">
           {% if tally %}
             <span class="{{ 'muted' if tally.complete }}">{{ tally.sent }}/{{ tally.total }}</span>
-            {% if tally.missing %}<span class="badge bad" title="{{ _("не прислал файл") }}">{{ icon("alert") }} {{ _("не сдал") }} {{ tally.missing }}</span>{% endif %}
+            {% if tally.missing %}<span class="badge bad" title="{{ _("не прислал код — зачёта нет") }}">{{ icon("alert") }} {{ _("без кода") }} {{ tally.missing }}</span>{% endif %}
             {% if tally.waiting %}<span class="badge warn" title="{{ _("ждёт проверки") }}">{{ icon("clock") }} {{ tally.waiting }}</span>{% endif %}
             {% if tally.rejected %}<span class="badge err" title="{{ _("отклонено — зачёт снят") }}">{{ icon("alert") }} {{ tally.rejected }}</span>{% endif %}
           {% else %}<span class="muted">—</span>{% endif %}
@@ -121,7 +121,7 @@
 <div class="card table-wrap" style="padding:6px">
   <table>
     <thead><tr><th>#</th><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th><th>{{ _("Решили") }}</th>
-      {% if assignment.requires_solution %}<th>{{ _("Сдали файл") }}</th>{% endif %}
+      {% if assignment.requires_solution %}<th>{{ _("Сдали код") }}</th>{% endif %}
       <th>{{ _("Первым") }}</th></tr></thead>
     <tbody>
     {% for problem in progress.problems %}
@@ -141,7 +141,7 @@
         {% set missing = (progress.participants | length) - sent %}
         <td class="num">
           {{ sent }} / {{ progress.participants | length }}
-          {% if missing > 0 %}<span class="badge bad" title="{{ _("не прислали решение") }}">{{ icon("alert") }} {{ missing }}</span>{% endif %}
+          {% if missing > 0 %}<span class="badge bad" title="{{ _("не прислали код") }}">{{ icon("alert") }} {{ missing }}</span>{% endif %}
         </td>
         {% endif %}
         <td class="small">

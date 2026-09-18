@@ -21,7 +21,9 @@ from app.models import (
     User,
 )
 
-SOLVED_STATUSES = {SolveStatus.solved_in_time, SolveStatus.solved_late}
+# В зачёт идёт только решённое после выдачи и до дедлайна. Опоздание видно
+# значком, но веса не имеет: иначе «до дедлайна» перестаёт что-либо значить.
+SOLVED_STATUSES = {SolveStatus.solved_in_time}
 
 
 @dataclass(slots=True)
@@ -29,18 +31,31 @@ class Cell:
     status: SolveStatus = SolveStatus.not_solved
     solved_at: datetime | None = None
     first_ever_at: datetime | None = None
-    # Проверка присланного решения. None — задание файла не требует либо
-    # студент его ещё не прислал.
+    # Проверка присланного кода. None — код не прислан.
     review: ReviewStatus | None = None
+    # Задание требует прислать код. Без него зачёта нет, даже если задача
+    # решена на площадке: проверять преподавателю было бы нечего.
+    needs_code: bool = False
 
     @property
     def rejected(self) -> bool:
         return self.review == ReviewStatus.rejected
 
     @property
+    def code_missing(self) -> bool:
+        return self.needs_code and self.review is None
+
+    @property
     def counts(self) -> bool:
-        """Засчитывается ли решение в прогресс по заданию."""
-        return self.status in SOLVED_STATUSES and not self.rejected
+        """Засчитывается ли решение в прогресс по заданию.
+
+        Три условия: решено в срок, код прислан (если его просят) и не отклонён.
+        Код на проверке зачёт даёт — студент своё сделал, снимает его только
+        отклонение.
+        """
+        if self.status not in SOLVED_STATUSES:
+            return False
+        return not self.rejected and not self.code_missing
 
     @property
     def icon(self) -> str:
@@ -206,6 +221,7 @@ async def compute_progress(
             solved_at=solved_at,
             first_ever_at=first_ever,
             review=reviews.get((user_id, problem_id)),
+            needs_code=assignment.requires_solution,
         )
     return progress
 

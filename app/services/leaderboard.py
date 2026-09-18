@@ -154,9 +154,10 @@ async def build_leaderboard(
             row = rows[user.id]
             row.assigned += progress.total_problems
             for cell in progress.row(user.id):
-                # В зачёт идёт только решённое до дедлайна.
-                # Опоздания считаем отдельно и показываем значком.
-                if cell.status == SolveStatus.solved_in_time and cell.solved_at is not None:
+                # Одно правило на весь портал — `cell.counts`: решено до дедлайна,
+                # код прислан и не отклонён. Иначе табло и матрица задания
+                # показывали бы студенту разные цифры.
+                if cell.counts and cell.solved_at is not None:
                     row.solve_times.append(cell.solved_at)
                 elif cell.status == SolveStatus.solved_late:
                     row.late += 1

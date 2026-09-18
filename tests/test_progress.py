@@ -129,8 +129,9 @@ async def test_in_time_and_late(session, world):
     assert progress.cell(student_id, world["problems"][0].id).status == SolveStatus.solved_in_time
     assert progress.cell(student_id, world["problems"][1].id).status == SolveStatus.solved_late
     assert progress.cell(student_id, world["problems"][2].id).status == SolveStatus.not_solved
-    # Опоздание всё равно засчитывается в прогресс, но с понижающим коэффициентом баллов.
-    assert progress.solved_count(student_id) == 2
+    # Опоздание видно значком, но в зачёт не идёт: иначе «до дедлайна» ничего
+    # не значит. Решение принято к сведению, а счёт — только за срок.
+    assert progress.solved_count(student_id) == 1
 
 
 async def test_resolve_after_prior_solve(session, world):

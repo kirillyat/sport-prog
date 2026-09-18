@@ -116,7 +116,8 @@ async def test_assignment_export_is_a_matrix(client, world):
     rows = decode(response.content)
     assert rows[0] == ["Студент", "Зачтено", "Всего задач", "1. Задача 1", "2. Задача 2"]
     by_name = {row[0]: row for row in rows[1:]}
-    assert by_name["Аня"][1:] == ["2", "2", "в срок", "после дедлайна"]
+    # Опоздание показываем, но в «зачтено» оно не попадает.
+    assert by_name["Аня"][1:] == ["1", "2", "в срок", "после дедлайна"]
     assert by_name["Боря"][1:] == ["0", "2", "", ""]
 
 

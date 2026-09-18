@@ -28,6 +28,7 @@ from app.models import (
     User,
 )
 from app.services import solutions
+from app.services.leaderboard import build_leaderboard
 from app.services.progress import compute_progress
 
 BASE = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
@@ -79,7 +80,8 @@ async def world(session):
         verdict="Accepted", is_accepted=True, submitted_at=BASE + timedelta(hours=1),
     ))
     await session.commit()
-    return {"teacher": teacher, "anya": anya, "assignment": assignment, "problem": problem}
+    return {"teacher": teacher, "anya": anya, "group": group,
+            "assignment": assignment, "problem": problem}
 
 
 async def _login(client, name, teacher=False):
@@ -128,6 +130,39 @@ async def test_rejected_solution_removes_the_credit(session, client, world):
     progress = await compute_progress(session, world["assignment"], [world["anya"]])
     assert progress.solved_count(world["anya"].id) == 0
     assert progress.cell(world["anya"].id, world["problem"].id).rejected
+
+
+async def test_rejection_reaches_the_leaderboard(session, client, world):
+    """Матрица и табло обязаны говорить одно и то же — иначе цифрам не верят."""
+    await _login(client, "Аня")
+    await _send(client, world)
+    await client.post("/logout")
+
+    rows = await build_leaderboard(session, group_id=world["group"].id)
+    assert [r.solved for r in rows] == [1]
+
+    await _login(client, "Кирилл", teacher=True)
+    upload = await session.scalar(select(SolutionUpload))
+    await client.post(f"/solutions/{upload.id}/review",
+                      data={"decision": "reject", "comment": "чужой код"})
+
+    rows = await build_leaderboard(session, group_id=world["group"].id)
+    assert [r.solved for r in rows] == [0]
+
+
+async def test_without_the_code_there_is_no_credit(session, client, world):
+    """Задача решена на площадке, кода нет — зачёта нет ни в матрице, ни на табло."""
+    progress = await compute_progress(session, world["assignment"], [world["anya"]])
+    assert progress.solved_count(world["anya"].id) == 0
+    assert progress.cell(world["anya"].id, world["problem"].id).code_missing
+
+    rows = await build_leaderboard(session, group_id=world["group"].id)
+    assert [r.solved for r in rows] == [0]
+
+    await _login(client, "Аня")
+    await _send(client, world)
+    progress = await compute_progress(session, world["assignment"], [world["anya"]])
+    assert progress.solved_count(world["anya"].id) == 1
 
 
 async def test_accepted_solution_keeps_the_credit(session, client, world):
@@ -234,12 +269,12 @@ async def test_student_cannot_review(session, client, world):
     assert upload.status == ReviewStatus.pending
 
 
-async def test_matrix_shows_who_has_not_sent_a_file(session, client, world):
+async def test_matrix_shows_who_has_not_sent_the_code(session, client, world):
     """Преподавателю нужен список должников, а не только крестики в клетках."""
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "Решения" in page
-    assert "не сдал 1" in page
+    assert "Код" in page
+    assert "без кода 1" in page
 
     await client.post("/logout")
     await _login(client, "Аня")
@@ -248,16 +283,16 @@ async def test_matrix_shows_who_has_not_sent_a_file(session, client, world):
 
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "не сдал" not in page          # долг закрыт
+    assert "без кода" not in page         # долг закрыт
     assert "1/1" in page                  # прислано столько же, сколько задач
 
 
-async def test_matrix_marks_the_problem_where_the_file_is_missing(session, client, world):
+async def test_matrix_marks_the_problem_where_the_code_is_missing(session, client, world):
     """Счётчик по студенту отвечает «кто», а клетка и столбец — «по какой задаче»."""
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "no-file" in page                  # уголок в клетке
-    assert "Сдали файл" in page               # столбец в таблице задач
+    assert "no-code" in page                  # уголок в клетке
+    assert "Сдали код" in page                # столбец в таблице задач
     assert "0 / 1" in page                    # прислал ноль из одного
 
     await client.post("/logout")
@@ -267,5 +302,5 @@ async def test_matrix_marks_the_problem_where_the_file_is_missing(session, clien
 
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "no-file" not in page
+    assert "no-code" not in page
     assert "1 / 1" in page
