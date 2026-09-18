@@ -10,7 +10,7 @@
 
 {% if not confirmed %}
 <div class="card callout warn">
-  <h3>{{ icon("shield") }} Подтверди, что ты студент МГУ</h3>
+  <h3>{{ icon("shield") }} Подтверди, что ты {{ settings.org_student }}</h3>
   <p class="small" style="margin:0 0 12px">
     Вход через {{ settings.oidc_provider_name }} открывает вступление в группы
     и задания.{% if settings.telegram_enabled %} Telegram остаётся для входа
@@ -103,8 +103,8 @@
       </form>
       {% else %}
       <p class="small muted">
-        Вступить в группу можно после входа по учётной записи факультета —
-        так портал знает, что ты студент МГУ.
+        Вступить в группу можно после входа через {{ settings.oidc_provider_name }} —
+        так портал знает, что ты {{ settings.org_student }}.
       </p>
       <a class="btn small" href="/accounts">{{ icon("shield") }} Подтвердить</a>
       {% endif %}

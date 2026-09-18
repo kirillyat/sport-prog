@@ -54,13 +54,13 @@
       {% else %}<span class="badge">не настроен</span>{% endif %}
     </div>
     {% if user.oidc_sub %}
-      <p class="small">{{ user.email or "единый аккаунт факультета" }}</p>
-      <p class="small muted">Вход по учётной записи факультета.</p>
+      <p class="small">{{ user.email or settings.org_account_name }}</p>
+      <p class="small muted">Вход по {{ settings.org_account_name | lower }}.</p>
       <p class="small muted push-bottom">
-        Подтверждает, что ты студент МГУ, — отвязать нельзя.
+        Подтверждает, что ты {{ settings.org_student }}, — отвязать нельзя.
       </p>
     {% elif settings.oidc_enabled %}
-      <p class="small muted">Добавит вход по учётной записи факультета.</p>
+      <p class="small muted">Добавит вход по {{ settings.org_account_name | lower }}.</p>
       <a class="btn small push-bottom" href="/login/oidc?link=1">{{ icon("link") }} Привязать</a>
     {% else %}
       <p class="small muted">Не настроен на этом портале.</p>

@@ -6,18 +6,18 @@
   {# Только знак: название портала на этой странице и так стоит заголовком. #}
   <div class="auth-logo bare">
     <span class="brand-mark auth-mark" role="img" aria-label="{{ settings.app_short_name }}"
-          style="--mark: url('/static/{{ brand_mark }}?v={{ asset_version }}')"></span>
+          style="--mark: url('{{ brand_mark }}?v={{ asset_version }}')"></span>
   </div>
   {% elif brand_logo %}
   <div class="auth-logo bare">
     <img class="{{ 'only-light' if brand_logo_dark }}"
-         src="/static/{{ brand_logo }}?v={{ asset_version }}" alt="{{ settings.app_name }}">
+         src="{{ brand_logo }}?v={{ asset_version }}" alt="{{ settings.app_name }}">
     {% if brand_logo_dark %}
-    <img class="only-dark" src="/static/{{ brand_logo_dark }}?v={{ asset_version }}" alt="">
+    <img class="only-dark" src="{{ brand_logo_dark }}?v={{ asset_version }}" alt="">
     {% endif %}
   </div>
   {% else %}
-  <div class="auth-logo">{{ icon("msu", "xl") }}</div>
+  <div class="auth-logo">{{ icon("campus", "xl") }}</div>
   {% endif %}
   <h1>{{ settings.app_name }}</h1>
   <p class="sub">
@@ -45,7 +45,7 @@
   {% if oidc_enabled %}
   <div class="card">
     <h3>{{ icon("shield") }} Вход через {{ oidc_name }}</h3>
-    <p class="small muted">Единый аккаунт факультета. Роль — по группе в {{ oidc_name }}.</p>
+    <p class="small muted">{{ settings.org_account_name | capitalize }}. Роль — по группе в {{ oidc_name }}.</p>
     <a class="btn" href="/login/oidc?next={{ next | urlencode }}">{{ icon("shield") }} Войти через {{ oidc_name }}</a>
   </div>
   {% endif %}

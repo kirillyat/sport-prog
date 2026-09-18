@@ -47,7 +47,7 @@
         </td>
         <td>
           {% if student.is_teacher %}<span class="muted">—</span>
-          {% elif student.oidc_sub %}<span class="badge ok">{{ icon("check") }} МГУ</span>
+          {% elif student.oidc_sub %}<span class="badge ok">{{ icon("check") }} подтверждён</span>
           {% else %}<span class="badge warn" title="вход только через Telegram">не подтверждён</span>{% endif %}
         </td>
         <td class="num">{{ solved.get(student.id, 0) }}</td>

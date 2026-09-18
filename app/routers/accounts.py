@@ -71,7 +71,7 @@ async def unlink_oidc(session: SessionDep, user: CurrentUser):
     if user.oidc_sub is None:
         return _back(error=f"{settings.oidc_provider_name} не привязан")
     return _back(
-        error=f"{settings.oidc_provider_name} подтверждает, что ты студент МГУ — "
+        error=f"{settings.oidc_provider_name} подтверждает, что ты {settings.org_student} — "
         "отвязать нельзя"
     )
 

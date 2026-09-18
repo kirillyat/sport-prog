@@ -13,8 +13,13 @@ INSECURE_SECRET = "dev-insecure-change-me"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Алгоритмы ФИИ МГУ"
-    app_short_name: str = "Алгоритмы"
+    app_name: str = "Портал тренировок по программированию"
+    app_short_name: str = "Тренировки"
+    # Чьи студенты учатся на портале. Подставляется в тексты про подтверждение
+    # учётной записи: «студент МГУ», «учётная запись факультета». Пусто —
+    # тексты становятся общими, без упоминания конкретного вуза.
+    org_name: str = ""
+    org_account_name: str = "учётная запись организации"
     display_timezone: str = "Europe/Moscow"
     base_url: str = "http://localhost:8000"
     secret_key: str = INSECURE_SECRET
@@ -69,6 +74,11 @@ class Settings(BaseSettings):
     login_code_ttl_seconds: int = 600
     session_ttl_seconds: int = 60 * 60 * 24 * 30
     session_cookie: str = "sport_session"
+
+    @property
+    def org_student(self) -> str:
+        """«студент МГУ» или просто «студент», если организация не названа."""
+        return f"студент {self.org_name}" if self.org_name.strip() else "студент"
 
     @property
     def telegram_enabled(self) -> bool:

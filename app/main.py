@@ -97,6 +97,12 @@ mimetypes.add_type("font/woff2", ".woff2")
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+# Фирменный стиль учреждения: логотип и значок кладутся в том, а не в образ,
+# поэтому свой знак ставится без пересборки и не попадает в открытый исходник.
+BRANDING_DIR = settings.data_dir / "branding"
+BRANDING_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/branding", StaticFiles(directory=str(BRANDING_DIR)), name="branding")
+
 app.include_router(auth.router)
 app.include_router(student.router)
 app.include_router(accounts.router)

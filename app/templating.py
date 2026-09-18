@@ -24,8 +24,9 @@ def asset_version() -> str:
     return str(int(newest))
 
 
-# Логотип портала: если в app/static/ лежит файл — берём его, иначе рисуем
-# встроенный знак. SVG предпочтительнее PNG: он не мылится на ретине.
+# Логотип портала. Сначала смотрим в DATA_DIR/branding — туда учреждение кладёт
+# свой знак, не трогая исходники и не пересобирая образ. Потом в app/static
+# с нейтральным значком по умолчанию. SVG предпочтительнее PNG: не мылится.
 LOGO_NAMES = ("logo.svg", "logo.png", "logo.webp")
 LOGO_DARK_NAMES = ("logo-dark.svg", "logo-dark.png", "logo-dark.webp")
 FAVICON_NAMES = ("favicon.png", "favicon.svg", "favicon.ico", *LOGO_NAMES)
@@ -33,10 +34,17 @@ FAVICON_NAMES = ("favicon.png", "favicon.svg", "favicon.ico", *LOGO_NAMES)
 MARK_NAMES = ("mark.svg", "mark.png")
 
 
+BRANDING_DIR = settings.data_dir / "branding"
+
+
 def _find_asset(names: tuple[str, ...]) -> str | None:
+    """Адрес знака: сначала фирменный стиль учреждения, затем запасной."""
+    for name in names:
+        if (BRANDING_DIR / name).is_file():
+            return f"/branding/{name}"
     for name in names:
         if (STATIC_DIR / name).is_file():
-            return name
+            return f"/static/{name}"
     return None
 from app.services.features import features_context  # noqa: E402
 from app.ticker import ticker_context  # noqa: E402
