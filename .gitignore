@@ -5,6 +5,8 @@ __pycache__/
 data/
 .pytest_cache/
 .ruff_cache/
+# Рабочие копии, которые заводит Claude Code, живут рядом со скиллами.
+.claude/worktrees/
 msu_sport.egg-info/
 
 # Базы и их резервные копии — это данные участников, не код.
