@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from app.deps import AsStudent, CurrentUser, OptionalInt, SessionDep
+from app.i18n import mark as N_
 from app.models import Assignment, Group, GroupFavorite, utcnow
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import groups_for_user
@@ -14,9 +15,9 @@ from app.templating import templates
 router = APIRouter(tags=["leaderboard"])
 
 PERIODS = {
-    "all": ("За всё время", None),
-    "month": ("За 30 дней", 30),
-    "week": ("За неделю", 7),
+    "all": (N_("За всё время"), None),
+    "month": (N_("За 30 дней"), 30),
+    "week": (N_("За неделю"), 7),
 }
 
 

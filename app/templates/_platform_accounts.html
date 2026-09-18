@@ -11,9 +11,9 @@
   <div class="card stretch">
     <div class="row between">
       <h3>{{ icon("code") }} {{ platform.title }}</h3>
-      {% if account and account.is_verified %}<span class="badge ok">{{ icon("check") }} подтверждён</span>
-      {% elif account %}<span class="badge warn">{{ icon("clock") }} ждёт подтверждения</span>
-      {% else %}<span class="badge">не привязан</span>{% endif %}
+      {% if account and account.is_verified %}<span class="badge ok">{{ icon("check") }} {{ _("подтверждён") }}</span>
+      {% elif account %}<span class="badge warn">{{ icon("clock") }} {{ _("ждёт подтверждения") }}</span>
+      {% else %}<span class="badge">{{ _("не привязан") }}</span>{% endif %}
     </div>
 
     {% if account %}
@@ -24,12 +24,11 @@
 
       {% if account.is_verified %}
         <p class="small muted" style="margin-bottom:4px">
-          Синхронизировано {{ account.last_synced_at | ago }}
+          {{ _("Синхронизировано") }} {{ account.last_synced_at | ago }}
         </p>
         {% if platform.value == "leetcode" %}
         <p class="small muted" style="margin-top:0">
-          LeetCode отдаёт публично последние 20 решений. Синк — каждые
-          {{ settings.sync_interval_seconds // 60 }} мин, этого хватает.
+          {{ _("LeetCode отдаёт публично последние 20 решений. Синк — каждые %(minutes)s мин, этого хватает.") % {"minutes": settings.sync_interval_seconds // 60} }}
         </p>
         {% endif %}
         {% if account.last_sync_error %}
@@ -38,11 +37,11 @@
         <div class="row push-bottom">
           <form method="post" action="/accounts/{{ account.id }}/sync">
             <input type="hidden" name="back" value="{{ back }}">
-            <button class="ghost small" type="submit">{{ icon("refresh") }} Синхронизировать</button>
+            <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Синхронизировать") }}</button>
           </form>
           <form method="post" action="/accounts/{{ account.id }}/unlink">
             <input type="hidden" name="back" value="{{ back }}">
-            <button class="danger small" type="submit">{{ icon("trash") }} Отвязать</button>
+            <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Отвязать") }}</button>
           </form>
         </div>
       {% else %}
@@ -53,32 +52,30 @@
         <div class="row">
           <form method="post" action="/accounts/{{ account.id }}/verify">
             <input type="hidden" name="back" value="{{ back }}">
-            <button class="small" type="submit">{{ icon("check") }} Проверить</button>
+            <button class="small" type="submit">{{ icon("check") }} {{ _("Проверить") }}</button>
           </form>
           <form method="post" action="/accounts/{{ account.id }}/unlink">
             <input type="hidden" name="back" value="{{ back }}">
-            <button class="danger small" type="submit">Отменить</button>
+            <button class="danger small" type="submit">{{ _("Отменить") }}</button>
           </form>
         </div>
-        <p class="small muted" style="margin-bottom:0">Потом код можно убрать.</p>
+        <p class="small muted" style="margin-bottom:0">{{ _("Потом код можно убрать.") }}</p>
       {% endif %}
     {% else %}
       <p class="small muted" style="margin:6px 0 0">
-        {% if platform.value == "codeforces" %}
-          Как в адресе профиля: codeforces.com/profile/<b>tourist</b>
-        {% else %}
-          Как в адресе профиля: leetcode.com/u/<b>lee215</b>
-        {% endif %}
+        {{ _("Как в адресе профиля:") }}
+        {% if platform.value == "codeforces" %}codeforces.com/profile/<b>tourist</b>
+        {% else %}leetcode.com/u/<b>lee215</b>{% endif %}
       </p>
       <form method="post" action="/accounts/link" class="inline-form push-bottom">
         <input type="hidden" name="back" value="{{ back }}">
         <input type="hidden" name="platform" value="{{ platform.value }}">
         <div class="field" style="flex:1; min-width:170px;">
-          <label for="handle-{{ platform.value }}">{{ "Хэндл" if platform.value == "codeforces" else "Username" }}</label>
+          <label for="handle-{{ platform.value }}">{{ _("Хэндл") if platform.value == "codeforces" else "Username" }}</label>
           <input type="text" id="handle-{{ platform.value }}" name="handle" autocomplete="off" required
                  placeholder="{{ "tourist" if platform.value == "codeforces" else "lee215" }}">
         </div>
-        <button type="submit">{{ icon("link") }} Привязать</button>
+        <button type="submit">{{ icon("link") }} {{ _("Привязать") }}</button>
       </form>
     {% endif %}
   </div>

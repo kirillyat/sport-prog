@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import notify
 from app.deps import OptionalInt, SessionDep, TeacherUser
+from app.i18n import translate as _
 from app.models import (
     Announcement,
     Assignment,
@@ -52,9 +53,9 @@ JOIN_ALPHABET = string.ascii_uppercase + string.digits
 def _redirect(path: str, message: str | None = None, error: str | None = None):
     params = []
     if message:
-        params.append(f"ok={message}")
+        params.append("ok=" + quote(message))
     if error:
-        params.append(f"err={error}")
+        params.append("err=" + quote(error))
     suffix = ("?" + "&".join(params)) if params else ""
     return RedirectResponse(f"{path}{suffix}", status_code=303)
 
@@ -152,12 +153,12 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
         )
     # Пока курс не собран целиком, панель показывает шаги, а не нули в плитках.
     steps = [
-        {"done": bool(counts["groups"]), "title": "Создать группу",
-         "hint": "И раздать студентам код вступления", "href": "/teacher/groups"},
-        {"done": bool(counts["sets"]), "title": "Собрать список задач",
-         "hint": "Вставить ссылки на задачи текстом", "href": "/teacher/sets"},
-        {"done": bool(counts["assignments"]), "title": "Выдать задание",
-         "hint": "Назначить список группе с дедлайном", "href": "/teacher/assignments"},
+        {"done": bool(counts["groups"]), "title": _("Создать группу"),
+         "hint": _("И раздать студентам код вступления"), "href": "/teacher/groups"},
+        {"done": bool(counts["sets"]), "title": _("Собрать список задач"),
+         "hint": _("Вставить ссылки на задачи текстом"), "href": "/teacher/sets"},
+        {"done": bool(counts["assignments"]), "title": _("Выдать задание"),
+         "hint": _("Назначить список группе с дедлайном"), "href": "/teacher/assignments"},
     ]
     return templates.TemplateResponse(
         request,
@@ -179,7 +180,10 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
 @router.post("/sync-now")
 async def sync_now(session: SessionDep, user: TeacherUser):
     added = await sync_all(session)
-    return _redirect("/teacher", message=f"Синхронизация+завершена,+новых+посылок:+{added}")
+    return _redirect(
+        "/teacher",
+        message=_("Синхронизация завершена, новых посылок: %(count)s") % {"count": added},
+    )
 
 
 @router.post("/catalog-refresh")
@@ -188,7 +192,9 @@ async def catalog_refresh(session: SessionDep, user: TeacherUser):
     fixed = await relink_orphan_submissions(session)
     total = sum(counts.values())
     return _redirect(
-        "/teacher", message=f"Каталог+обновлён:+{total}+задач,+подвязано+посылок:+{fixed}"
+        "/teacher",
+        message=_("Каталог обновлён: %(total)s задач, подвязано посылок: %(fixed)s")
+        % {"total": total, "fixed": fixed},
     )
 
 
@@ -216,18 +222,18 @@ async def groups_page(request: Request, session: SessionDep, user: TeacherUser):
 async def create_group(session: SessionDep, user: TeacherUser, title: str = Form(...)):
     title = title.strip()
     if not title:
-        return _redirect("/teacher/groups", error="Пустое+название")
+        return _redirect("/teacher/groups", error=_("Пустое название"))
     group = Group(title=title, join_code=await _new_join_code(session), created_by_id=user.id)
     session.add(group)
     await session.commit()
-    return _redirect("/teacher/groups", message=f"Группа+«{title}»+создана")
+    return _redirect("/teacher/groups", message=_("Группа «%(title)s» создана") % {"title": title})
 
 
 @router.get("/groups/{group_id}")
 async def group_detail(request: Request, session: SessionDep, user: TeacherUser, group_id: int):
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
     members = await _all(
         session,
         select(User)
@@ -281,15 +287,15 @@ async def set_group_chat(
 ):
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
     chat = chat_id.strip()
     if chat and not chat.lstrip("-").isdigit():
         return _redirect(
-            f"/teacher/groups/{group_id}", error="Id+чата+—+число,+например+-1001234567890"
+            f"/teacher/groups/{group_id}", error=_("Id чата — число, например -1001234567890")
         )
     group.telegram_chat_id = chat or None
     await session.commit()
-    message = "Чат+группы+сохранён" if chat else "Чат+группы+отвязан"
+    message = _("Чат группы сохранён") if chat else _("Чат группы отвязан")
     return _redirect(f"/teacher/groups/{group_id}", message=message)
 
 
@@ -298,7 +304,7 @@ async def toggle_favorite(session: SessionDep, user: TeacherUser, group_id: int)
     """Закрепить группу у себя на панели или снять закрепление."""
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
 
     existing = await session.scalar(
         select(GroupFavorite).where(
@@ -307,10 +313,10 @@ async def toggle_favorite(session: SessionDep, user: TeacherUser, group_id: int)
     )
     if existing is None:
         session.add(GroupFavorite(user_id=user.id, group_id=group_id))
-        message = "Группа+закреплена"
+        message = _("Группа закреплена")
     else:
         await session.delete(existing)
-        message = "Группа+откреплена"
+        message = _("Группа откреплена")
     await session.commit()
     return _redirect(f"/teacher/groups/{group_id}", message=message)
 
@@ -322,19 +328,20 @@ async def sync_group(
     """Обновить результаты всей группы разом — вместо обхода профилей по одному."""
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
 
     ids = await _all(
         session,
         select(GroupMembership.user_id).where(GroupMembership.group_id == group_id),
     )
     if not ids:
-        return _redirect(f"/teacher/groups/{group_id}", error="В+группе+никого+нет")
+        return _redirect(f"/teacher/groups/{group_id}", error=_("В группе никого нет"))
 
     background.add_task(sync_users_in_background, list(ids))
     return _redirect(
         f"/teacher/groups/{group_id}",
-        message=f"Обновляю+результаты:+{len(ids)}+студентов.+Займёт+около+минуты",
+        message=_("Обновляю результаты: %(count)s студентов. Займёт около минуты")
+        % {"count": len(ids)},
     )
 
 
@@ -345,16 +352,17 @@ async def sync_assignment(
     """То же самое со страницы задания: обновить всех, кто его получил."""
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
-        return _redirect("/teacher/assignments", error="Задание+не+найдено")
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
 
     participants = await participants_for_assignment(session, assignment)
     if not participants:
-        return _redirect(f"/teacher/assignments/{assignment_id}", error="Участников+нет")
+        return _redirect(f"/teacher/assignments/{assignment_id}", error=_("Участников нет"))
 
     background.add_task(sync_users_in_background, [p.id for p in participants])
     return _redirect(
         f"/teacher/assignments/{assignment_id}",
-        message=f"Обновляю+результаты:+{len(participants)}+студентов.+Займёт+около+минуты",
+        message=_("Обновляю результаты: %(count)s студентов. Займёт около минуты")
+        % {"count": len(participants)},
     )
 
 
@@ -370,13 +378,15 @@ async def add_member(
     """
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
 
     student = await session.get(User, user_id)
     if student is None or not student.is_active:
-        return _redirect(f"/teacher/groups/{group_id}", error="Студент+не+найден")
+        return _redirect(f"/teacher/groups/{group_id}", error=_("Студент не найден"))
     if student.is_teacher:
-        return _redirect(f"/teacher/groups/{group_id}", error="Преподавателя+в+группу+не+добавляем")
+        return _redirect(
+            f"/teacher/groups/{group_id}", error=_("Преподавателя в группу не добавляем")
+        )
 
     existing = await session.scalar(
         select(GroupMembership).where(
@@ -387,7 +397,7 @@ async def add_member(
         session.add(GroupMembership(group_id=group_id, user_id=user_id))
         await session.commit()
     name = quote(student.display_name)
-    return _redirect(f"/teacher/groups/{group_id}", message=f"{name}+в+группе")
+    return _redirect(f"/teacher/groups/{group_id}", message=_("%(name)s в группе") % {"name": name})
 
 
 @router.post("/groups/{group_id}/remove/{user_id}")
@@ -400,7 +410,7 @@ async def remove_member(session: SessionDep, user: TeacherUser, group_id: int, u
     if membership is not None:
         await session.delete(membership)
         await session.commit()
-    return _redirect(f"/teacher/groups/{group_id}", message="Студент+исключён")
+    return _redirect(f"/teacher/groups/{group_id}", message=_("Студент исключён"))
 
 
 async def _review_rows(session: SessionDep, uploads: list) -> list[dict]:
@@ -478,17 +488,17 @@ async def save_features(request: Request, session: SessionDep, user: TeacherUser
             for_students=f"{section.key}:students" in form,
             for_teachers=f"{section.key}:teachers" in form,
         )
-    return _redirect("/teacher/features", message="Видимость+разделов+сохранена")
+    return _redirect("/teacher/features", message=_("Видимость разделов сохранена"))
 
 
 @router.post("/groups/{group_id}/archive")
 async def archive_group(session: SessionDep, user: TeacherUser, group_id: int):
     group = await session.get(Group, group_id)
     if group is None:
-        return _redirect("/teacher/groups", error="Группа+не+найдена")
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
     group.is_archived = not group.is_archived
     await session.commit()
-    return _redirect("/teacher/groups", message="Готово")
+    return _redirect("/teacher/groups", message=_("Готово"))
 
 
 # ---------------------------------------------------------------- списки задач
@@ -512,7 +522,7 @@ async def create_set(
 ):
     title = title.strip()
     if not title:
-        return _redirect("/teacher/sets", error="Пустое+название")
+        return _redirect("/teacher/sets", error=_("Пустое название"))
 
     problem_set = ProblemSet(
         title=title, description=description.strip() or None, created_by_id=user.id
@@ -533,16 +543,16 @@ async def create_set(
         if result.unresolved:
             return _redirect(
                 f"/teacher/sets/{problem_set.id}",
-                error="Не+распознано:+" + ",+".join(result.unresolved[:5]),
+                error=_("Не распознано: %(list)s") % {"list": ", ".join(result.unresolved[:5])},
             )
-    return _redirect(f"/teacher/sets/{problem_set.id}", message="Список+создан")
+    return _redirect(f"/teacher/sets/{problem_set.id}", message=_("Список создан"))
 
 
 @router.get("/sets/{set_id}")
 async def set_detail(request: Request, session: SessionDep, user: TeacherUser, set_id: int):
     problem_set = await session.get(ProblemSet, set_id)
     if problem_set is None:
-        return _redirect("/teacher/sets", error="Список+не+найден")
+        return _redirect("/teacher/sets", error=_("Список не найден"))
     used_in = await _all(session, select(Assignment).where(Assignment.problem_set_id == set_id))
     return templates.TemplateResponse(
         request,
@@ -557,7 +567,7 @@ async def add_problems(
 ):
     problem_set = await session.get(ProblemSet, set_id)
     if problem_set is None:
-        return _redirect("/teacher/sets", error="Список+не+найден")
+        return _redirect("/teacher/sets", error=_("Список не найден"))
 
     existing = {item.problem_id for item in problem_set.items}
     next_position = max((item.position for item in problem_set.items), default=-1) + 1
@@ -578,9 +588,12 @@ async def add_problems(
     if result.unresolved:
         return _redirect(
             f"/teacher/sets/{set_id}",
-            error=f"Добавлено+{added}.+Не+распознано:+" + ",+".join(result.unresolved[:5]),
+            error=_("Добавлено %(count)s. Не распознано: %(list)s")
+            % {"count": added, "list": ", ".join(result.unresolved[:5])},
         )
-    return _redirect(f"/teacher/sets/{set_id}", message=f"Добавлено+задач:+{added}")
+    return _redirect(
+        f"/teacher/sets/{set_id}", message=_("Добавлено задач: %(count)s") % {"count": added}
+    )
 
 
 @router.post("/sets/{set_id}/remove/{item_id}")
@@ -589,22 +602,22 @@ async def remove_problem(session: SessionDep, user: TeacherUser, set_id: int, it
     if item is not None and item.problem_set_id == set_id:
         await session.delete(item)
         await session.commit()
-    return _redirect(f"/teacher/sets/{set_id}", message="Задача+убрана")
+    return _redirect(f"/teacher/sets/{set_id}", message=_("Задача убрана"))
 
 
 @router.post("/sets/{set_id}/delete")
 async def delete_set(session: SessionDep, user: TeacherUser, set_id: int):
     problem_set = await session.get(ProblemSet, set_id)
     if problem_set is None:
-        return _redirect("/teacher/sets", error="Список+не+найден")
+        return _redirect("/teacher/sets", error=_("Список не найден"))
     in_use = await session.scalar(
         select(func.count()).select_from(Assignment).where(Assignment.problem_set_id == set_id)
     )
     if in_use:
-        return _redirect("/teacher/sets", error="Список+используется+в+заданиях")
+        return _redirect("/teacher/sets", error=_("Список используется в заданиях"))
     await session.delete(problem_set)
     await session.commit()
-    return _redirect("/teacher/sets", message="Список+удалён")
+    return _redirect("/teacher/sets", message=_("Список удалён"))
 
 
 @router.get("/problems")
@@ -675,21 +688,21 @@ async def create_assignment(
     """Все правила задаются здесь: потом меняются только название и описание."""
     title = title.strip()
     if not title:
-        return _redirect("/teacher/assignments", error="Пустое+название")
+        return _redirect("/teacher/assignments", error=_("Пустое название"))
     if await session.get(ProblemSet, problem_set_id) is None:
-        return _redirect("/teacher/assignments", error="Список+задач+не+найден")
+        return _redirect("/teacher/assignments", error=_("Список задач не найден"))
 
     target_group = int(group_id) if group_id.strip() else None
     if target_group is not None and await session.get(Group, target_group) is None:
-        return _redirect("/teacher/assignments", error="Группа+не+найдена")
+        return _redirect("/teacher/assignments", error=_("Группа не найдена"))
 
     start = parse_local_input(starts_at) or utcnow()
     end = parse_local_input(deadline)
     if end is not None and end <= start:
-        return _redirect("/teacher/assignments", error="Дедлайн+раньше+начала")
+        return _redirect("/teacher/assignments", error=_("Дедлайн раньше начала"))
 
     if hard_deadline and end is None:
-        return _redirect("/teacher/assignments", error="Жёсткий+дедлайн+без+даты+не+работает")
+        return _redirect("/teacher/assignments", error=_("Жёсткий дедлайн без даты не работает"))
 
     assignment = Assignment(
         title=title,
@@ -713,8 +726,12 @@ async def create_assignment(
         )
     )
     delivered = await notify.notify_assignment(assignment, int(problems or 0), session)
-    suffix = "+и+отправлено+в+Telegram" if delivered else ""
-    return _redirect(f"/teacher/assignments/{assignment.id}", message="Задание+выдано" + suffix)
+    return _redirect(
+        f"/teacher/assignments/{assignment.id}",
+        message=_("Задание выдано и отправлено в Telegram")
+        if delivered
+        else _("Задание выдано"),
+    )
 
 
 @router.get("/assignments/{assignment_id}")
@@ -723,7 +740,7 @@ async def assignment_matrix(
 ):
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
-        return _redirect("/teacher/assignments", error="Задание+не+найдено")
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
 
     participants = await participants_for_assignment(session, assignment)
     progress = await compute_progress(session, assignment, participants)
@@ -768,7 +785,7 @@ async def assignment_matrix(
 async def export_assignment(session: SessionDep, user: TeacherUser, assignment_id: int):
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
-        return _redirect("/teacher/assignments", error="Задание+не+найдено")
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
 
     participants = await participants_for_assignment(session, assignment)
     progress = await compute_progress(session, assignment, participants)
@@ -785,7 +802,7 @@ async def export_leaderboard(
     session: SessionDep, user: TeacherUser, group_id: OptionalInt = None, period: str = "all"
 ):
     if group_id is None:
-        return _redirect("/leaderboard", error="Выбери+группу:+общего+табло+нет")
+        return _redirect("/leaderboard", error=_("Выбери группу: общего табло нет"))
     days = PERIODS.get(period, PERIODS["all"])[1]
     since = utcnow() - timedelta(days=days) if days else None
     rows = await build_leaderboard(session, group_id=group_id, since=since)
@@ -812,14 +829,14 @@ async def edit_assignment(
     """
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
-        return _redirect("/teacher/assignments", error="Задание+не+найдено")
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
     title = title.strip()
     if not title:
-        return _redirect(f"/teacher/assignments/{assignment_id}", error="Пустое+название")
+        return _redirect(f"/teacher/assignments/{assignment_id}", error=_("Пустое название"))
     assignment.title = title
     assignment.description = description.strip() or None
     await session.commit()
-    return _redirect(f"/teacher/assignments/{assignment_id}", message="Сохранено")
+    return _redirect(f"/teacher/assignments/{assignment_id}", message=_("Сохранено"))
 
 
 @router.post("/assignments/{assignment_id}/delete")
@@ -828,7 +845,7 @@ async def delete_assignment(session: SessionDep, user: TeacherUser, assignment_i
     if assignment is not None:
         await session.delete(assignment)
         await session.commit()
-    return _redirect("/teacher/assignments", message="Задание+удалено")
+    return _redirect("/teacher/assignments", message=_("Задание удалено"))
 
 
 # ---------------------------------------------------------------- объявления
@@ -865,16 +882,16 @@ async def create_announcement(
 ):
     title = title.strip()
     if not title:
-        return _redirect("/teacher/announcements", error="Пустой+заголовок")
+        return _redirect("/teacher/announcements", error=_("Пустой заголовок"))
 
     link = url.strip()
     if link and not link.startswith(("http://", "https://")):
-        return _redirect("/teacher/announcements", error="Ссылка+должна+начинаться+с+http")
+        return _redirect("/teacher/announcements", error=_("Ссылка должна начинаться с http"))
 
     start = parse_local_input(starts_at)
     end = parse_local_input(ends_at)
     if start and end and end <= start:
-        return _redirect("/teacher/announcements", error="Конец+раньше+начала")
+        return _redirect("/teacher/announcements", error=_("Конец раньше начала"))
 
     item = Announcement(
         title=title,
@@ -891,18 +908,22 @@ async def create_announcement(
     await session.commit()
     await session.refresh(item)
     delivered = await notify.notify_announcement(item, session)
-    suffix = "+и+отправлено+в+Telegram" if delivered else ""
-    return _redirect("/teacher/announcements", message="Объявление+опубликовано" + suffix)
+    return _redirect(
+        "/teacher/announcements",
+        message=_("Объявление опубликовано и отправлено в Telegram")
+        if delivered
+        else _("Объявление опубликовано"),
+    )
 
 
 @router.post("/announcements/{announcement_id}/pin")
 async def toggle_pin(session: SessionDep, user: TeacherUser, announcement_id: int):
     item = await session.get(Announcement, announcement_id)
     if item is None:
-        return _redirect("/teacher/announcements", error="Объявление+не+найдено")
+        return _redirect("/teacher/announcements", error=_("Объявление не найдено"))
     item.pinned = not item.pinned
     await session.commit()
-    return _redirect("/teacher/announcements", message="Готово")
+    return _redirect("/teacher/announcements", message=_("Готово"))
 
 
 @router.post("/announcements/{announcement_id}/delete")
@@ -911,7 +932,7 @@ async def delete_announcement(session: SessionDep, user: TeacherUser, announceme
     if item is not None:
         await session.delete(item)
         await session.commit()
-    return _redirect("/teacher/announcements", message="Объявление+удалено")
+    return _redirect("/teacher/announcements", message=_("Объявление удалено"))
 
 
 # ---------------------------------------------------------------- студенты
@@ -984,36 +1005,36 @@ async def grant_bonus(
     обычный ввод, а не повод показать страницу с ошибкой."""
     target = await session.get(User, user_id)
     if target is None:
-        return _redirect("/teacher/students", error="Студент+не+найден")
+        return _redirect("/teacher/students", error=_("Студент не найден"))
     try:
         amount = float(points.strip().replace(",", "."))
     except ValueError:
-        return _redirect("/teacher/students", error="Баллы+—+это+число")
+        return _redirect("/teacher/students", error=_("Баллы — это число"))
     if amount == 0:
-        return _redirect("/teacher/students", error="Ноль+баллов+начислять+нечего")
+        return _redirect("/teacher/students", error=_("Ноль баллов начислять нечего"))
     session.add(
         BonusPoint(
             user_id=user_id,
             points=amount,
-            reason=reason.strip() or "без комментария",
+            reason=reason.strip() or _("без комментария"),
             granted_by_id=user.id,
             granted_at=utcnow(),
         )
     )
     await session.commit()
-    return _redirect("/teacher/students", message="Баллы+начислены")
+    return _redirect("/teacher/students", message=_("Баллы начислены"))
 
 
 @router.post("/students/{user_id}/role")
 async def toggle_role(session: SessionDep, user: TeacherUser, user_id: int):
     target = await session.get(User, user_id)
     if target is None:
-        return _redirect("/teacher/students", error="Студент+не+найден")
+        return _redirect("/teacher/students", error=_("Студент не найден"))
     if target.id == user.id:
-        return _redirect("/teacher/students", error="Нельзя+снять+роль+с+себя")
+        return _redirect("/teacher/students", error=_("Нельзя снять роль с себя"))
     target.role = Role.student if target.role == Role.teacher else Role.teacher
     await session.commit()
-    return _redirect("/teacher/students", message="Роль+изменена")
+    return _redirect("/teacher/students", message=_("Роль изменена"))
 
 
 @router.get("/problems/unlinked")

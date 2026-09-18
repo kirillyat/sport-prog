@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app import notify
 from app.deps import CurrentUser, SessionDep, TeacherUser
+from app.i18n import translate as _
 from app.models import Group, Material
 from app.services import materials, notebook
 from app.services.progress import groups_for_user
@@ -74,19 +75,22 @@ async def publish_material(
 ):
     name = materials.safe_filename(file.filename or "")
     if not materials.is_allowed(name):
-        return _back(error=f"Такой файл не принимаем. Можно: {materials.EXTENSIONS_HINT}")
+        return _back(
+            error=_("Такой файл не принимаем. Можно: %(list)s")
+            % {"list": materials.EXTENSIONS_HINT}
+        )
 
     data = await file.read()
     if not data:
-        return _back(error="Файл пустой")
+        return _back(error=_("Файл пустой"))
     if len(data) > materials.MAX_BYTES:
-        return _back(error=f"Файл больше {materials.MAX_BYTES // 1024 // 1024} МБ")
+        return _back(error=_("Файл больше %(mb)s МБ") % {"mb": materials.MAX_BYTES // 1024 // 1024})
 
     target_group = None
     if group_id.strip():
         group = await session.get(Group, int(group_id))
         if group is None:
-            return _back(error="Группа не найдена")
+            return _back(error=_("Группа не найдена"))
         target_group = group.id
 
     stored = materials.new_stored_name(name)
@@ -106,18 +110,21 @@ async def publish_material(
     await session.refresh(item)
 
     delivered = await notify.notify_material(item, session)
-    suffix = " и отправлено в Telegram" if delivered else ""
-    return _back(message="Материал опубликован" + suffix)
+    return _back(
+        message=_("Материал опубликован и отправлен в Telegram")
+        if delivered
+        else _("Материал опубликован")
+    )
 
 
 @router.get("/materials/{material_id}/download")
 async def download_material(session: SessionDep, user: CurrentUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None or item not in await _visible_to(session, user):
-        return _back(error="Материал не найден")
+        return _back(error=_("Материал не найден"))
     path = materials.path_for(item.stored_name)
     if not path.is_file():
-        return _back(error="Файл потерялся на диске — попроси выложить заново")
+        return _back(error=_("Файл потерялся на диске — попроси выложить заново"))
     # Именно скачивание: открывать чужой файл на своём домене не нужно.
     return FileResponse(
         path,
@@ -131,13 +138,13 @@ async def download_material(session: SessionDep, user: CurrentUser, material_id:
 async def view_material(request: Request, session: SessionDep, user: CurrentUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None or item not in await _visible_to(session, user):
-        return _back(error="Материал не найден")
+        return _back(error=_("Материал не найден"))
     if not notebook.is_previewable(item.filename, item.size):
-        return _back(error="Этот файл можно только скачать")
+        return _back(error=_("Этот файл можно только скачать"))
 
     path = materials.path_for(item.stored_name)
     if not path.is_file():
-        return _back(error="Файл потерялся на диске — попроси выложить заново")
+        return _back(error=_("Файл потерялся на диске — попроси выложить заново"))
     content = path.read_bytes()
 
     name = item.filename.lower()
@@ -147,7 +154,7 @@ async def view_material(request: Request, session: SessionDep, user: CurrentUser
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
-            return _back(error="Файл не читается как текст — скачай его")
+            return _back(error=_("Файл не читается как текст — скачай его"))
         if name.endswith(".md"):
             rendered, text = notebook.render_markdown(text), None
 
@@ -162,8 +169,8 @@ async def view_material(request: Request, session: SessionDep, user: CurrentUser
 async def delete_material(session: SessionDep, user: TeacherUser, material_id: int):
     item = await session.get(Material, material_id)
     if item is None:
-        return _back(error="Материал не найден")
+        return _back(error=_("Материал не найден"))
     materials.remove(item.stored_name)
     await session.delete(item)
     await session.commit()
-    return _back(message="Материал удалён")
+    return _back(message=_("Материал удалён"))

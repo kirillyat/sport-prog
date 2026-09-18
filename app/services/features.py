@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import SessionLocal
+from app.i18n import mark as N_
 from app.models import FeatureFlag, ReviewStatus, SolutionUpload, User, utcnow
 from app.security import read_session
 
@@ -32,10 +33,10 @@ class Section:
 
 # Что вообще можно закрыть. Добавить раздел — добавить строку сюда.
 SECTIONS: tuple[Section, ...] = (
-    Section("materials", "Материалы", "/materials",
-            "Ноутбуки с семинаров, конспекты и разборы, которые выкладывает преподаватель"),
-    Section("course", "Курс", "/course",
-            "Недели курса «Алгоритмы и структуры данных» с конспектами и практиками"),
+    Section("materials", N_("Материалы"), "/materials",
+            N_("Ноутбуки с семинаров, конспекты и разборы, которые выкладывает преподаватель")),
+    Section("course", N_("Курс"), "/course",
+            N_("Недели курса с конспектами, практиками и домашними заданиями")),
 )
 
 SECTION_BY_KEY = {section.key: section for section in SECTIONS}

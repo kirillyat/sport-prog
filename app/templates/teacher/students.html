@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Студенты — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Студенты") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>{{ "Преподаватели" if role == "teacher" else "Студенты" }}</h1>
-<p class="sub">Роли и бонусы.</p>
+<h1>{{ _("Преподаватели") if role == "teacher" else _("Студенты") }}</h1>
+<p class="sub">{{ _("Роли и бонусы.") }}</p>
 
 <div class="row" style="gap:8px; margin-bottom:14px">
   <a class="btn {{ 'ghost' if role == 'teacher' }} small" href="/teacher/students">
-    {{ icon("user") }} Студенты <span class="badge">{{ tabs.student }}</span>
+    {{ icon("user") }} {{ _("Студенты") }} <span class="badge">{{ tabs.student }}</span>
   </a>
   <a class="btn {{ 'ghost' if role != 'teacher' }} small" href="/teacher/students?role=teacher">
-    {{ icon("shield") }} Преподаватели <span class="badge">{{ tabs.teacher }}</span>
+    {{ icon("shield") }} {{ _("Преподаватели") }} <span class="badge">{{ tabs.teacher }}</span>
   </a>
 </div>
 
@@ -18,7 +18,8 @@
 <div class="card table-wrap" style="padding:6px">
   <table>
     <thead>
-      <tr><th>Имя</th><th>Роль</th><th>Аккаунты</th><th>Студент</th><th>Решено задач</th><th>Бонусы</th><th>Начислить</th></tr>
+      <tr><th>{{ _("Имя") }}</th><th>{{ _("Роль") }}</th><th>{{ _("Аккаунты") }}</th><th>{{ _("Студент") }}</th>
+        <th>{{ _("Решено задач") }}</th><th>{{ _("Бонусы") }}</th><th>{{ _("Начислить") }}</th></tr>
     </thead>
     <tbody>
     {% for student in students %}
@@ -36,7 +37,7 @@
           <form method="post" action="/teacher/students/{{ student.id }}/role">
             <button class="ghost small" type="submit">
               {{ icon("shield") if student.is_teacher else icon("user") }}
-              {{ "преподаватель" if student.is_teacher else "студент" }}
+              {{ _("преподаватель") if student.is_teacher else _("студент") }}
             </button>
           </form>
         </td>
@@ -47,15 +48,15 @@
         </td>
         <td>
           {% if student.is_teacher %}<span class="muted">—</span>
-          {% elif student.oidc_sub %}<span class="badge ok">{{ icon("check") }} подтверждён</span>
-          {% else %}<span class="badge warn" title="вход только через Telegram">не подтверждён</span>{% endif %}
+          {% elif student.oidc_sub %}<span class="badge ok">{{ icon("check") }} {{ _("подтверждён") }}</span>
+          {% else %}<span class="badge warn" title="{{ _("вход только через Telegram") }}">{{ _("не подтверждён") }}</span>{% endif %}
         </td>
         <td class="num">{{ solved.get(student.id, 0) }}</td>
         <td class="num">{{ bonuses.get(student.id, 0) | pts }}</td>
         <td>
           <form method="post" action="/teacher/students/{{ student.id }}/bonus" class="inline-form">
             <input type="number" step="0.5" name="points" value="5" style="width:76px" required>
-            <input type="text" name="reason" placeholder="за что" style="width:150px" required>
+            <input type="text" name="reason" placeholder="{{ _("за что") }}" style="width:150px" required>
             <button class="ghost small" type="submit">{{ icon("plus") }}</button>
           </form>
         </td>
@@ -67,9 +68,9 @@
 {% else %}
 <div class="card">
   {% if role == "teacher" %}
-    {{ empty("shield", "Преподаватель пока один — ты. Роль выдаётся на вкладке «Студенты».") }}
+    {{ empty("shield", _("Преподаватель пока один — ты. Роль выдаётся на вкладке «Студенты».")) }}
   {% else %}
-    {{ empty("user", "Пока никто не зарегистрировался.", "/teacher/groups", "Создать группу") }}
+    {{ empty("user", _("Пока никто не зарегистрировался."), "/teacher/groups", _("Создать группу")) }}
   {% endif %}
 </div>
 {% endif %}

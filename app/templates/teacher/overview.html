@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Преподавателю — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Преподавателю") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<p class="eyebrow">жюри</p>
-<h1>Панель преподавателя</h1>
-<p class="sub">Группы, задания, материалы и табло.</p>
+<p class="eyebrow">{{ _("жюри") }}</p>
+<h1>{{ _("Панель преподавателя") }}</h1>
+<p class="sub">{{ _("Группы, задания, материалы и табло.") }}</p>
 <p class="small muted" style="margin:-6px 0 18px">
-  Личное: <a href="/">свои задания</a> · <a href="/accounts">свои аккаунты</a> ·
-  <a href="/announcements">анонсы</a> — их убрали из рейки, чтобы там осталась работа.
+  {{ _("Личное:") }} <a href="/">{{ _("свои задания") }}</a> · <a href="/accounts">{{ _("свои аккаунты") }}</a> ·
+  <a href="/announcements">{{ _("анонсы") }}</a> — {{ _("их убрали из рейки, чтобы там осталась работа.") }}
 </p>
 
 {% if onboarding %}
-<h2>{{ icon("chevron") }} С чего начать</h2>
+<h2>{{ icon("chevron") }} {{ _("С чего начать") }}</h2>
 <div class="steps">
   {% for step in steps %}
   <a class="step {{ 'done' if step.done }}" href="{{ step.href }}">
@@ -25,13 +25,13 @@
 {% endif %}
 
 {% if pinned %}
-<h2>{{ icon("users") }} Мои группы</h2>
+<h2>{{ icon("users") }} {{ _("Мои группы") }}</h2>
 <div class="grid three">
   {% for item in pinned %}
   <a class="card" href="/teacher/groups/{{ item.group.id }}">
     <h3>{{ item.group.title }}</h3>
     <p class="small muted" style="margin:0">
-      студентов: {{ item.size }} · код {{ item.group.join_code }}
+      {{ _("студентов:") }} {{ item.size }} · {{ _("код") }} {{ item.group.join_code }}
     </p>
   </a>
   {% endfor %}
@@ -39,29 +39,29 @@
 {% endif %}
 
 {% if running %}
-<h2>{{ icon("tasks") }} Идут сейчас</h2>
+<h2>{{ icon("tasks") }} {{ _("Идут сейчас") }}</h2>
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Задание</th><th>Кому</th><th>Закрыто</th><th>Дедлайн</th></tr></thead>
+    <thead><tr><th>{{ _("Задание") }}</th><th>{{ _("Кому") }}</th><th>{{ _("Закрыто") }}</th><th>{{ _("Дедлайн") }}</th></tr></thead>
     <tbody>
       {% for item in running %}
       <tr>
         <td><a href="/teacher/assignments/{{ item.assignment.id }}">{{ item.assignment.title }}</a></td>
         <td class="small muted">
           {{ item.assignment.group.title if item.assignment.group
-             else ("персонально" if item.assignment.user_id else "всем") }} ·
-          {{ item.people }} чел.
+             else (_("персонально") if item.assignment.user_id else _("всем")) }} ·
+          {{ item.people }} {{ _("чел.") }}
         </td>
         <td>
           <span class="score-cell">
             <span class="bar"><span style="width: {{ item.share }}%"></span></span>
             <span class="score-num"><b>{{ item.share }}%</b>
-              <span class="muted">· закончили {{ item.done }}</span></span>
+              <span class="muted">· {{ _("закончили") }} {{ item.done }}</span></span>
           </span>
         </td>
         <td class="small muted">
           {% if item.assignment.deadline %}{{ item.assignment.deadline | dt }}
-          {% else %}без срока{% endif %}
+          {% else %}{{ _("без срока") }}{% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -71,55 +71,55 @@
 {% endif %}
 
 {% if counts.students or not onboarding %}
-<h2>{{ icon("activity") }} Сейчас в системе</h2>
+<h2>{{ icon("activity") }} {{ _("Сейчас в системе") }}</h2>
 <div class="grid stats">
   <div class="stat">{{ icon("user") }}
-    <div class="value">{{ counts.students }}</div><div class="label">студентов</div></div>
+    <div class="value">{{ counts.students }}</div><div class="label">{{ _("студентов") }}</div></div>
   <div class="stat">{{ icon("users") }}
-    <div class="value">{{ counts.groups }}</div><div class="label">групп</div></div>
+    <div class="value">{{ counts.groups }}</div><div class="label">{{ _("групп") }}</div></div>
   <div class="stat">{{ icon("layers") }}
-    <div class="value">{{ counts.sets }}</div><div class="label">списков задач</div></div>
+    <div class="value">{{ counts.sets }}</div><div class="label">{{ _("списков задач") }}</div></div>
   <div class="stat">{{ icon("tasks") }}
-    <div class="value">{{ counts.assignments }}</div><div class="label">заданий</div></div>
+    <div class="value">{{ counts.assignments }}</div><div class="label">{{ _("заданий") }}</div></div>
   <div class="stat">{{ icon("send") }}
-    <div class="value">{{ counts.submissions }}</div><div class="label">посылок собрано</div></div>
+    <div class="value">{{ counts.submissions }}</div><div class="label">{{ _("посылок собрано") }}</div></div>
 </div>
 {% endif %}
 
-<h2>{{ icon("layers") }} Разделы</h2>
+<h2>{{ icon("layers") }} {{ _("Разделы") }}</h2>
 <div class="grid three">
-  <a class="card" href="/teacher/groups"><h3>{{ icon("users") }} Группы</h3>
-    <p class="small muted" style="margin:0">Код вступления и состав</p></a>
-  <a class="card" href="/teacher/sets"><h3>{{ icon("layers") }} Списки задач</h3>
-    <p class="small muted" style="margin:0">Подборка задач из ссылок</p></a>
-  <a class="card" href="/teacher/assignments"><h3>{{ icon("tasks") }} Задания</h3>
-    <p class="small muted" style="margin:0">Выдать список группе и следить за матрицей решений</p></a>
-  <a class="card" href="/teacher/announcements"><h3>{{ icon("megaphone") }} Объявления</h3>
-    <p class="small muted" style="margin:0">Анонс соревнования со ссылкой и обратным отсчётом</p></a>
-  <a class="card" href="/teacher/students"><h3>{{ icon("user") }} Студенты</h3>
-    <p class="small muted" style="margin:0">Роли и бонусы</p></a>
-  <a class="card" href="/teacher/reviews"><h3>{{ icon("search") }} Проверка решений</h3>
-    <p class="small muted" style="margin:0">Файлы, присланные к заданиям с обязательным решением</p></a>
-  <a class="card" href="/teacher/features"><h3>{{ icon("shield") }} Видимость разделов</h3>
-    <p class="small muted" style="margin:0">Что показывать студентам, а что пока только жюри</p></a>
+  <a class="card" href="/teacher/groups"><h3>{{ icon("users") }} {{ _("Группы") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Код вступления и состав") }}</p></a>
+  <a class="card" href="/teacher/sets"><h3>{{ icon("layers") }} {{ _("Списки задач") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Подборка задач из ссылок") }}</p></a>
+  <a class="card" href="/teacher/assignments"><h3>{{ icon("tasks") }} {{ _("Задания") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Выдать список группе и следить за матрицей решений") }}</p></a>
+  <a class="card" href="/teacher/announcements"><h3>{{ icon("megaphone") }} {{ _("Объявления") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Анонс соревнования со ссылкой и обратным отсчётом") }}</p></a>
+  <a class="card" href="/teacher/students"><h3>{{ icon("user") }} {{ _("Студенты") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Роли и бонусы") }}</p></a>
+  <a class="card" href="/teacher/reviews"><h3>{{ icon("search") }} {{ _("Проверка решений") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Файлы, присланные к заданиям с обязательным решением") }}</p></a>
+  <a class="card" href="/teacher/features"><h3>{{ icon("shield") }} {{ _("Видимость разделов") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Что показывать студентам, а что пока только жюри") }}</p></a>
 </div>
 
-<h2>{{ icon("database") }} Каталог задач</h2>
+<h2>{{ icon("database") }} {{ _("Каталог задач") }}</h2>
 <div class="card">
   <p class="row" style="margin-top:0">
     {% for name, count in catalog.items() %}<span class="badge info">{{ name }}: {{ count }}</span>{% endfor %}
   </p>
   <p class="small muted">
-    Обновлён {{ catalog_synced_at | ago if catalog_synced_at else "ещё ни разу" }}.
-    Обновляется сам раз в {{ settings.catalog_refresh_hours }} ч.
+    {{ _("Обновлён") }} {{ catalog_synced_at | ago if catalog_synced_at else _("ещё ни разу") }}.
+    {{ _("Обновляется сам раз в %(hours)s ч.") % {"hours": settings.catalog_refresh_hours} }}
   </p>
   <div class="row">
     <form method="post" action="/teacher/catalog-refresh">
-      <button class="ghost small" type="submit">{{ icon("database") }} Обновить каталог</button></form>
+      <button class="ghost small" type="submit">{{ icon("database") }} {{ _("Обновить каталог") }}</button></form>
     <form method="post" action="/teacher/sync-now">
-      <button class="ghost small" type="submit">{{ icon("refresh") }} Синхронизировать посылки</button></form>
-    <a class="btn ghost small" href="/teacher/problems">{{ icon("search") }} Поиск по каталогу</a>
-    <a class="btn ghost small" href="/teacher/problems/unlinked">{{ icon("alert") }} Задачи вне каталога</a>
+      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Синхронизировать посылки") }}</button></form>
+    <a class="btn ghost small" href="/teacher/problems">{{ icon("search") }} {{ _("Поиск по каталогу") }}</a>
+    <a class="btn ghost small" href="/teacher/problems/unlinked">{{ icon("alert") }} {{ _("Задачи вне каталога") }}</a>
   </div>
 </div>
 {% endblock %}

@@ -16,6 +16,7 @@ from app.bot import run_bot
 from app.config import settings
 from app.deps import Forbidden, RedirectToLogin, section_required
 from app.i18n import LANGUAGE_COOKIE, pick_language, set_language
+from app.i18n import translate as _
 from app.routers import (
     accounts,
     announcements,
@@ -166,7 +167,10 @@ async def _redirect_to_login(request: Request, exc: RedirectToLogin):
 @app.exception_handler(Forbidden)
 async def _forbidden(request: Request, exc: Forbidden):
     return templates.TemplateResponse(
-        request, "error.html", {"user": exc.user, "message": exc.message}, status_code=403
+        request,
+        "error.html",
+        {"user": exc.user, "message": exc.message or _("Недостаточно прав")},
+        status_code=403,
     )
 
 
@@ -183,9 +187,11 @@ async def _bad_request(request: Request, exc: RequestValidationError):
         "error.html",
         {
             "user": getattr(request.state, "user", None),
-            "title": "Не получилось",
-            "message": "Страница получила значение, которого не ждала. "
-                       "Вернись на главную и попробуй ещё раз.",
+            "title": _("Не получилось"),
+            "message": _(
+                "Страница получила значение, которого не ждала. "
+                "Вернись на главную и попробуй ещё раз."
+            ),
         },
         status_code=400,
     )

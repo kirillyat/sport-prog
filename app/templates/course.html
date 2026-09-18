@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Курс — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ settings.course_title or _("Курс") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">курс</p>
-    <h1>Алгоритмы и структуры данных</h1>
-    <p class="sub">Первый семестр: конспекты лекций, практики и домашние задания по неделям.</p>
+    <p class="eyebrow">{{ _("курс") }}</p>
+    <h1>{{ settings.course_title or _("Курс") }}</h1>
+    <p class="sub">{{ settings.course_subtitle or _("Конспекты лекций, практики и домашние задания по неделям.") }}</p>
   </div>
   <div class="row" style="gap:8px">
-    <a class="btn ghost small" href="/course/about">{{ icon("book") }} О курсе</a>
-    <a class="btn ghost small" href="/course/authors">{{ icon("users") }} Авторы</a>
+    <a class="btn ghost small" href="/course/about">{{ icon("book") }} {{ _("О курсе") }}</a>
+    <a class="btn ghost small" href="/course/authors">{{ icon("users") }} {{ _("Авторы") }}</a>
   </div>
 </div>
 
@@ -22,13 +22,13 @@
   <div class="card stretch">
     <div class="row between">
       <h3 style="margin:0"><a href="{{ week.url }}">{{ week.title }}</a></h3>
-      {% if not week.slots %}<span class="badge" title="материалы ещё не выложены">впереди</span>{% endif %}
+      {% if not week.slots %}<span class="badge" title="{{ _("материалы ещё не выложены") }}">{{ _("впереди") }}</span>{% endif %}
     </div>
     {% if week.lecture_title %}
-    <p class="small" style="margin:8px 0 0"><span class="muted">лекция:</span> {{ week.lecture_title }}</p>
+    <p class="small" style="margin:8px 0 0"><span class="muted">{{ _("лекция:") }}</span> {{ week.lecture_title }}</p>
     {% endif %}
     {% if week.seminar_title %}
-    <p class="small" style="margin:4px 0 0"><span class="muted">семинар:</span> {{ week.seminar_title }}</p>
+    <p class="small" style="margin:4px 0 0"><span class="muted">{{ _("семинар:") }}</span> {{ week.seminar_title }}</p>
     {% endif %}
     {% if week.slots %}
     <div class="row push-bottom" style="gap:6px; flex-wrap:wrap">
@@ -41,6 +41,6 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="card">{{ empty("layers", "Курс ещё не выгружен на портал.") }}</div>
+<div class="card">{{ empty("layers", _("Курс ещё не выгружен на портал.")) }}</div>
 {% endif %}
 {% endblock %}

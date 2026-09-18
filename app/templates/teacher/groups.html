@@ -1,36 +1,36 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Группы — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Группы") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Группы</h1>
-<p class="sub">Направление или поток. Участник вступает сам — по коду.</p>
+<h1>{{ _("Группы") }}</h1>
+<p class="sub">{{ _("Направление или поток. Участник вступает сам — по коду.") }}</p>
 
 <div class="card">
   <form method="post" action="/teacher/groups" class="inline-form">
     <div class="field" style="flex:1; min-width:240px;">
-      <label for="title">Название группы</label>
-      <input type="text" id="title" name="title" placeholder="Алгоритмы, 3 курс, осень 2026" required>
+      <label for="title">{{ _("Название группы") }}</label>
+      <input type="text" id="title" name="title" placeholder="{{ _("Алгоритмы, 3 курс, осень 2026") }}" required>
     </div>
-    <button type="submit">{{ icon("plus") }} Создать</button>
+    <button type="submit">{{ icon("plus") }} {{ _("Создать") }}</button>
   </form>
 </div>
 
 {% if groups %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Группа</th><th>Код</th><th>Студентов</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Группа") }}</th><th>{{ _("Код") }}</th><th>{{ _("Студентов") }}</th><th></th></tr></thead>
     <tbody>
     {% for group in groups %}
       <tr>
         <td>
           <a href="/teacher/groups/{{ group.id }}">{{ group.title }}</a>
-          {% if group.is_archived %}<span class="badge">в архиве</span>{% endif %}
+          {% if group.is_archived %}<span class="badge">{{ _("в архиве") }}</span>{% endif %}
         </td>
         <td><span class="badge mono">{{ group.join_code }}</span></td>
         <td class="num">{{ sizes.get(group.id, 0) }}</td>
         <td style="text-align:right">
           <form method="post" action="/teacher/groups/{{ group.id }}/archive">
-            <button class="ghost small" type="submit">{{ "Вернуть" if group.is_archived else "В архив" }}</button>
+            <button class="ghost small" type="submit">{{ _("Вернуть") if group.is_archived else _("В архив") }}</button>
           </form>
         </td>
       </tr>
@@ -39,6 +39,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("users", "Групп пока нет — создай первую в форме выше.") }}</div>
+<div class="card">{{ empty("users", _("Групп пока нет — создай первую в форме выше.")) }}</div>
 {% endif %}
 {% endblock %}

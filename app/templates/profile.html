@@ -17,11 +17,11 @@
 <div class="profile-head">
   {{ avatar(target, "lg") }}
   <div style="min-width:0; flex:1">
-    <p class="eyebrow">участник #{{ "%04d" % target.id }}</p>
+    <p class="eyebrow">{{ _("участник") }} #{{ "%04d" % target.id }}</p>
     <h1 style="margin-bottom:4px">
       {{ target.display_name }}
       {% if can_rename %}
-      <button class="rename-toggle" type="button" title="Изменить профиль"
+      <button class="rename-toggle" type="button" title="{{ _("Изменить профиль") }}"
               onclick="document.getElementById('edit-box').toggleAttribute('hidden');
                        document.getElementById('rename-input').focus()">{{ icon("edit") }}</button>
       {% endif %}
@@ -30,42 +30,42 @@
     <div id="edit-box" hidden style="margin:10px 0 12px">
       <form method="post" action="/u/{{ target.id }}/name" class="inline-form">
         <div class="field" style="min-width:220px">
-          <label for="rename-input">Имя</label>
+          <label for="rename-input">{{ _("Имя") }}</label>
           <input type="text" id="rename-input" name="display_name" maxlength="120"
                  value="{{ target.display_name }}" autocomplete="off" required>
         </div>
-        <button type="submit">{{ icon("check") }} Сохранить</button>
+        <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
       </form>
       {% if is_self %}
       <form method="post" action="/u/{{ target.id }}/gravatar" class="inline-form"
             style="margin-top:8px">
         <div class="field" style="min-width:260px">
-          <label for="gravatar-input">Почта на Gravatar</label>
+          <label for="gravatar-input">{{ _("Почта на Gravatar") }}</label>
           <input type="email" id="gravatar-input" name="gravatar_email" maxlength="255"
-                 value="{{ target.gravatar_email or "" }}" placeholder="пусто — инициалы"
+                 value="{{ target.gravatar_email or "" }}" placeholder="{{ _("пусто — инициалы") }}"
                  autocomplete="email">
         </div>
-        <button type="submit">{{ icon("check") }} Сохранить</button>
-        <span class="small muted">Аватарка берётся с gravatar.com по этой почте.</span>
+        <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+        <span class="small muted">{{ _("Аватарка берётся с gravatar.com по этой почте.") }}</span>
       </form>
 
-      <h3 style="margin:18px 0 8px">{{ icon("code") }} Аккаунты платформ</h3>
+      <h3 style="margin:18px 0 8px">{{ icon("code") }} {{ _("Аккаунты платформ") }}</h3>
       <p class="small muted" style="margin-top:0">
-        Без них решения не засчитываются: портал узнаёт о них по имени на площадке.
+        {{ _("Без них решения не засчитываются: портал узнаёт о них по имени на площадке.") }}
       </p>
       {{ platform_accounts(target, platforms, where_to_put, back="/me") }}
       <p class="small muted">
-        То же самое и способы входа — телеграм, {{ settings.org_account_name | lower }} —
-        на странице <a href="/accounts">аккаунтов</a>.
+        {{ _("То же самое и способы входа — телеграм, %(account)s — на странице") % {"account": settings.org_account_name | lower} }}
+        <a href="/accounts">{{ _("аккаунтов") }}</a>.
       </p>
       {% endif %}
     </div>
     {% endif %}
     <div class="row small muted">
       {% if target.telegram_username %}<span>@{{ target.telegram_username }}</span>{% endif %}
-      {% if target.is_teacher %}<span class="badge info">{{ icon("shield") }} преподаватель</span>{% endif %}
+      {% if target.is_teacher %}<span class="badge info">{{ icon("shield") }} {{ _("преподаватель") }}</span>{% endif %}
       {% for group in groups %}<span class="badge">{{ group.title }}</span>{% endfor %}
-      {% if not groups %}<span>без группы</span>{% endif %}
+      {% if not groups %}<span>{{ _("без группы") }}</span>{% endif %}
     </div>
     {% if accounts %}
     <div class="row small" style="margin-top:8px">
@@ -81,9 +81,9 @@
 
   {% if can_sync %}
   <form method="post" action="/u/{{ target.id }}/sync" class="profile-sync">
-    <button class="ghost" type="submit">{{ icon("refresh") }} Обновить результаты</button>
+    <button class="ghost" type="submit">{{ icon("refresh") }} {{ _("Обновить результаты") }}</button>
     <span class="small muted">
-      {% if last_synced %}синхронизировано {{ last_synced | ago }}{% else %}ещё не синхронизировалось{% endif %}
+      {% if last_synced %}{{ _("синхронизировано") }} {{ last_synced | ago }}{% else %}{{ _("ещё не синхронизировалось") }}{% endif %}
     </span>
   </form>
   {% endif %}
@@ -94,24 +94,24 @@
     {% if score %}
     <div class="value">{{ score.solved }}{% if score.assigned %}<span class="of">/{{ score.assigned }}</span>{% endif %}</div>
     <div class="label">
-      задач зачтено{% if place and place_of > 1 %} ·
-      {{ place }}-е место из {{ place_of }}{% if place_group %} в «{{ place_group.title }}»{% endif %}{% endif %}
+      {{ _("задач зачтено") }}{% if place and place_of > 1 %} ·
+      {{ _("%(place)s-е место из %(total)s") % {"place": place, "total": place_of} }}{% if place_group %} {{ _("в") }} «{{ place_group.title }}»{% endif %}{% endif %}
     </div>
     {% else %}
     <div class="value">—</div>
-    <div class="label">вне рейтинга</div>
+    <div class="label">{{ _("вне рейтинга") }}</div>
     {% endif %}
   </div>
   <div class="stat">{{ icon("check") }}
-    <div class="value">{{ stats.unique_problems }}</div><div class="label">уникальных задач</div></div>
+    <div class="value">{{ stats.unique_problems }}</div><div class="label">{{ _("уникальных задач") }}</div></div>
   <div class="stat">{{ icon("flame") }}
     <div class="value">{{ stats.current_streak }}</div>
-    <div class="label">{{ stats.current_streak | plural("день подряд", "дня подряд", "дней подряд") }}</div></div>
+    <div class="label">{{ stats.current_streak | plural(_("день подряд|дня подряд|дней подряд")) }}</div></div>
   <div class="stat">{{ icon("medal") }}
-    <div class="value">{{ stats.longest_streak }}</div><div class="label">лучшая серия</div></div>
+    <div class="value">{{ stats.longest_streak }}</div><div class="label">{{ _("лучшая серия") }}</div></div>
 </div>
 
-<h2>{{ icon("activity") }} Активность</h2>
+<h2>{{ icon("activity") }} {{ _("Активность") }}</h2>
 <div class="card">
   <div class="heatmap-scroll">
     <div class="heatmap-months">
@@ -120,7 +120,7 @@
       {% endfor %}
     </div>
     <div class="heatmap-body">
-      <div class="heatmap-weekdays"><span></span><span>Вт</span><span></span><span>Чт</span><span></span><span>Сб</span><span></span></div>
+      <div class="heatmap-weekdays"><span></span><span>{{ _("Вт") }}</span><span></span><span>{{ _("Чт") }}</span><span></span><span>{{ _("Сб") }}</span><span></span></div>
       <div class="heatmap">
         {% for week in stats.heatmap.weeks %}
         <div class="hm-col">
@@ -136,24 +136,23 @@
   <div class="row between small muted" style="margin-top:12px">
     <span>
       {% if stats.heatmap.active_days %}
-        Активных дней за {{ stats.heatmap.days_covered }} дней: <b>{{ stats.heatmap.active_days }}</b>,
-        решений — <b>{{ stats.heatmap.total }}</b>.
+        {{ (_("Активных дней за %(days)s дней: <b>%(active)s</b>, решений — <b>%(total)s</b>.") % {"days": stats.heatmap.days_covered, "active": stats.heatmap.active_days, "total": stats.heatmap.total}) | safe }}
       {% elif stats.last_solve %}
-        За последние {{ stats.heatmap.days_covered }} дней решений нет.
-        Последнее было {{ stats.last_solve.strftime("%d.%m.%Y") }}.
+        {{ _("За последние %(days)s дней решений нет.") % {"days": stats.heatmap.days_covered} }}
+        {{ _("Последнее было %(date)s.") % {"date": stats.last_solve.strftime("%d.%m.%Y")} }}
       {% else %}
-        Решений пока нет.
+        {{ _("Решений пока нет.") }}
       {% endif %}
     </span>
     <span class="hm-legend">
-      меньше <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> больше
+      {{ _("меньше") }} <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> {{ _("больше") }}
     </span>
   </div>
 </div>
 
 <div class="grid two" style="align-items:start">
   <div>
-    <h2>{{ icon("tasks") }} Задания</h2>
+    <h2>{{ icon("tasks") }} {{ _("Задания") }}</h2>
     <div class="card">
       {% if assignment_cards %}
         {% for card in assignment_cards %}
@@ -171,18 +170,18 @@
         </div>
         {% endfor %}
       {% else %}
-        {{ empty("inbox", "Заданий пока не было.") }}
+        {{ empty("inbox", _("Заданий пока не было.")) }}
       {% endif %}
     </div>
   </div>
 
   <div>
-    <h2>{{ icon("check") }} Последние решения</h2>
+    <h2>{{ icon("check") }} {{ _("Последние решения") }}</h2>
     <div class="card">
       {{ feed_list(recent, show_day=False) }}
       {% if recent %}
       <hr class="divider">
-      <a class="small" href="/feed">Вся лента {{ icon("chevron") }}</a>
+      <a class="small" href="/feed">{{ _("Вся лента") }} {{ icon("chevron") }}</a>
       {% endif %}
     </div>
   </div>
@@ -190,40 +189,39 @@
 
 <div class="grid two" style="align-items:start">
   <div class="card">
-    <h3>{{ icon("layers") }} По сложности</h3>
+    <h3>{{ icon("layers") }} {{ _("По сложности") }}</h3>
     {% if stats.by_difficulty %}
       {% for key, value in stats.by_difficulty.items() %}
         {{ bar_row(key, value, stats.max_difficulty, key | lower) }}
       {% endfor %}
-    {% else %}<p class="small muted" style="margin:0">Пока нет данных.</p>{% endif %}
+    {% else %}<p class="small muted" style="margin:0">{{ _("Пока нет данных.") }}</p>{% endif %}
   </div>
   <div class="card">
-    <h3>{{ icon("code") }} По платформам</h3>
+    <h3>{{ icon("code") }} {{ _("По платформам") }}</h3>
     {% if stats.by_platform %}
       {% for key, value in stats.by_platform.items() %}
         {{ bar_row(key, value, stats.max_platform) }}
       {% endfor %}
-    {% else %}<p class="small muted" style="margin:0">Пока нет данных.</p>{% endif %}
+    {% else %}<p class="small muted" style="margin:0">{{ _("Пока нет данных.") }}</p>{% endif %}
     <p class="small muted" style="margin:14px 0 0">
-      Всего принятых посылок: {{ stats.total_accepted }}.
-      {% if stats.first_solve %}Первая — {{ stats.first_solve.strftime("%d.%m.%Y") }}.{% endif %}
+      {{ _("Всего принятых посылок: %(count)s.") % {"count": stats.total_accepted} }}
+      {% if stats.first_solve %}{{ _("Первая — %(date)s.") % {"date": stats.first_solve.strftime("%d.%m.%Y")} }}{% endif %}
     </p>
   </div>
 </div>
 
 <div class="card">
-  <h3>{{ icon("trophy") }} Сильные темы</h3>
+  <h3>{{ icon("trophy") }} {{ _("Сильные темы") }}</h3>
   {% if stats.top_tags %}
     {% for tag, count in stats.top_tags %}
       {{ bar_row(tag, count, stats.max_tag) }}
     {% endfor %}
-  {% else %}<p class="small muted" style="margin:0">Решай задачи — здесь появятся темы.</p>{% endif %}
+  {% else %}<p class="small muted" style="margin:0">{{ _("Решай задачи — здесь появятся темы.") }}</p>{% endif %}
 </div>
 
 {% if is_self %}
 <p class="small muted">
-  Статистика — по синхронизированным посылкам.
-  Чего-то не хватает? Нажми «Обновить результаты» выше.
+  {{ _("Статистика — по синхронизированным посылкам. Чего-то не хватает? Нажми «Обновить результаты» выше.") }}
 </p>
 {% endif %}
 {% endblock %}

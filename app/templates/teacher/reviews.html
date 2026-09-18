@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Проверка решений — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Проверка решений") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow"><a href="/teacher">жюри</a> / проверка</p>
-    <h1>Проверка решений</h1>
+    <p class="eyebrow"><a href="/teacher">{{ _("жюри") }}</a> / {{ _("проверка") }}</p>
+    <h1>{{ _("Проверка решений") }}</h1>
     <p class="sub">
-      Решения, присланные к заданиям с обязательным файлом. Сначала те,
-      что ждут дольше всех.
+      {{ _("Решения, присланные к заданиям с обязательным файлом. Сначала те, что ждут дольше всех.") }}
     </p>
   </div>
 </div>
@@ -19,7 +18,7 @@
 {% if rows %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Студент</th><th>Задача</th><th>Задание</th><th>Прислано</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Студент") }}</th><th>{{ _("Задача") }}</th><th>{{ _("Задание") }}</th><th>{{ _("Прислано") }}</th><th></th></tr></thead>
     <tbody>
       {% for row in rows %}
       <tr>
@@ -36,21 +35,21 @@
           {% else %}—{% endif %}
         </td>
         <td class="small muted">{{ row.upload.submitted_at | ago }}</td>
-        <td><a class="btn small" href="/solutions/{{ row.upload.id }}">{{ icon("search") }} Смотреть</a></td>
+        <td><a class="btn small" href="/solutions/{{ row.upload.id }}">{{ icon("search") }} {{ _("Смотреть") }}</a></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("check", "Непроверенных решений нет.") }}</div>
+<div class="card">{{ empty("check", _("Непроверенных решений нет.")) }}</div>
 {% endif %}
 
 {% if reviewed %}
-<h2>{{ icon("clock") }} Недавно проверенные</h2>
+<h2>{{ icon("clock") }} {{ _("Недавно проверенные") }}</h2>
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Студент</th><th>Задача</th><th>Решение</th><th>Проверено</th></tr></thead>
+    <thead><tr><th>{{ _("Студент") }}</th><th>{{ _("Задача") }}</th><th>{{ _("Решение") }}</th><th>{{ _("Проверено") }}</th></tr></thead>
     <tbody>
       {% for row in reviewed %}
       <tr>
@@ -58,9 +57,9 @@
         <td class="small">{{ row.problem.title if row.problem else "—" }}</td>
         <td>
           {% if row.upload.status.value == "accepted" %}
-          <a class="badge ok" href="/solutions/{{ row.upload.id }}">{{ icon("check") }} принято</a>
+          <a class="badge ok" href="/solutions/{{ row.upload.id }}">{{ icon("check") }} {{ _("принято") }}</a>
           {% else %}
-          <a class="badge err" href="/solutions/{{ row.upload.id }}">{{ icon("alert") }} отклонено</a>
+          <a class="badge err" href="/solutions/{{ row.upload.id }}">{{ icon("alert") }} {{ _("отклонено") }}</a>
           {% endif %}
         </td>
         <td class="small muted">{{ row.upload.reviewed_at | ago if row.upload.reviewed_at }}</td>

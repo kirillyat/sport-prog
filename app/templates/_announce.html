@@ -6,7 +6,7 @@
 <div class="announce {{ 'pinned' if item.pinned }}">
   <div class="announce-head">
     <h3>
-      {% if item.pinned %}<span class="pin" title="Закреплено">{{ icon("flame") }}</span>{% endif %}
+      {% if item.pinned %}<span class="pin" title="{{ _("Закреплено") }}">{{ icon("flame") }}</span>{% endif %}
       {{ item.title }}
     </h3>
     {% if item.starts_at %}
@@ -15,13 +15,13 @@
       <span class="countdown" data-countdown data-state="{{ state }}"
             data-start="{{ item.starts_at.isoformat() }}"
             {% if item.ends_at %}data-end="{{ item.ends_at.isoformat() }}"{% endif %}>{{
-        {"upcoming": "скоро", "live": "идёт сейчас", "past": "завершено"}.get(state, "")
+        {"upcoming": _("скоро"), "live": _("идёт сейчас"), "past": _("завершено")}.get(state, "")
       }}</span>
     {% endif %}
   </div>
 
   <div class="row small muted announce-meta">
-    <span class="badge">{{ item.group.title if item.group else "всем" }}</span>
+    <span class="badge">{{ item.group.title if item.group else _("всем") }}</span>
     {% if item.starts_at %}
       <span>{{ icon("calendar") }} {{ item.starts_at | dt }}{% if item.ends_at %} — {{ item.ends_at | dt("%H:%M") }}{% endif %}</span>
     {% else %}
@@ -33,7 +33,7 @@
 
   {% if item.url %}
   <a class="btn small" href="{{ item.url }}" target="_blank" rel="noopener">
-    {{ icon("external") }} {{ item.url_label or "Перейти к соревнованию" }}
+    {{ icon("external") }} {{ item.url_label or _("Перейти к соревнованию") }}
   </a>
   {% endif %}
 </div>

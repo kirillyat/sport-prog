@@ -5,6 +5,7 @@ import secrets
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import translate as _
 from app.models import Platform, PlatformAccount, User, utcnow
 from app.platforms import CodeforcesClient, LeetCodeClient
 from app.platforms.base import PlatformError, RemoteProfile, UserNotFound
@@ -18,12 +19,12 @@ def new_verification_code() -> str:
 
 WHERE_TO_PUT = {
     Platform.codeforces: (
-        "Зайди в Codeforces → Settings → Social, впиши код в поле «Organization» "
-        "(или во «First name») и сохрани."
+        _("Зайди в Codeforces → Settings → Social, впиши код в поле «Organization» "
+          "(или во «First name») и сохрани.")
     ),
     Platform.leetcode: (
-        "Зайди в LeetCode → Profile → Edit Profile, впиши код в поле «Name» "
-        "(или в «Summary»/«Website») и сохрани."
+        _("Зайди в LeetCode → Profile → Edit Profile, впиши код в поле «Name» "
+          "(или в «Summary»/«Website») и сохрани.")
     ),
 }
 
@@ -42,16 +43,21 @@ async def start_verification(
     """Создаёт или перепривязывает аккаунт и выдаёт код для подтверждения."""
     handle = handle.strip().strip("@")
     if not handle:
-        raise ValueError("Пустой хэндл")
+        raise ValueError(_("Пустой хэндл"))
 
     # Проверяем, что такой пользователь на платформе вообще существует,
     # чтобы студент не ждал верификации опечатки.
     try:
         await fetch_profile(platform, handle)
     except UserNotFound as exc:
-        raise ValueError(f"На {platform.title} нет пользователя «{handle}»") from exc
+        raise ValueError(
+            _("На %(platform)s нет пользователя «%(handle)s»")
+            % {"platform": platform.title, "handle": handle}
+        ) from exc
     except PlatformError as exc:
-        raise ValueError(f"{platform.title} сейчас недоступен: {exc}") from exc
+        raise ValueError(
+            _("%(platform)s сейчас недоступен: %(why)s") % {"platform": platform.title, "why": exc}
+        ) from exc
 
     taken = await session.scalar(
         select(PlatformAccount).where(
@@ -62,7 +68,9 @@ async def start_verification(
         )
     )
     if taken is not None:
-        raise ValueError(f"Аккаунт «{handle}» уже привязан к другому студенту")
+        raise ValueError(
+            _("Аккаунт «%(handle)s» уже привязан к другому студенту") % {"handle": handle}
+        )
 
     account = await session.scalar(
         select(PlatformAccount).where(
@@ -87,14 +95,19 @@ async def confirm_verification(session: AsyncSession, account: PlatformAccount) 
     if account.is_verified:
         return True
     if not account.verification_code:
-        raise ValueError("Сначала запроси код верификации")
+        raise ValueError(_("Сначала запроси код верификации"))
 
     try:
         profile = await fetch_profile(account.platform, account.handle)
     except UserNotFound as exc:
-        raise ValueError(f"Профиль «{account.handle}» больше не найден") from exc
+        raise ValueError(
+            _("Профиль «%(handle)s» больше не найден") % {"handle": account.handle}
+        ) from exc
     except PlatformError as exc:
-        raise ValueError(f"{account.platform.title} сейчас недоступен: {exc}") from exc
+        raise ValueError(
+            _("%(platform)s сейчас недоступен: %(why)s")
+            % {"platform": account.platform.title, "why": exc}
+        ) from exc
 
     if account.verification_code.lower() not in profile.searchable_text.lower():
         return False

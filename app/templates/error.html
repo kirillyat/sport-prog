@@ -2,8 +2,8 @@
 {% block content %}
 <div class="auth-shell">
   <div class="auth-logo">{{ icon("alert", "xl") }}</div>
-  <h1>{{ title or "Доступ закрыт" }}</h1>
+  <h1>{{ title or _("Доступ закрыт") }}</h1>
   <p class="sub">{{ message }}</p>
-  <a class="btn ghost" href="/">{{ icon("chevron") }} На главную</a>
+  <a class="btn ghost" href="/">{{ icon("chevron") }} {{ _("На главную") }}</a>
 </div>
 {% endblock %}

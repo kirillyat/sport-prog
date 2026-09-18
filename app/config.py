@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # тексты становятся общими, без упоминания конкретного вуза.
     org_name: str = ""
     org_account_name: str = "учётная запись организации"
+    # Название курса в разделе «Курс». Пусто — заголовком станет слово «Курс»:
+    # у каждого вуза курс свой, а в исходнике чужое название ни к чему.
+    course_title: str = ""
+    course_subtitle: str = ""
     display_timezone: str = "Europe/Moscow"
     base_url: str = "http://localhost:8000"
     secret_key: str = INSECURE_SECRET

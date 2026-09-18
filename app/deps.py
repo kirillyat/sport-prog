@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_session
+from app.i18n import translate as _
 from app.models import Role, User
 from app.security import read_session
 
@@ -30,7 +31,9 @@ class RedirectToLogin(Exception):
 
 
 class Forbidden(Exception):
-    def __init__(self, message: str = "Недостаточно прав", user: User | None = None) -> None:
+    def __init__(self, message: str = "", user: User | None = None) -> None:
+        # Пустое сообщение переводится на странице ошибки: язык известен
+        # там, а не в момент, когда исключение поднялось.
         self.message = message
         # Пользователь известен — значит на странице ошибки можно оставить навигацию.
         self.user = user
@@ -59,7 +62,7 @@ async def require_user(request: Request, session: SessionDep) -> User:
 async def require_teacher(request: Request, session: SessionDep) -> User:
     user = await require_user(request, session)
     if user.role != Role.teacher:
-        raise Forbidden("Эта страница только для преподавателя", user)
+        raise Forbidden(_("Эта страница только для преподавателя"), user)
     return user
 
 
@@ -88,7 +91,7 @@ def section_required(key: str):
         from app.services import features
 
         if not features.allows(await features.load(session), key, user):
-            raise Forbidden("Раздел сейчас закрыт преподавателем", user)
+            raise Forbidden(_("Раздел сейчас закрыт преподавателем"), user)
 
     return guard
 

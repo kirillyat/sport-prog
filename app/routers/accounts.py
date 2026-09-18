@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.access import is_confirmed
 from app.config import settings
 from app.deps import CurrentUser, SessionDep
+from app.i18n import translate as _
 from app.models import Platform, PlatformAccount
 from app.services import verification
 from app.services.sync import sync_account
@@ -50,16 +51,16 @@ async def accounts_page(request: Request, user: CurrentUser):
 async def unlink_telegram(session: SessionDep, user: CurrentUser):
     """Отвязать Telegram можно, только когда вход остаётся по учётной записи вуза."""
     if user.telegram_id is None:
-        return _back(error="Telegram не привязан")
+        return _back(error=_("Telegram не привязан"))
     if user.oidc_sub is None:
         return _back(
-            error=f"Сначала привяжи {settings.oidc_provider_name} — "
-            "иначе входить будет нечем"
+            error=_("Сначала привяжи %(provider)s — иначе входить будет нечем")
+            % {"provider": settings.oidc_provider_name}
         )
     user.telegram_id = None
     user.telegram_username = None
     await session.commit()
-    return _back(message="Telegram отвязан")
+    return _back(message=_("Telegram отвязан"))
 
 
 @router.post("/oidc/unlink")
@@ -69,10 +70,12 @@ async def unlink_oidc(session: SessionDep, user: CurrentUser):
     Отвязали бы — человек остался бы в группах, перестав быть подтверждённым.
     """
     if user.oidc_sub is None:
-        return _back(error=f"{settings.oidc_provider_name} не привязан")
+        return _back(
+        error=_("%(provider)s не привязан") % {"provider": settings.oidc_provider_name}
+    )
     return _back(
-        error=f"{settings.oidc_provider_name} подтверждает, что ты {settings.org_student} — "
-        "отвязать нельзя"
+        error=_("%(provider)s подтверждает, что ты %(who)s — отвязать нельзя")
+        % {"provider": settings.oidc_provider_name, "who": settings.org_student}
     )
 
 
@@ -87,13 +90,13 @@ async def link_account(
     try:
         target = Platform(platform)
     except ValueError:
-        return _back(error="Неизвестная платформа", back=back)
+        return _back(error=_("Неизвестная платформа"), back=back)
 
     try:
         await verification.start_verification(session, user, target, handle)
     except ValueError as exc:
         return _back(error=str(exc))
-    return _back(message="Код выдан, впиши его в профиль и нажми «Проверить»", back=back)
+    return _back(message=_("Код выдан, впиши его в профиль и нажми «Проверить»"), back=back)
 
 
 @router.post("/{account_id}/verify")
@@ -103,16 +106,20 @@ async def verify_account(
 ):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден", back=back)
+        return _back(error=_("Аккаунт не найден"), back=back)
     try:
         confirmed = await verification.confirm_verification(session, account)
     except ValueError as exc:
         return _back(error=str(exc))
     if not confirmed:
-        return _back(error="Код в профиле не найден. Сохранил ли ты изменения?", back=back)
+        return _back(error=_("Код в профиле не найден. Сохранил ли ты изменения?"), back=back)
 
     await sync_account(session, account)
-    return _back(message=f"{account.platform.title} привязан, посылки загружаются", back=back)
+    return _back(
+        message=_("%(platform)s привязан, посылки загружаются")
+        % {"platform": account.platform.title},
+        back=back,
+    )
 
 
 @router.post("/{account_id}/sync")
@@ -122,13 +129,15 @@ async def sync_now(
 ):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден", back=back)
+        return _back(error=_("Аккаунт не найден"), back=back)
     if not account.is_verified:
-        return _back(error="Сначала подтверди аккаунт", back=back)
+        return _back(error=_("Сначала подтверди аккаунт"), back=back)
     added = await sync_account(session, account)
     if account.last_sync_error:
         return _back(error=account.last_sync_error, back=back)
-    return _back(message=f"Синхронизировано, новых посылок: {added}", back=back)
+    return _back(
+        message=_("Синхронизировано, новых посылок: %(count)s") % {"count": added}, back=back
+    )
 
 
 @router.post("/{account_id}/unlink")
@@ -138,10 +147,10 @@ async def unlink_account(
 ):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден", back=back)
+        return _back(error=_("Аккаунт не найден"), back=back)
     await session.delete(account)
     await session.commit()
-    return _back(message="Аккаунт отвязан", back=back)
+    return _back(message=_("Аккаунт отвязан"), back=back)
 
 
 @router.get("/handles/{platform}")

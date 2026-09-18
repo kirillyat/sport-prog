@@ -1,23 +1,22 @@
 {% extends "base.html" %}
 {% from "_feed.html" import feed_list %}
-{% block title %}Лента — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Лента") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">протокол</p>
-    <h1>Лента решений</h1>
+    <p class="eyebrow">{{ _("протокол") }}</p>
+    <h1>{{ _("Лента решений") }}</h1>
     <p class="sub">
-      {% if teacher_view %}Что решают студенты.{% else %}Что решают в твоей группе.{% endif %}
-      Событие — первое принятое решение задачи.
-      {% if teacher_view %}<br><span class="muted">Преподаватели в ленту не попадают —
-      ни вы, ни коллеги: лента показывает, как идёт группа.</span>{% endif %}
+      {% if teacher_view %}{{ _("Что решают студенты.") }}{% else %}{{ _("Что решают в твоей группе.") }}{% endif %}
+      {{ _("Событие — первое принятое решение задачи.") }}
+      {% if teacher_view %}<br><span class="muted">{{ _("Преподаватели в ленту не попадают — ни вы, ни коллеги: лента показывает, как идёт группа.") }}</span>{% endif %}
     </p>
   </div>
   {% if groups %}
   <form method="get" action="/feed" class="inline-form">
     <div class="field">
       <select name="group_id" onchange="this.form.submit()">
-        <option value="0" {% if not group_id %}selected{% endif %}>Все группы</option>
+        <option value="0" {% if not group_id %}selected{% endif %}>{{ _("Все группы") }}</option>
         {% for group in groups %}
         <option value="{{ group.id }}" {% if group_id == group.id %}selected{% endif %}>{{ group.title }}</option>
         {% endfor %}

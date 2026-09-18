@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 
 from app.deps import CurrentUser, SessionDep
+from app.i18n import translate as _
 from app.models import (
     Assignment,
     GroupMembership,
@@ -57,9 +58,9 @@ async def upload_solution(
 
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None or not await _may_see_assignment(session, user, assignment):
-        return fail("Задание не найдено")
+        return fail(_("Задание не найдено"))
     if not assignment.requires_solution:
-        return fail("Это задание решения файлом не требует")
+        return fail(_("Это задание решения файлом не требует"))
 
     # Задача должна быть из этого задания, иначе решение повиснет ни к чему.
     in_set = await session.scalar(
@@ -69,16 +70,18 @@ async def upload_solution(
         )
     )
     if in_set is None:
-        return fail("Такой задачи в задании нет")
+        return fail(_("Такой задачи в задании нет"))
 
     name = solutions.safe_filename(file.filename or "")
     if not solutions.is_allowed(name):
-        return fail(f"Такой файл не принимаем. Можно: {solutions.EXTENSIONS_HINT}")
+        return fail(
+            _("Такой файл не принимаем. Можно: %(list)s") % {"list": solutions.EXTENSIONS_HINT}
+        )
     data = await file.read()
     if not data:
-        return fail("Файл пустой")
+        return fail(_("Файл пустой"))
     if len(data) > solutions.MAX_BYTES:
-        return fail(f"Файл больше {solutions.MAX_BYTES // 1024 // 1024} МБ")
+        return fail(_("Файл больше %(mb)s МБ") % {"mb": solutions.MAX_BYTES // 1024 // 1024})
 
     await solutions.put(
         session,
@@ -88,7 +91,9 @@ async def upload_solution(
         filename=name,
         data=data,
     )
-    return RedirectResponse(f"{back}?ok={quote('Решение отправлено на проверку')}", status_code=303)
+    return RedirectResponse(
+        f"{back}?ok=" + quote(_("Решение отправлено на проверку")), status_code=303
+    )
 
 
 async def _upload_for(session: SessionDep, user, upload_id: int) -> SolutionUpload | None:
@@ -103,10 +108,10 @@ async def _upload_for(session: SessionDep, user, upload_id: int) -> SolutionUplo
 async def download_solution(session: SessionDep, user: CurrentUser, upload_id: int):
     upload = await _upload_for(session, user, upload_id)
     if upload is None:
-        return RedirectResponse("/?err=Решение+не+найдено", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Решение не найдено")), status_code=303)
     path = solutions.path_for(upload.stored_name)
     if not path.is_file():
-        return RedirectResponse("/?err=Файл+потерялся+на+диске", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Файл потерялся на диске")), status_code=303)
     return FileResponse(
         path,
         media_type=solutions.content_type_for(upload.filename),
@@ -119,7 +124,7 @@ async def download_solution(session: SessionDep, user: CurrentUser, upload_id: i
 async def view_solution(request: Request, session: SessionDep, user: CurrentUser, upload_id: int):
     upload = await _upload_for(session, user, upload_id)
     if upload is None:
-        return RedirectResponse("/?err=Решение+не+найдено", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Решение не найдено")), status_code=303)
 
     path = solutions.path_for(upload.stored_name)
     cells = text = rendered = code = None
@@ -131,7 +136,7 @@ async def view_solution(request: Request, session: SessionDep, user: CurrentUser
             try:
                 text = content.decode("utf-8")
             except UnicodeDecodeError:
-                text = "Файл не читается как текст — скачай его."
+                text = _("Файл не читается как текст — скачай его.")
             else:
                 if name.endswith(".md"):
                     rendered, text = notebook.render_markdown(text), None
@@ -167,9 +172,11 @@ async def view_submission(
     """Код посылки, если он уже загружен скриптом с машины преподавателя."""
     submission = await session.get(Submission, submission_id)
     if submission is None or (not user.is_teacher and submission.user_id != user.id):
-        return RedirectResponse("/?err=Посылка+не+найдена", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Посылка не найдена")), status_code=303)
     if not submission.code:
-        return RedirectResponse("/?err=Исходник+этой+посылки+не+загружен", status_code=303)
+        return RedirectResponse(
+            "/?err=" + quote(_("Исходник этой посылки не загружен")), status_code=303
+        )
 
     author = await session.get(User, submission.user_id)
     problem = await session.get(Problem, submission.problem_id) if submission.problem_id else None
@@ -196,19 +203,23 @@ async def review_solution(
     comment: str = Form(""),
 ):
     if not user.is_teacher:
-        return RedirectResponse("/?err=Проверять+решения+может+преподаватель", status_code=303)
+        return RedirectResponse(
+            "/?err=" + quote(_("Проверять решения может преподаватель")), status_code=303
+        )
     upload = await session.get(SolutionUpload, upload_id)
     if upload is None:
-        return RedirectResponse("/teacher/reviews?err=Решение+не+найдено", status_code=303)
+        return RedirectResponse(
+            "/teacher/reviews?err=" + quote(_("Решение не найдено")), status_code=303
+        )
 
     from app.models import ReviewStatus
 
     status = ReviewStatus.accepted if decision == "accept" else ReviewStatus.rejected
     if status == ReviewStatus.rejected and not comment.strip():
         return RedirectResponse(
-            f"/solutions/{upload_id}?err={quote('Отклонять без объяснения нельзя')}",
+            f"/solutions/{upload_id}?err=" + quote(_("Отклонять без объяснения нельзя")),
             status_code=303,
         )
     await solutions.review(session, upload, status=status, comment=comment, reviewer_id=user.id)
-    message = "Решение принято" if status == ReviewStatus.accepted else "Решение отклонено"
+    message = _("Решение принято") if status == ReviewStatus.accepted else _("Решение отклонено")
     return RedirectResponse(f"/teacher/reviews?ok={quote(message)}", status_code=303)

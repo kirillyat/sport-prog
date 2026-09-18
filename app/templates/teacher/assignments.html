@@ -1,73 +1,71 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Задания — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Задания") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Задания</h1>
-<p class="sub">Список задач с дедлайном — для группы, одного студента или всех сразу.</p>
+<h1>{{ _("Задания") }}</h1>
+<p class="sub">{{ _("Список задач с дедлайном — для группы, одного студента или всех сразу.") }}</p>
 
 <div class="card">
-  <h3>{{ icon("plus") }} Новое задание</h3>
+  <h3>{{ icon("plus") }} {{ _("Новое задание") }}</h3>
   {% if not sets %}
     <p class="small muted" style="margin:0">
-      Сначала собери <a href="/teacher/sets">список задач</a>.
+      {{ _("Сначала собери") }} <a href="/teacher/sets">{{ _("список задач") }}</a>.
     </p>
   {% else %}
   <form method="post" action="/teacher/assignments">
     <div class="grid two">
       <div class="field">
-        <label for="title">Название</label>
-        <input type="text" id="title" name="title" placeholder="Неделя 3 — бинпоиск" required>
+        <label for="title">{{ _("Название") }}</label>
+        <input type="text" id="title" name="title" placeholder="{{ _("Неделя 3 — бинпоиск") }}" required>
       </div>
       <div class="field">
-        <label for="problem_set_id">Список задач</label>
+        <label for="problem_set_id">{{ _("Список задач") }}</label>
         <select id="problem_set_id" name="problem_set_id" required>
           {% for item in sets %}<option value="{{ item.id }}">{{ item.title }} ({{ item.items | length }})</option>{% endfor %}
         </select>
       </div>
       <div class="field">
-        <label for="group_id">Кому</label>
+        <label for="group_id">{{ _("Кому") }}</label>
         <select id="group_id" name="group_id">
-          <option value="">Всем</option>
+          <option value="">{{ _("Всем") }}</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
-        <label for="description">Описание (необязательно)</label>
-        <input type="text" id="description" name="description" placeholder="Сбор в дискорде за 15 минут">
+        <label for="description">{{ _("Описание (необязательно)") }}</label>
+        <input type="text" id="description" name="description" placeholder="{{ _("Сбор в дискорде за 15 минут") }}">
       </div>
       <div class="field">
-        <label for="starts_at">Начало (пусто — сейчас)</label>
+        <label for="starts_at">{{ _("Начало (пусто — сейчас)") }}</label>
         <input type="datetime-local" id="starts_at" name="starts_at">
       </div>
       <div class="field">
-        <label for="deadline">Дедлайн (необязательно)</label>
+        <label for="deadline">{{ _("Дедлайн (необязательно)") }}</label>
         <input type="datetime-local" id="deadline" name="deadline">
       </div>
     </div>
     <div class="field">
       <label class="check">
         <input type="checkbox" name="hard_deadline" value="true">
-        жёсткий дедлайн — после срока не засчитывать вовсе (для марафонов)
+        {{ _("жёсткий дедлайн — после срока не засчитывать вовсе (для марафонов)") }}
       </label>
     </div>
     <div class="field">
       <label class="check">
         <input type="checkbox" name="requires_solution" value="true">
-        требовать текст решения файлом — у LeetCode исходник посылки портал не видит
+        {{ _("требовать текст решения файлом — у LeetCode исходник посылки портал не видит") }}
       </label>
     </div>
     <div class="field">
       <label class="check">
         <input type="checkbox" name="count_prior_solves" value="true">
-        засчитывать решённое до выдачи
+        {{ _("засчитывать решённое до выдачи") }}
       </label>
     </div>
     <p class="small muted">
-      {{ icon("alert") }} Сроки, задачи и адресат задаются здесь и после выдачи
-      не меняются — иначе рейтинг поехал бы задним числом. Потом правятся
-      только название и описание.
+      {{ icon("alert") }} {{ _("Сроки, задачи и адресат задаются здесь и после выдачи не меняются — иначе рейтинг поехал бы задним числом. Потом правятся только название и описание.") }}
     </p>
-    <button type="submit">{{ icon("send") }} Выдать</button>
+    <button type="submit">{{ icon("send") }} {{ _("Выдать") }}</button>
   </form>
   {% endif %}
 </div>
@@ -75,12 +73,12 @@
 {% if assignments %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Задание</th><th>Группа</th><th>Выдано</th><th>Дедлайн</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Задание") }}</th><th>{{ _("Группа") }}</th><th>{{ _("Выдано") }}</th><th>{{ _("Дедлайн") }}</th><th></th></tr></thead>
     <tbody>
     {% for assignment in assignments %}
       <tr>
         <td><a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a></td>
-        <td class="small muted">{{ assignment.group.title if assignment.group else ("персонально" if assignment.user_id else "всем") }}</td>
+        <td class="small muted">{{ assignment.group.title if assignment.group else (_("персонально") if assignment.user_id else _("всем")) }}</td>
         <td class="small muted">{{ assignment.assigned_at | ago }}</td>
         <td class="small muted">
           {% if assignment.deadline %}
@@ -90,7 +88,7 @@
         </td>
         <td style="text-align:right">
           <form method="post" action="/teacher/assignments/{{ assignment.id }}/delete"
-                onsubmit="return confirm('Удалить задание «{{ assignment.title }}»?')">
+                onsubmit="return confirm('{{ _("Удалить задание") }} «{{ assignment.title }}»?')">
             <button class="danger small" type="submit">{{ icon("trash") }}</button>
           </form>
         </td>
@@ -100,6 +98,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("tasks", "Заданий пока нет — выдай первое в форме выше.") }}</div>
+<div class="card">{{ empty("tasks", _("Заданий пока нет — выдай первое в форме выше.")) }}</div>
 {% endif %}
 {% endblock %}

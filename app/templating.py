@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 from app.i18n import LANGUAGES, current_language
+from app.i18n import mark as N_
 from app.i18n import translate as _
 from app.models import SolveStatus
 from app.services import course
@@ -90,6 +91,22 @@ def plural_ru(count: int, one: str, few: str, many: str) -> str:
     return many
 
 
+def plural(count: int, forms: str) -> str:
+    """Форма слова по числу: «день|дня|дней», «day|days».
+
+    Сколько форм в строке — столько знает язык перевода: три у русского,
+    две у английского и французского. Правило выбирается по текущему языку,
+    а не по числу форм, потому что ноль во французском ещё единственное число.
+    """
+    parts = forms.split("|")
+    if len(parts) >= 3:
+        return plural_ru(count, parts[0], parts[1], parts[2])
+    if len(parts) < 2:
+        return parts[0]
+    single = abs(count) < 2 if current_language() == "fr" else abs(count) == 1
+    return parts[0] if single else parts[1]
+
+
 def timeago(value: datetime | None, now: datetime | None = None) -> str:
     """`now` подставляется в тестах: иначе результат зависит от часа запуска."""
     if value is None:
@@ -100,23 +117,34 @@ def timeago(value: datetime | None, now: datetime | None = None) -> str:
     if seconds < 0:
         return fmt_dt(value)
     if seconds < 60:
-        return "только что"
+        return _("только что")
+    # «сколько-то назад» собирается целой фразой: во французском это
+    # «il y a 5 minutes» — слово «назад» стоит впереди, а не сзади.
     if seconds < 3600:
         minutes = int(seconds // 60)
-        return f"{minutes} {plural_ru(minutes, 'минуту', 'минуты', 'минут')} назад"
+        return _("%(count)s %(unit)s назад") % {
+            "count": minutes,
+            "unit": plural(minutes, _("минуту|минуты|минут")),
+        }
     if seconds < 86400:
         hours = int(seconds // 3600)
-        return f"{hours} {plural_ru(hours, 'час', 'часа', 'часов')} назад"
+        return _("%(count)s %(unit)s назад") % {
+            "count": hours,
+            "unit": plural(hours, _("час|часа|часов")),
+        }
 
     local = value.astimezone(LOCAL_TZ)
     today = now.astimezone(LOCAL_TZ).date()
     days = (today - local.date()).days
     if days == 1:
-        return f"вчера в {local:%H:%M}"
+        return _("вчера в %(time)s") % {"time": f"{local:%H:%M}"}
     if days < 7:
-        return f"{days} {plural_ru(days, 'день', 'дня', 'дней')} назад"
+        return _("%(count)s %(unit)s назад") % {
+            "count": days,
+            "unit": plural(days, _("день|дня|дней")),
+        }
     if local.year == today.year:
-        return f"{local:%d.%m} в {local:%H:%M}"
+        return _("%(date)s в %(time)s") % {"date": f"{local:%d.%m}", "time": f"{local:%H:%M}"}
     return f"{local:%d.%m.%Y}"
 
 
@@ -155,9 +183,11 @@ def avatar_hue(value: object) -> int:
     return total
 
 
-MONTHS_RU = (
-    "января", "февраля", "марта", "апреля", "мая", "июня",
-    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+# Русские месяцы в родительном падеже — «12 января». В переводе стоят
+# именительные: «January», «janvier», — порядок слов задаёт формат ниже.
+MONTHS = (
+    N_("января"), N_("февраля"), N_("марта"), N_("апреля"), N_("мая"), N_("июня"),
+    N_("июля"), N_("августа"), N_("сентября"), N_("октября"), N_("ноября"), N_("декабря"),
 )
 
 
@@ -166,10 +196,10 @@ def day_label(value: datetime) -> str:
     today = datetime.now(LOCAL_TZ).date()
     delta = (today - local.date()).days
     if delta == 0:
-        return "Сегодня"
+        return _("Сегодня")
     if delta == 1:
-        return "Вчера"
-    label = f"{local.day} {MONTHS_RU[local.month - 1]}"
+        return _("Вчера")
+    label = _("%(day)s %(month)s") % {"day": local.day, "month": _(MONTHS[local.month - 1])}
     return label if local.year == today.year else f"{label} {local.year}"
 
 
@@ -210,7 +240,7 @@ templates.env.filters["dtinput"] = to_local_input
 templates.env.filters["ago"] = timeago
 templates.env.filters["initials"] = initials
 templates.env.filters["hue"] = avatar_hue
-templates.env.filters["plural"] = plural_ru
+templates.env.filters["plural"] = plural
 templates.env.filters["gravatar"] = gravatar_url
 # Макрос иконок доступен во всех шаблонах без ручного import — спрайт
 # при этом выводится один раз через {% include "_icons.html" %} в base.html.

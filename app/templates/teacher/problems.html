@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Поиск задач — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Поиск задач") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Каталог задач</h1>
-<p class="sub">Найди задачу и скопируй идентификатор.</p>
+<h1>{{ _("Каталог задач") }}</h1>
+<p class="sub">{{ _("Найди задачу и скопируй идентификатор.") }}</p>
 
 <div class="card">
   <form method="get" action="/teacher/problems" class="inline-form">
     <div class="field" style="flex:1; min-width:240px;">
-      <label for="q">Название, слаг или код</label>
+      <label for="q">{{ _("Название, слаг или код") }}</label>
       <input type="text" id="q" name="q" value="{{ q }}" autocomplete="off" placeholder="binary search">
     </div>
     <div class="field">
-      <label for="platform">Платформа</label>
+      <label for="platform">{{ _("Платформа") }}</label>
       <select id="platform" name="platform">
-        <option value="">Все</option>
+        <option value="">{{ _("Все") }}</option>
         {% for p in platforms %}
         <option value="{{ p.value }}" {% if platform == p.value %}selected{% endif %}>{{ p.title }}</option>
         {% endfor %}
       </select>
     </div>
-    <button type="submit">{{ icon("search") }} Искать</button>
+    <button type="submit">{{ icon("search") }} {{ _("Искать") }}</button>
   </form>
 </div>
 
 {% if results %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Темы</th><th>Для списка</th></tr></thead>
+    <thead><tr><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th><th>{{ _("Темы") }}</th><th>{{ _("Для списка") }}</th></tr></thead>
     <tbody>
     {% for problem in results %}
       <tr>
@@ -43,6 +43,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("search", "Ничего не найдено." if q else "Введи название, слаг или код.") }}</div>
+<div class="card">{{ empty("search", _("Ничего не найдено.") if q else _("Введи название, слаг или код.")) }}</div>
 {% endif %}
 {% endblock %}

@@ -6,25 +6,25 @@
 <div class="page-head">
   <div>
     <h1>{{ group.title }}</h1>
-    <p class="sub">Код для вступления: <span class="badge mono">{{ group.join_code }}</span></p>
+    <p class="sub">{{ _("Код для вступления:") }} <span class="badge mono">{{ group.join_code }}</span></p>
   </div>
-  <a class="btn ghost small" href="/feed?group_id={{ group.id }}">{{ icon("activity") }} Лента группы</a>
+  <a class="btn ghost small" href="/feed?group_id={{ group.id }}">{{ icon("activity") }} {{ _("Лента группы") }}</a>
 </div>
 
 {% if settings.telegram_enabled %}
 <div class="card">
-  <h3>{{ icon("send") }} Telegram-чат группы</h3>
+  <h3>{{ icon("send") }} {{ _("Telegram-чат группы") }}</h3>
   <p class="small muted" style="margin-top:0">
-    Объявления и задания группы уйдут сюда. Id чата подскажет бот по
-    <span class="mono">/id</span>. Пусто — шлём в общий чат.
+    {{ _("Объявления и задания группы уйдут сюда. Id чата подскажет бот по") }}
+    <span class="mono">/id</span>. {{ _("Пусто — шлём в общий чат.") }}
   </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/chat" class="inline-form">
     <div class="field" style="flex:1; min-width:220px;">
-      <label for="chat_id">Id чата</label>
+      <label for="chat_id">{{ _("Id чата") }}</label>
       <input type="text" id="chat_id" name="chat_id" value="{{ group.telegram_chat_id or '' }}"
              placeholder="-1001234567890" autocomplete="off">
     </div>
-    <button type="submit">{{ icon("check") }} Сохранить</button>
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
   </form>
 </div>
 {% endif %}
@@ -32,45 +32,45 @@
 <div class="row" style="gap:8px; margin-bottom:12px">
   <form method="post" action="/teacher/groups/{{ group.id }}/favorite">
     <button class="ghost small" type="submit"
-            title="закрепить группу на панели преподавателя">
-      {{ icon("medal") }} {{ "Открепить" if is_favorite else "Закрепить у себя" }}
+            title="{{ _("закрепить группу на панели преподавателя") }}">
+      {{ icon("medal") }} {{ _("Открепить") if is_favorite else _("Закрепить у себя") }}
     </button>
   </form>
   <form method="post" action="/teacher/groups/{{ group.id }}/sync">
     <button class="ghost small" type="submit">
-      {{ icon("refresh") }} Обновить результаты группы
+      {{ icon("refresh") }} {{ _("Обновить результаты группы") }}
     </button>
   </form>
   <span class="small muted" style="align-self:center">
-    тянет посылки всех студентов группы с Codeforces и LeetCode
+    {{ _("тянет посылки всех студентов группы с Codeforces и LeetCode") }}
   </span>
 </div>
 
-<h2>{{ icon("users") }} Состав ({{ members | length }})</h2>
+<h2>{{ icon("users") }} {{ _("Состав") }} ({{ members | length }})</h2>
 {% if candidates %}
 <div class="card">
   <form method="post" action="/teacher/groups/{{ group.id }}/members" class="inline-form">
     <div class="field" style="flex:1; min-width:240px">
-      <label for="user_id">Добавить студента</label>
+      <label for="user_id">{{ _("Добавить студента") }}</label>
       <select id="user_id" name="user_id" required>
-        <option value="" disabled selected>выбери из списка</option>
+        <option value="" disabled selected>{{ _("выбери из списка") }}</option>
         {% for student in candidates %}
         <option value="{{ student.id }}">{{ student.display_name }}</option>
         {% endfor %}
       </select>
     </div>
-    <button type="submit">{{ icon("plus") }} Добавить</button>
+    <button type="submit">{{ icon("plus") }} {{ _("Добавить") }}</button>
   </form>
   <p class="small muted" style="margin:8px 0 0">
-    Обычно студент вступает сам по коду <span class="badge mono">{{ group.join_code }}</span>.
-    Вручную — когда человек пришёл в середине семестра или перешёл из другой группы.
+    {{ _("Обычно студент вступает сам по коду") }} <span class="badge mono">{{ group.join_code }}</span>.
+    {{ _("Вручную — когда человек пришёл в середине семестра или перешёл из другой группы.") }}
   </p>
 </div>
 {% endif %}
 {% if members %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Студент</th>{% if settings.telegram_enabled %}<th>Telegram</th>{% endif %}<th>Аккаунты</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Студент") }}</th>{% if settings.telegram_enabled %}<th>Telegram</th>{% endif %}<th>{{ _("Аккаунты") }}</th><th></th></tr></thead>
     <tbody>
     {% for member in members %}
       <tr>
@@ -87,11 +87,11 @@
           {% for account in member.accounts %}
             <span class="badge {{ 'ok' if account.is_verified else 'warn' }}">
               {{ icon("check") if account.is_verified else icon("clock") }}{{ account.platform.title }}: {{ account.handle }}</span>
-          {% else %}<span class="muted">не привязаны</span>{% endfor %}
+          {% else %}<span class="muted">{{ _("не привязаны") }}</span>{% endfor %}
         </td>
         <td style="text-align:right">
           <form method="post" action="/teacher/groups/{{ group.id }}/remove/{{ member.id }}">
-            <button class="danger small" type="submit">{{ icon("trash") }} Исключить</button>
+            <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Исключить") }}</button>
           </form>
         </td>
       </tr>
@@ -103,33 +103,33 @@
 <div class="card">
   <div class="empty">
     {{ icon("users", "xl") }}
-    <div>Пока никто не вступил. Раздай студентам код <span class="badge mono">{{ group.join_code }}</span>.</div>
+    <div>{{ _("Пока никто не вступил. Раздай студентам код") }} <span class="badge mono">{{ group.join_code }}</span>.</div>
   </div>
 </div>
 {% endif %}
 
 <div class="grid two" style="align-items:start">
   <div>
-    <h2>{{ icon("tasks") }} Задания группы</h2>
+    <h2>{{ icon("tasks") }} {{ _("Задания группы") }}</h2>
     <div class="card">
       {% for assignment in assignments %}
         <p style="margin:0 0 8px">
           <a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a>
-          <span class="small muted">— выдано {{ assignment.assigned_at | ago }}{% if assignment.deadline %},
-            дедлайн {{ assignment.deadline | dt }}{% endif %}</span>
+          <span class="small muted">— {{ _("выдано") }} {{ assignment.assigned_at | ago }}{% if assignment.deadline %},
+            {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% endif %}</span>
         </p>
       {% else %}
         <div class="empty">{{ icon("inbox", "xl") }}
-          <div>Заданий ещё не было. <a href="/teacher/assignments">Выдать первое</a>.</div></div>
+          <div>{{ _("Заданий ещё не было.") }} <a href="/teacher/assignments">{{ _("Выдать первое") }}</a>.</div></div>
       {% endfor %}
     </div>
   </div>
   <div>
-    <h2>{{ icon("activity") }} Что решают</h2>
+    <h2>{{ icon("activity") }} {{ _("Что решают") }}</h2>
     <div class="card">
       {{ feed_list(feed_items, show_day=False) }}
       <p class="small muted" style="margin:10px 0 0">
-        Решения преподавателей здесь не показываются.
+        {{ _("Решения преподавателей здесь не показываются.") }}
       </p>
     </div>
   </div>

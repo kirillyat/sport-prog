@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% from "_notebook.html" import notebook_body %}
-{% block title %}Решение — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Решение") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="eyebrow">
-      {% if teacher_view %}<a href="/teacher/reviews">проверка</a>{% else %}решение{% endif %}
+      {% if teacher_view %}<a href="/teacher/reviews">{{ _("проверка") }}</a>{% else %}{{ _("решение") }}{% endif %}
       / {{ upload.filename }}
     </p>
-    <h1>{{ problem.title if problem else "Задача" }}</h1>
+    <h1>{{ problem.title if problem else _("Задача") }}</h1>
     <p class="sub">
       {% if author %}<a href="/u/{{ author.id }}">{{ author.display_name }}</a> ·{% endif %}
       {% if assignment %}<a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> ·{% endif %}
-      прислано {{ upload.submitted_at | ago }}
-      {% if upload.status.value == "accepted" %}<span class="badge ok">{{ icon("check") }} принято</span>
-      {% elif upload.status.value == "rejected" %}<span class="badge err">{{ icon("alert") }} отклонено</span>
-      {% else %}<span class="badge warn">{{ icon("clock") }} ждёт проверки</span>{% endif %}
+      {{ _("прислано") }} {{ upload.submitted_at | ago }}
+      {% if upload.status.value == "accepted" %}<span class="badge ok">{{ icon("check") }} {{ _("принято") }}</span>
+      {% elif upload.status.value == "rejected" %}<span class="badge err">{{ icon("alert") }} {{ _("отклонено") }}</span>
+      {% else %}<span class="badge warn">{{ icon("clock") }} {{ _("ждёт проверки") }}</span>{% endif %}
     </p>
   </div>
-  <a class="btn small" href="/solutions/{{ upload.id }}/download">{{ icon("download") }} Скачать</a>
+  <a class="btn small" href="/solutions/{{ upload.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
 </div>
 
 {% if ok %}<div class="flash ok">{{ icon("check") }}<span>{{ ok }}</span></div>{% endif %}
@@ -26,28 +26,27 @@
 
 {% if upload.comment %}
 <div class="card callout {{ 'warn' if upload.status.value == 'rejected' }}">
-  <h3>{{ icon("shield") }} Комментарий преподавателя</h3>
+  <h3>{{ icon("shield") }} {{ _("Комментарий преподавателя") }}</h3>
   <p class="small" style="margin:0">{{ upload.comment }}</p>
 </div>
 {% endif %}
 
 {% if teacher_view %}
 <div class="card">
-  <h3>{{ icon("shield") }} Проверка</h3>
+  <h3>{{ icon("shield") }} {{ _("Проверка") }}</h3>
   <p class="small muted" style="margin-top:0">
-    Отклонённое решение снимает зачёт по этой задаче — место студента на табло
-    изменится. Поэтому при отклонении комментарий обязателен.
+    {{ _("Отклонённое решение снимает зачёт по этой задаче — место студента на табло изменится. Поэтому при отклонении комментарий обязателен.") }}
   </p>
   <form method="post" action="/solutions/{{ upload.id }}/review">
     <div class="field">
-      <label for="comment">Комментарий</label>
+      <label for="comment">{{ _("Комментарий") }}</label>
       <input type="text" id="comment" name="comment" maxlength="500"
-             value="{{ upload.comment or '' }}" placeholder="что не так или что хорошо">
+             value="{{ upload.comment or '' }}" placeholder="{{ _("что не так или что хорошо") }}">
     </div>
     <div class="row" style="gap:8px">
-      <button type="submit" name="decision" value="accept">{{ icon("check") }} Принять</button>
+      <button type="submit" name="decision" value="accept">{{ icon("check") }} {{ _("Принять") }}</button>
       <button class="danger" type="submit" name="decision" value="reject">
-        {{ icon("alert") }} Отклонить и снять зачёт
+        {{ icon("alert") }} {{ _("Отклонить и снять зачёт") }}
       </button>
     </div>
   </form>

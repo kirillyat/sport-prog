@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from app.access import is_confirmed
 from app.config import settings
 from app.deps import CurrentUser, SessionDep
+from app.i18n import translate as _
 from app.models import (
     Assignment,
     Group,
@@ -31,7 +32,7 @@ from app.services.progress import (
 )
 from app.services.stats import user_stats
 from app.services.sync import sync_account
-from app.templating import plural_ru, templates
+from app.templating import plural, templates
 
 router = APIRouter(tags=["student"])
 
@@ -86,7 +87,7 @@ async def assignment_detail(
 ):
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
-        return RedirectResponse("/?err=Задание+не+найдено", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Задание не найдено")), status_code=303)
 
     if not user.is_teacher:
         allowed = assignment.user_id == user.id
@@ -99,7 +100,7 @@ async def assignment_detail(
             )
             allowed = member is not None
         if not allowed:
-            return RedirectResponse("/?err=Это+задание+не+для+тебя", status_code=303)
+            return RedirectResponse("/?err=" + quote(_("Это задание не для тебя")), status_code=303)
 
     # Считаем по всем участникам, а не только по себе: иначе не узнать,
     # кто закрыл задачу первым.
@@ -137,7 +138,7 @@ async def my_profile(request: Request, session: SessionDep, user: CurrentUser):
 async def public_profile(request: Request, session: SessionDep, user: CurrentUser, user_id: int):
     target = await session.get(User, user_id)
     if target is None:
-        return RedirectResponse("/?err=Студент+не+найден", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Студент не найден")), status_code=303)
     return await _profile(request, session, user, target)
 
 
@@ -214,14 +215,18 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
 async def sync_profile(session: SessionDep, user: CurrentUser, user_id: int):
     target = await session.get(User, user_id)
     if target is None:
-        return RedirectResponse("/?err=Профиль+не+найден", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Профиль не найден")), status_code=303)
     if target.id != user.id and not user.is_teacher:
-        return RedirectResponse(f"/u/{user_id}?err=Чужой+профиль+обновить+нельзя", status_code=303)
+        return RedirectResponse(
+            f"/u/{user_id}?err=" + quote(_("Чужой профиль обновить нельзя")), status_code=303
+        )
 
     back = "/me" if target.id == user.id else f"/u/{target.id}"
     accounts = [account for account in target.accounts if account.is_verified]
     if not accounts:
-        return RedirectResponse(f"{back}?err=Нет+подтверждённых+аккаунтов", status_code=303)
+        return RedirectResponse(
+            f"{back}?err=" + quote(_("Нет подтверждённых аккаунтов")), status_code=303
+        )
 
     added = 0
     errors = []
@@ -232,8 +237,9 @@ async def sync_profile(session: SessionDep, user: CurrentUser, user_id: int):
 
     if errors:
         return RedirectResponse(f"{back}?err=" + quote("; ".join(errors)), status_code=303)
-    word = plural_ru(added, "новое решение", "новых решения", "новых решений")
-    return RedirectResponse(f"{back}?ok=" + quote(f"Обновлено: {added} {word}"), status_code=303)
+    word = plural(added, _("новое решение|новых решения|новых решений"))
+    done = _("Обновлено: %(count)s %(what)s") % {"count": added, "what": word}
+    return RedirectResponse(f"{back}?ok=" + quote(done), status_code=303)
 
 
 MAX_NAME = 120
@@ -248,17 +254,22 @@ async def rename_user(
     """Своё имя правит любой, чужое — только преподаватель."""
     target = await session.get(User, user_id)
     if target is None:
-        return RedirectResponse("/?err=Профиль+не+найден", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Профиль не найден")), status_code=303)
     if target.id != user.id and not user.is_teacher:
-        return RedirectResponse(f"/u/{user_id}?err=Чужое+имя+менять+нельзя", status_code=303)
+        return RedirectResponse(
+            f"/u/{user_id}?err=" + quote(_("Чужое имя менять нельзя")), status_code=303
+        )
 
     back = "/me" if target.id == user.id else f"/u/{target.id}"
     name = " ".join(display_name.split())
     if not name:
-        return RedirectResponse(f"{back}?err=" + quote("Имя не может быть пустым"), status_code=303)
+        return RedirectResponse(
+            f"{back}?err=" + quote(_("Имя не может быть пустым")), status_code=303
+        )
     if len(name) > MAX_NAME:
         return RedirectResponse(
-            f"{back}?err=" + quote(f"Не длиннее {MAX_NAME} символов"), status_code=303
+            f"{back}?err=" + quote(_("Не длиннее %(limit)s символов") % {"limit": MAX_NAME}),
+            status_code=303,
         )
     if name == target.display_name:
         return RedirectResponse(back, status_code=303)
@@ -272,11 +283,11 @@ async def rename_user(
         )
     )
     if taken is not None:
-        return RedirectResponse(f"{back}?err=" + quote("Такое имя уже занято"), status_code=303)
+        return RedirectResponse(f"{back}?err=" + quote(_("Такое имя уже занято")), status_code=303)
 
     target.display_name = name
     await session.commit()
-    return RedirectResponse(f"{back}?ok=" + quote("Имя изменено"), status_code=303)
+    return RedirectResponse(f"{back}?ok=" + quote(_("Имя изменено")), status_code=303)
 
 
 @router.post("/u/{user_id}/gravatar")
@@ -285,19 +296,20 @@ async def set_gravatar(
 ):
     """Почта для аватарки — дело личное: чужую не меняет даже преподаватель."""
     if user_id != user.id:
-        return RedirectResponse(f"/u/{user_id}?err=" + quote("Чужая почта"), status_code=303)
+        return RedirectResponse(f"/u/{user_id}?err=" + quote(_("Чужая почта")), status_code=303)
 
     email = gravatar_email.strip()
     if len(email) > MAX_EMAIL:
         return RedirectResponse(
-            "/me?err=" + quote(f"Не длиннее {MAX_EMAIL} символов"), status_code=303
+            "/me?err=" + quote(_("Не длиннее %(limit)s символов") % {"limit": MAX_EMAIL}),
+            status_code=303,
         )
     if email and not EMAIL_RE.fullmatch(email):
-        return RedirectResponse("/me?err=" + quote("Не похоже на почту"), status_code=303)
+        return RedirectResponse("/me?err=" + quote(_("Не похоже на почту")), status_code=303)
 
     user.gravatar_email = email or None
     await session.commit()
-    word = "Аватарка обновится" if email else "Аватарка отключена"
+    word = _("Аватарка обновится") if email else _("Аватарка отключена")
     return RedirectResponse("/me?ok=" + quote(word), status_code=303)
 
 
@@ -312,7 +324,7 @@ async def leave_group_confirm(
         )
     )
     if membership is None:
-        return RedirectResponse("/?err=Ты+не+в+этой+группе", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Ты не в этой группе")), status_code=303)
 
     group = await session.get(Group, group_id)
     assignments = await session.scalar(
@@ -334,15 +346,15 @@ async def leave_group(session: SessionDep, user: CurrentUser, group_id: int):
         )
     )
     if membership is None:
-        return RedirectResponse("/?err=Ты+не+в+этой+группе", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Ты не в этой группе")), status_code=303)
 
     group = await session.get(Group, group_id)
     await session.delete(membership)
     await session.commit()
-    title = quote(group.title if group else "группа")
-    return RedirectResponse(
-        f"/?ok={title}:+ты+вышел.+Вернуться+можно+по+коду+группы", status_code=303
-    )
+    left = _("%(group)s: ты вышел. Вернуться можно по коду группы") % {
+        "group": group.title if group else _("группа")
+    }
+    return RedirectResponse("/?ok=" + quote(left), status_code=303)
 
 
 @router.post("/groups/join")
@@ -350,14 +362,15 @@ async def join_group(session: SessionDep, user: CurrentUser, join_code: str = Fo
     if not is_confirmed(user):
         return RedirectResponse(
             "/?err=" + quote(
-                f"Сначала подтверди студенчество через {settings.oidc_provider_name}"
+                _("Сначала подтверди студенчество через %(provider)s")
+                % {"provider": settings.oidc_provider_name}
             ),
             status_code=303,
         )
     code = join_code.strip()
     group = await session.scalar(select(Group).where(Group.join_code == code))
     if group is None or group.is_archived:
-        return RedirectResponse("/?err=Код+группы+не+найден", status_code=303)
+        return RedirectResponse("/?err=" + quote(_("Код группы не найден")), status_code=303)
 
     existing = await session.scalar(
         select(GroupMembership).where(
@@ -367,4 +380,5 @@ async def join_group(session: SessionDep, user: CurrentUser, join_code: str = Fo
     if existing is None:
         session.add(GroupMembership(group_id=group.id, user_id=user.id))
         await session.commit()
-    return RedirectResponse(f"/?ok=Ты+в+группе+«{group.title}»", status_code=303)
+    joined = _("Ты в группе «%(group)s»") % {"group": group.title}
+    return RedirectResponse("/?ok=" + quote(joined), status_code=303)

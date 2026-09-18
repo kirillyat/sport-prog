@@ -1,39 +1,39 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Списки задач — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Списки задач") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Списки задач</h1>
-<p class="sub">Подборка задач для задания.</p>
+<h1>{{ _("Списки задач") }}</h1>
+<p class="sub">{{ _("Подборка задач для задания.") }}</p>
 
 <div class="card">
-  <h3>{{ icon("plus") }} Новый список</h3>
+  <h3>{{ icon("plus") }} {{ _("Новый список") }}</h3>
   <form method="post" action="/teacher/sets">
     <div class="grid two">
       <div class="field">
-        <label for="title">Название</label>
-        <input type="text" id="title" name="title" placeholder="Бинарный поиск, базовый" required>
+        <label for="title">{{ _("Название") }}</label>
+        <input type="text" id="title" name="title" placeholder="{{ _("Бинарный поиск, базовый") }}" required>
       </div>
       <div class="field">
-        <label for="description">Описание (необязательно)</label>
+        <label for="description">{{ _("Описание (необязательно)") }}</label>
         <input type="text" id="description" name="description">
       </div>
     </div>
     <div class="field">
-      <label for="problems_text">Задачи — по одной в строке</label>
+      <label for="problems_text">{{ _("Задачи — по одной в строке") }}</label>
       <textarea id="problems_text" name="problems_text" placeholder="two-sum&#10;lc:binary-search&#10;cf:1352G&#10;474B"></textarea>
     </div>
     <p class="small muted">
-      {{ icon("search") }} Ссылки, слаги LeetCode, коды Codeforces вида
-      <span class="mono">1352G</span>. Задачи ищутся в <a href="/teacher">каталоге</a>.
+      {{ icon("search") }} {{ _("Ссылки, слаги LeetCode, коды Codeforces вида") }}
+      <span class="mono">1352G</span>. {{ _("Задачи ищутся в") }} <a href="/teacher">{{ _("каталоге") }}</a>.
     </p>
-    <button type="submit">{{ icon("plus") }} Создать</button>
+    <button type="submit">{{ icon("plus") }} {{ _("Создать") }}</button>
   </form>
 </div>
 
 {% if sets %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Список</th><th>Задач</th><th>Создан</th></tr></thead>
+    <thead><tr><th>{{ _("Список") }}</th><th>{{ _("Задач") }}</th><th>{{ _("Создан") }}</th></tr></thead>
     <tbody>
     {% for item in sets %}
       <tr>
@@ -47,6 +47,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("layers", "Списков пока нет — собери первый в форме выше.") }}</div>
+<div class="card">{{ empty("layers", _("Списков пока нет — собери первый в форме выше.")) }}</div>
 {% endif %}
 {% endblock %}

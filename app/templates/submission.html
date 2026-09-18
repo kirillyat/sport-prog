@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Посылка {{ submission.external_id }} — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Посылка") }} {{ submission.external_id }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">посылка / {{ submission.platform.title }}</p>
-    <h1>{{ problem.title if problem else submission.problem_title or "Задача" }}</h1>
+    <p class="eyebrow">{{ _("посылка") }} / {{ submission.platform.title }}</p>
+    <h1>{{ problem.title if problem else submission.problem_title or _("Задача") }}</h1>
     <p class="sub">
       {% if author %}<a href="/u/{{ author.id }}">{{ author.display_name }}</a> ·{% endif %}
-      отправлено {{ submission.submitted_at | ago }}
+      {{ _("отправлено") }} {{ submission.submitted_at | ago }}
       {% if submission.language %}· {{ submission.language }}{% endif %}
-      · исходник загружен {{ submission.code_fetched_at | ago }}
+      · {{ _("исходник загружен") }} {{ submission.code_fetched_at | ago }}
     </p>
   </div>
   {% if problem %}
   <a class="btn ghost small" href="{{ problem.url }}" target="_blank" rel="noopener">
-    {{ icon("external") }} Задача
+    {{ icon("external") }} {{ _("Задача") }}
   </a>
   {% endif %}
 </div>
@@ -25,7 +25,6 @@
 </div>
 
 <p class="small muted">
-  Код загружен скриптом с машины преподавателя: сам портал страницы площадок
-  открыть не может — они закрыты для автоматических клиентов.
+  {{ _("Код загружен скриптом с машины преподавателя: сам портал страницы площадок открыть не может — они закрыты для автоматических клиентов.") }}
 </p>
 {% endblock %}

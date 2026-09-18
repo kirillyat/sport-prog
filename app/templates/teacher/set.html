@@ -3,12 +3,12 @@
 {% block title %}{{ set.title }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <h1>{{ set.title }}</h1>
-<p class="sub">{{ set.description or "Без описания" }} · {{ set.items | length }} задач</p>
+<p class="sub">{{ set.description or _("Без описания") }} · {{ _("%(count)s задач") % {"count": set.items | length} }}</p>
 
 {% if set.items %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Темы</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th><th>{{ _("Темы") }}</th><th></th></tr></thead>
     <tbody>
     {% for item in set.items %}
       <tr>
@@ -29,28 +29,28 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("inbox", "Задач пока нет — добавь их в форме ниже.") }}</div>
+<div class="card">{{ empty("inbox", _("Задач пока нет — добавь их в форме ниже.")) }}</div>
 {% endif %}
 
 <div class="card">
-  <h3>{{ icon("plus") }} Добавить задачи</h3>
+  <h3>{{ icon("plus") }} {{ _("Добавить задачи") }}</h3>
   <form method="post" action="/teacher/sets/{{ set.id }}/add">
     <div class="field">
-      <textarea name="problems_text" placeholder="Ссылки, слаги или коды — по одной строке" required></textarea>
+      <textarea name="problems_text" placeholder="{{ _("Ссылки, слаги или коды — по одной строке") }}" required></textarea>
     </div>
-    <button type="submit">{{ icon("plus") }} Добавить</button>
+    <button type="submit">{{ icon("plus") }} {{ _("Добавить") }}</button>
   </form>
 </div>
 
 <div class="card">
-  <h3>{{ icon("tasks") }} Где используется</h3>
+  <h3>{{ icon("tasks") }} {{ _("Где используется") }}</h3>
   {% for assignment in used_in %}
     <p style="margin:0 0 6px"><a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a></p>
   {% else %}
-    <p class="small muted">Нигде. Список можно удалить.</p>
+    <p class="small muted">{{ _("Нигде. Список можно удалить.") }}</p>
     <form method="post" action="/teacher/sets/{{ set.id }}/delete"
-          onsubmit="return confirm('Удалить список «{{ set.title }}»?')">
-      <button class="danger small" type="submit">{{ icon("trash") }} Удалить список</button>
+          onsubmit="return confirm('{{ _("Удалить список") }} «{{ set.title }}»?')">
+      <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Удалить список") }}</button>
     </form>
   {% endfor %}
 </div>

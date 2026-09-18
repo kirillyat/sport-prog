@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Задачи вне каталога — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Задачи вне каталога") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Задачи вне каталога</h1>
+<h1>{{ _("Задачи вне каталога") }}</h1>
 <p class="sub">
-  Задачи вне каталога — обычно свежие контесты.
-  <a href="/teacher">Обнови каталог</a>, и посылки подвяжутся сами.
+  {{ _("Задачи вне каталога — обычно свежие контесты.") }}
+  <a href="/teacher">{{ _("Обнови каталог") }}</a>, {{ _("и посылки подвяжутся сами.") }}
 </p>
 {% if rows %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Платформа</th><th>Слаг</th><th>Название</th><th>Посылок</th></tr></thead>
+    <thead><tr><th>{{ _("Платформа") }}</th><th>{{ _("Слаг") }}</th><th>{{ _("Название") }}</th><th>{{ _("Посылок") }}</th></tr></thead>
     <tbody>
     {% for platform, slug, title, count in rows %}
       <tr>
@@ -24,6 +24,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("check", "Все посылки привязаны к задачам каталога.") }}</div>
+<div class="card">{{ empty("check", _("Все посылки привязаны к задачам каталога.")) }}</div>
 {% endif %}
 {% endblock %}

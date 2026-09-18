@@ -1,59 +1,59 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Объявления — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Объявления") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Объявления</h1>
-<p class="sub">Анонс соревнования с отсчётом или объявление.</p>
+<h1>{{ _("Объявления") }}</h1>
+<p class="sub">{{ _("Анонс соревнования с отсчётом или объявление.") }}</p>
 
 <div class="card">
-  <h3>{{ icon("megaphone") }} Новое объявление</h3>
+  <h3>{{ icon("megaphone") }} {{ _("Новое объявление") }}</h3>
   <form method="post" action="/teacher/announcements">
     <div class="field">
-      <label for="title">Заголовок</label>
+      <label for="title">{{ _("Заголовок") }}</label>
       <input type="text" id="title" name="title" required
-             placeholder="Codeforces Round 999 — идём всей группой">
+             placeholder="{{ _("Codeforces Round 999 — идём всей группой") }}">
     </div>
     <div class="field">
-      <label for="body">Текст (необязательно)</label>
+      <label for="body">{{ _("Текст (необязательно)") }}</label>
       <textarea id="body" name="body" style="min-height:90px"
-                placeholder="Сбор в 17:45 в аудитории 508. Регистрация обязательна."></textarea>
+                placeholder="{{ _("Сбор в 17:45 в аудитории 508. Регистрация обязательна.") }}"></textarea>
     </div>
     <div class="grid two">
       <div class="field">
-        <label for="url">Ссылка на соревнование</label>
+        <label for="url">{{ _("Ссылка на соревнование") }}</label>
         <input type="text" id="url" name="url" placeholder="https://codeforces.com/contests/1234">
       </div>
       <div class="field">
-        <label for="url_label">Подпись кнопки</label>
-        <input type="text" id="url_label" name="url_label" placeholder="Зарегистрироваться">
+        <label for="url_label">{{ _("Подпись кнопки") }}</label>
+        <input type="text" id="url_label" name="url_label" placeholder="{{ _("Зарегистрироваться") }}">
       </div>
       <div class="field">
-        <label for="starts_at">Начало — от него идёт отсчёт</label>
+        <label for="starts_at">{{ _("Начало — от него идёт отсчёт") }}</label>
         <input type="datetime-local" id="starts_at" name="starts_at">
       </div>
       <div class="field">
-        <label for="ends_at">Конец (необязательно)</label>
+        <label for="ends_at">{{ _("Конец (необязательно)") }}</label>
         <input type="datetime-local" id="ends_at" name="ends_at">
       </div>
       <div class="field">
-        <label for="group_id">Кому</label>
+        <label for="group_id">{{ _("Кому") }}</label>
         <select id="group_id" name="group_id">
-          <option value="">Всем</option>
+          <option value="">{{ _("Всем") }}</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
       <div class="field" style="align-self:end">
-        <label class="check"><input type="checkbox" name="pinned" value="true"> закрепить наверху</label>
+        <label class="check"><input type="checkbox" name="pinned" value="true"> {{ _("закрепить наверху") }}</label>
       </div>
     </div>
-    <button type="submit">{{ icon("send") }} Опубликовать</button>
+    <button type="submit">{{ icon("send") }} {{ _("Опубликовать") }}</button>
   </form>
 </div>
 
 {% if items %}
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>Объявление</th><th>Кому</th><th>Когда</th><th>Статус</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Объявление") }}</th><th>{{ _("Кому") }}</th><th>{{ _("Когда") }}</th><th>{{ _("Статус") }}</th><th></th></tr></thead>
     <tbody>
     {% for item in items %}
       <tr>
@@ -62,22 +62,22 @@
           {{ item.title }}
           {% if item.url %}<br><a class="small mono" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url[:52] }}{% if item.url | length > 52 %}…{% endif %}</a>{% endif %}
         </td>
-        <td class="small muted">{{ item.group.title if item.group else "всем" }}</td>
+        <td class="small muted">{{ item.group.title if item.group else _("всем") }}</td>
         <td class="small muted">{{ item.starts_at | dt if item.starts_at else item.created_at | ago }}</td>
         <td>
           {% set state = item.state(now_ts) %}
-          {% if state == "live" %}<span class="badge ok">{{ icon("flame") }} идёт</span>
-          {% elif state == "upcoming" %}<span class="badge warn">{{ icon("clock") }} скоро</span>
-          {% elif state == "past" %}<span class="badge">прошло</span>
-          {% else %}<span class="badge info">новость</span>{% endif %}
+          {% if state == "live" %}<span class="badge ok">{{ icon("flame") }} {{ _("идёт") }}</span>
+          {% elif state == "upcoming" %}<span class="badge warn">{{ icon("clock") }} {{ _("скоро") }}</span>
+          {% elif state == "past" %}<span class="badge">{{ _("прошло") }}</span>
+          {% else %}<span class="badge info">{{ _("новость") }}</span>{% endif %}
         </td>
         <td style="text-align:right">
           <span class="row" style="justify-content:flex-end; flex-wrap:nowrap">
             <form method="post" action="/teacher/announcements/{{ item.id }}/pin">
-              <button class="ghost small" type="submit">{{ "Открепить" if item.pinned else "Закрепить" }}</button>
+              <button class="ghost small" type="submit">{{ _("Открепить") if item.pinned else _("Закрепить") }}</button>
             </form>
             <form method="post" action="/teacher/announcements/{{ item.id }}/delete"
-                  onsubmit="return confirm('Удалить объявление «{{ item.title }}»?')">
+                  onsubmit="return confirm('{{ _("Удалить объявление") }} «{{ item.title }}»?')">
               <button class="danger small" type="submit">{{ icon("trash") }}</button>
             </form>
           </span>
@@ -88,6 +88,6 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("megaphone", "Объявлений пока нет — опубликуй первое в форме выше.") }}</div>
+<div class="card">{{ empty("megaphone", _("Объявлений пока нет — опубликуй первое в форме выше.")) }}</div>
 {% endif %}
 {% endblock %}

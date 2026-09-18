@@ -5,9 +5,9 @@
 {% set solved = progress.solved_count(user.id) %}
 <h1>{{ assignment.title }}</h1>
 <p class="sub">
-  Выдано {{ assignment.assigned_at | dt }}
+  {{ _("Выдано") }} {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
-    · дедлайн {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} (жёсткий){% endif %}
+    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} ({{ _("жёсткий") }}){% endif %}
   {% endif %}
   {% if assignment.group %} · {{ assignment.group.title }}{% endif %}
 </p>
@@ -17,7 +17,7 @@
     <span style="width: {{ (100 * solved / progress.total_problems) if progress.total_problems else 0 }}%"></span>
   </div>
   <div class="progress-line">
-    <span>Решено <b>{{ solved }}</b> из <b>{{ progress.total_problems }}</b></span>
+    <span>{{ (_("Решено <b>%(solved)s</b> из <b>%(total)s</b>") % {"solved": solved, "total": progress.total_problems}) | safe }}</span>
     <span>{{ ((100 * solved / progress.total_problems) | round | int) if progress.total_problems else 0 }}%</span>
   </div>
 </div>
@@ -27,11 +27,10 @@
 
 {% if assignment.requires_solution %}
 <div class="card callout">
-  <h3>{{ icon("shield") }} К задачам нужно прислать решение</h3>
+  <h3>{{ icon("shield") }} {{ _("К задачам нужно прислать решение") }}</h3>
   <p class="small" style="margin:0">
-    Кроме посылки на платформе приложите сам текст решения: {{ solution_hint }},
-    до {{ solution_mb }} МБ. Преподаватель его читает; отклонённое решение снимает
-    зачёт по задаче. Прислать можно повторно — тогда проверка начнётся заново.
+    {{ _("Кроме посылки на платформе приложите сам текст решения: %(formats)s, до %(mb)s МБ.") % {"formats": solution_hint, "mb": solution_mb} }}
+    {{ _("Преподаватель его читает; отклонённое решение снимает зачёт по задаче. Прислать можно повторно — тогда проверка начнётся заново.") }}
   </p>
 </div>
 {% endif %}
@@ -40,9 +39,10 @@
 <div class="card table-wrap" style="padding:6px">
   <table>
     <thead>
-      <tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Статус</th><th>Когда</th>
-        {% if assignment.requires_solution %}<th>Решение</th>{% endif %}
-        <th>Первым</th></tr>
+      <tr><th>#</th><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th>
+        <th>{{ _("Статус") }}</th><th>{{ _("Когда") }}</th>
+        {% if assignment.requires_solution %}<th>{{ _("Решение") }}</th>{% endif %}
+        <th>{{ _("Первым") }}</th></tr>
     </thead>
     <tbody>
     {% for problem in problems %}
@@ -57,10 +57,10 @@
           {% else %}<span class="muted">—</span>{% endif %}
         </td>
         <td>
-          {% if cell.status == SolveStatus.solved_in_time %}<span class="badge ok">{{ icon("check") }} решено</span>
-          {% elif cell.status == SolveStatus.solved_late %}<span class="badge warn">{{ icon("clock") }} после дедлайна</span>
-          {% elif cell.status == SolveStatus.solved_too_late %}<span class="badge">после дедлайна, не засчитано</span>
-          {% elif cell.status == SolveStatus.solved_before %}<span class="badge">решено до выдачи</span>
+          {% if cell.status == SolveStatus.solved_in_time %}<span class="badge ok">{{ icon("check") }} {{ _("решено") }}</span>
+          {% elif cell.status == SolveStatus.solved_late %}<span class="badge warn">{{ icon("clock") }} {{ _("после дедлайна") }}</span>
+          {% elif cell.status == SolveStatus.solved_too_late %}<span class="badge">{{ _("после дедлайна, не засчитано") }}</span>
+          {% elif cell.status == SolveStatus.solved_before %}<span class="badge">{{ _("решено до выдачи") }}</span>
           {% else %}<span class="muted">—</span>{% endif %}
         </td>
         <td class="small muted">
@@ -73,11 +73,11 @@
         <td class="small">
           {% if mine %}
             {% if mine.status.value == "accepted" %}
-              <a class="badge ok" href="/solutions/{{ mine.id }}">{{ icon("check") }} принято</a>
+              <a class="badge ok" href="/solutions/{{ mine.id }}">{{ icon("check") }} {{ _("принято") }}</a>
             {% elif mine.status.value == "rejected" %}
-              <a class="badge err" href="/solutions/{{ mine.id }}">{{ icon("alert") }} отклонено</a>
+              <a class="badge err" href="/solutions/{{ mine.id }}">{{ icon("alert") }} {{ _("отклонено") }}</a>
             {% else %}
-              <a class="badge warn" href="/solutions/{{ mine.id }}">{{ icon("clock") }} на проверке</a>
+              <a class="badge warn" href="/solutions/{{ mine.id }}">{{ icon("clock") }} {{ _("на проверке") }}</a>
             {% endif %}
             <br>
           {% endif %}
@@ -87,7 +87,7 @@
             <input type="file" name="file" required
                    style="max-width:190px; font-size:11px">
             <button class="ghost small" type="submit">
-              {{ icon("plus") }} {{ "Заменить" if mine else "Прислать" }}
+              {{ icon("plus") }} {{ _("Заменить") if mine else _("Прислать") }}
             </button>
           </form>
         </td>
@@ -103,12 +103,12 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("inbox", "В этом задании ещё нет задач.") }}</div>
+<div class="card">{{ empty("inbox", _("В этом задании ещё нет задач.")) }}</div>
 {% endif %}
 
 <p class="small muted">
-  {% if assignment.count_prior_solves %}Засчитываются и задачи, решённые до выдачи.
-  {% elif assignment.hard_deadline %}После дедлайна решения не засчитываются.
-  {% else %}Решённое до выдачи не засчитывается, после дедлайна — половина баллов.{% endif %}
+  {% if assignment.count_prior_solves %}{{ _("Засчитываются и задачи, решённые до выдачи.") }}
+  {% elif assignment.hard_deadline %}{{ _("После дедлайна решения не засчитываются.") }}
+  {% else %}{{ _("Решённое до выдачи не засчитывается, после дедлайна — половина баллов.") }}{% endif %}
 </p>
 {% endblock %}

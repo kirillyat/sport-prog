@@ -1,42 +1,42 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Материалы — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Материалы") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">библиотека</p>
-    <h1>Материалы</h1>
-    <p class="sub">Ноутбуки с семинаров, конспекты и разборы.</p>
+    <p class="eyebrow">{{ _("библиотека") }}</p>
+    <h1>{{ _("Материалы") }}</h1>
+    <p class="sub">{{ _("Ноутбуки с семинаров, конспекты и разборы.") }}</p>
   </div>
 </div>
 
 {% if teacher_view %}
 <details class="formula" style="margin-bottom:18px" {% if not items %}open{% endif %}>
-  <summary>{{ icon("plus") }} Опубликовать материал</summary>
+  <summary>{{ icon("plus") }} {{ _("Опубликовать материал") }}</summary>
   <form method="post" action="/materials" enctype="multipart/form-data" style="margin-top:12px">
     <div class="grid two">
       <div class="field">
-        <label for="file">Файл</label>
+        <label for="file">{{ _("Файл") }}</label>
         <input type="file" id="file" name="file" required>
       </div>
       <div class="field">
-        <label for="title">Название (пусто — имя файла)</label>
-        <input type="text" id="title" name="title" placeholder="Семинар 3. Сортировки">
+        <label for="title">{{ _("Название (пусто — имя файла)") }}</label>
+        <input type="text" id="title" name="title" placeholder="{{ _("Семинар 3. Сортировки") }}">
       </div>
       <div class="field">
-        <label for="group_id">Кому</label>
+        <label for="group_id">{{ _("Кому") }}</label>
         <select id="group_id" name="group_id">
-          <option value="">Всем</option>
+          <option value="">{{ _("Всем") }}</option>
           {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
-        <label for="description">Описание (необязательно)</label>
-        <input type="text" id="description" name="description" placeholder="Разбор задач 1–4">
+        <label for="description">{{ _("Описание (необязательно)") }}</label>
+        <input type="text" id="description" name="description" placeholder="{{ _("Разбор задач 1–4") }}">
       </div>
     </div>
-    <p class="small muted">До {{ max_mb }} МБ. Форматы: {{ extensions }}.</p>
-    <button type="submit">{{ icon("send") }} Опубликовать</button>
+    <p class="small muted">{{ _("До %(mb)s МБ.") % {"mb": max_mb} }} {{ _("Форматы:") }} {{ extensions }}.</p>
+    <button type="submit">{{ icon("send") }} {{ _("Опубликовать") }}</button>
   </form>
 </details>
 {% endif %}
@@ -47,7 +47,7 @@
   <div class="card material">
     <div class="row between" style="align-items:flex-start; gap:10px">
       <h3 style="margin:0">{{ icon("book") }} {{ item.title }}</h3>
-      <span class="badge">{{ item.group.title if item.group else "всем" }}</span>
+      <span class="badge">{{ item.group.title if item.group else _("всем") }}</span>
     </div>
     {% if item.description %}<p class="small" style="margin:8px 0 0">{{ item.description }}</p>{% endif %}
     <p class="small muted" style="margin:8px 0 0">
@@ -55,14 +55,14 @@
     </p>
     <div class="row" style="margin-top:12px; gap:8px">
       {% if item.can_preview %}
-      <a class="btn small" href="/materials/{{ item.id }}/view">{{ icon("book") }} Смотреть</a>
-      <a class="btn ghost small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
+      <a class="btn small" href="/materials/{{ item.id }}/view">{{ icon("book") }} {{ _("Смотреть") }}</a>
+      <a class="btn ghost small" href="/materials/{{ item.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
       {% else %}
-      <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
+      <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
       {% endif %}
       {% if teacher_view %}
       <form method="post" action="/materials/{{ item.id }}/delete"
-            onsubmit="return confirm('Удалить «{{ item.title }}»?')">
+            onsubmit="return confirm('{{ _("Удалить") }} «{{ item.title }}»?')">
         <button class="danger small" type="submit">{{ icon("trash") }}</button>
       </form>
       {% endif %}
@@ -72,8 +72,8 @@
 </div>
 {% else %}
 <div class="card">
-  {{ empty("book", "Материалов пока нет." if not teacher_view
-           else "Материалов пока нет — выложи первый в форме выше.") }}
+  {{ empty("book", _("Материалов пока нет.") if not teacher_view
+           else _("Материалов пока нет — выложи первый в форме выше.")) }}
 </div>
 {% endif %}
 {% endblock %}

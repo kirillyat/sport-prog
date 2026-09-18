@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.deps import CurrentUser
+from app.i18n import translate as _
 from app.services import course, materials, notebook
 from app.templating import templates
 
@@ -40,7 +41,7 @@ async def course_index(request: Request, user: CurrentUser):
 async def course_page(request: Request, user: CurrentUser, name: str):
     found = course.page(name)
     if found is None:
-        return _back("Такой страницы у курса нет")
+        return _back(_("Такой страницы у курса нет"))
     title, body = found
     return templates.TemplateResponse(
         request,
@@ -53,7 +54,7 @@ async def course_page(request: Request, user: CurrentUser, name: str):
 async def course_week(request: Request, user: CurrentUser, semester: str, number: str):
     week = course.week(semester, number)
     if week is None:
-        return _back("Неделя не найдена")
+        return _back(_("Неделя не найдена"))
     return templates.TemplateResponse(
         request,
         "course_week.html",
@@ -67,10 +68,10 @@ async def course_slot(
 ):
     week = course.week(semester, number)
     if week is None:
-        return _back("Неделя не найдена")
+        return _back(_("Неделя не найдена"))
     found = next((s for s in week.slots if s.key == slot), None)
     if found is None:
-        return _back("В этой неделе такого нет")
+        return _back(_("В этой неделе такого нет"))
 
     path = course.file_path(semester, number, found.filename)
     cells = notebook.parse(path.read_bytes()) if path else None
@@ -85,7 +86,7 @@ async def course_slot(
 async def course_file(user: CurrentUser, semester: str, number: str, name: str):
     path = course.file_path(semester, number, name)
     if path is None:
-        return _back("Файл не найден")
+        return _back(_("Файл не найден"))
     # Отдаём вложением: что бы ни лежало в папке недели, на нашем домене оно
     # открываться не должно.
     return FileResponse(

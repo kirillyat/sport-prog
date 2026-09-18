@@ -1,46 +1,46 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
 {% from "_announce.html" import announce_card %}
-{% block title %}Объявления — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Объявления") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">анонсы</p>
-    <h1>Объявления</h1>
-    <p class="sub">Анонсы соревнований, сборы и объявления.</p>
+    <p class="eyebrow">{{ _("анонсы") }}</p>
+    <h1>{{ _("Объявления") }}</h1>
+    <p class="sub">{{ _("Анонсы соревнований, сборы и объявления.") }}</p>
   </div>
   {% if teacher_view %}
-  <a class="btn ghost small" href="/teacher/announcements">{{ icon("plus") }} Опубликовать</a>
+  <a class="btn ghost small" href="/teacher/announcements">{{ icon("plus") }} {{ _("Опубликовать") }}</a>
   {% endif %}
 </div>
 
 {% if not has_any %}
 <div class="card">
-  {{ empty("megaphone", "Объявлений пока нет.",
+  {{ empty("megaphone", _("Объявлений пока нет."),
            "/teacher/announcements" if teacher_view else None,
-           "Опубликовать первое" if teacher_view else None) }}
+           _("Опубликовать первое") if teacher_view else None) }}
 </div>
 {% endif %}
 
 {% if live %}
-<h2>{{ icon("flame") }} Идёт сейчас</h2>
+<h2>{{ icon("flame") }} {{ _("Идёт сейчас") }}</h2>
 <div class="grid two">{% for item in live %}{{ announce_card(item) }}{% endfor %}</div>
 {% endif %}
 
 {% if upcoming %}
-<h2>{{ icon("clock") }} Скоро</h2>
+<h2>{{ icon("clock") }} {{ _("Скоро") }}</h2>
 <div class="grid two">{% for item in upcoming %}{{ announce_card(item) }}{% endfor %}</div>
 {% endif %}
 
 {% if plain %}
-<h2>{{ icon("megaphone") }} Объявления</h2>
+<h2>{{ icon("megaphone") }} {{ _("Объявления") }}</h2>
 <div class="grid two">{% for item in plain %}{{ announce_card(item) }}{% endfor %}</div>
 {% endif %}
 
 {% if past %}
-<h2>{{ icon("inbox") }} Прошедшие</h2>
+<h2>{{ icon("inbox") }} {{ _("Прошедшие") }}</h2>
 <details class="formula">
-  <summary>Показать ({{ past | length }})</summary>
+  <summary>{{ _("Показать") }} ({{ past | length }})</summary>
   <div class="grid two" style="margin-top:12px">
     {% for item in past %}{{ announce_card(item, compact=True) }}{% endfor %}
   </div>

@@ -4,11 +4,11 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow"><a href="/materials">материалы</a> / {{ item.filename }}</p>
+    <p class="eyebrow"><a href="/materials">{{ _("материалы") }}</a> / {{ item.filename }}</p>
     <h1>{{ item.title }}</h1>
     {% if item.description %}<p class="sub">{{ item.description }}</p>{% endif %}
   </div>
-  <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
+  <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
 </div>
 
 {% if cells %}

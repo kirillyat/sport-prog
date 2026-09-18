@@ -1,47 +1,44 @@
 {% extends "base.html" %}
 {% from "_platform_accounts.html" import platform_accounts %}
-{% block title %}Аккаунты — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Аккаунты") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Аккаунты платформ</h1>
-<p class="sub">
-  Только публичные данные: пароли и токены не нужны.
-</p>
+<h1>{{ _("Аккаунты платформ") }}</h1>
+<p class="sub">{{ _("Только публичные данные: пароли и токены не нужны.") }}</p>
 
 {% if not confirmed %}
 <div class="card callout warn">
-  <h3>{{ icon("shield") }} Студенчество не подтверждено</h3>
+  <h3>{{ icon("shield") }} {{ _("Студенчество не подтверждено") }}</h3>
   <p class="small" style="margin:0 0 12px">
-    Вступление в группы и задания откроются после входа
-    через {{ settings.oidc_provider_name }}.
+    {{ _("Вступление в группы и задания откроются после входа через") }} {{ settings.oidc_provider_name }}.
   </p>
-  <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} Подтвердить</a>
+  <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} {{ _("Подтвердить") }}</a>
 </div>
 {% endif %}
 
-<h2>{{ icon("shield") }} Способы входа</h2>
+<h2>{{ icon("shield") }} {{ _("Способы входа") }}</h2>
 <div class="grid two">
   {% if settings.telegram_enabled or user.telegram_id %}
   <div class="card stretch">
     <div class="row between">
       <h3>{{ icon("send") }} Telegram</h3>
-      {% if user.telegram_id %}<span class="badge ok">{{ icon("check") }} привязан</span>
-      {% else %}<span class="badge">не привязан</span>{% endif %}
+      {% if user.telegram_id %}<span class="badge ok">{{ icon("check") }} {{ _("привязан") }}</span>
+      {% else %}<span class="badge">{{ _("не привязан") }}</span>{% endif %}
     </div>
     {% if user.telegram_id %}
       <p class="small">{% if user.telegram_username %}@{{ user.telegram_username }}{% else %}id {{ user.telegram_id }}{% endif %}</p>
-      <p class="small muted">Вход и уведомления о заданиях.</p>
+      <p class="small muted">{{ _("Вход и уведомления о заданиях.") }}</p>
       {% if user.oidc_sub %}
       <form method="post" action="/accounts/telegram/unlink" class="push-bottom">
-        <button class="danger small" type="submit">{{ icon("trash") }} Отвязать</button>
+        <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Отвязать") }}</button>
       </form>
       {% else %}
       <p class="small muted push-bottom">
-        Единственный вход — отвязать можно после {{ settings.oidc_provider_name }}.
+        {{ _("Единственный вход — отвязать можно после") }} {{ settings.oidc_provider_name }}.
       </p>
       {% endif %}
     {% else %}
-      <p class="small muted">Добавит вход через бота и уведомления.</p>
-      <a class="btn small push-bottom" href="/login/telegram/link">{{ icon("link") }} Привязать</a>
+      <p class="small muted">{{ _("Добавит вход через бота и уведомления.") }}</p>
+      <a class="btn small push-bottom" href="/login/telegram/link">{{ icon("link") }} {{ _("Привязать") }}</a>
     {% endif %}
   </div>
   {% endif %}
@@ -49,29 +46,29 @@
   <div class="card stretch">
     <div class="row between">
       <h3>{{ icon("shield") }} {{ settings.oidc_provider_name }}</h3>
-      {% if user.oidc_sub %}<span class="badge ok">{{ icon("check") }} привязан</span>
-      {% elif settings.oidc_enabled %}<span class="badge">не привязан</span>
-      {% else %}<span class="badge">не настроен</span>{% endif %}
+      {% if user.oidc_sub %}<span class="badge ok">{{ icon("check") }} {{ _("привязан") }}</span>
+      {% elif settings.oidc_enabled %}<span class="badge">{{ _("не привязан") }}</span>
+      {% else %}<span class="badge">{{ _("не настроен") }}</span>{% endif %}
     </div>
     {% if user.oidc_sub %}
       <p class="small">{{ user.email or settings.org_account_name }}</p>
-      <p class="small muted">Вход по {{ settings.org_account_name | lower }}.</p>
+      <p class="small muted">{{ _("Вход по") }} {{ settings.org_account_name | lower }}.</p>
       <p class="small muted push-bottom">
-        Подтверждает, что ты {{ settings.org_student }}, — отвязать нельзя.
+        {{ _("Подтверждает, что ты %(who)s, — отвязать нельзя.") % {"who": settings.org_student} }}
       </p>
     {% elif settings.oidc_enabled %}
-      <p class="small muted">Добавит вход по {{ settings.org_account_name | lower }}.</p>
-      <a class="btn small push-bottom" href="/login/oidc?link=1">{{ icon("link") }} Привязать</a>
+      <p class="small muted">{{ _("Добавит вход по") }} {{ settings.org_account_name | lower }}.</p>
+      <a class="btn small push-bottom" href="/login/oidc?link=1">{{ icon("link") }} {{ _("Привязать") }}</a>
     {% else %}
-      <p class="small muted">Не настроен на этом портале.</p>
+      <p class="small muted">{{ _("Не настроен на этом портале.") }}</p>
     {% endif %}
   </div>
 </div>
 
-<h2>{{ icon("code") }} Аккаунты платформ</h2>
+<h2>{{ icon("code") }} {{ _("Аккаунты платформ") }}</h2>
 <p class="small muted" style="margin-top:-6px">
-  Без них решения не засчитываются: портал узнаёт о них по имени на площадке.
-  То же самое есть в <a href="/me">настройках профиля</a> — рядом с именем и аватаркой.
+  {{ _("Без них решения не засчитываются: портал узнаёт о них по имени на площадке.") }}
+  {{ _("То же самое есть в <a href=\"/me\">настройках профиля</a> — рядом с именем и аватаркой.") | safe }}
 </p>
 {{ platform_accounts(user, platforms, where_to_put, back="/accounts") }}
 

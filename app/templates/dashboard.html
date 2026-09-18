@@ -2,43 +2,42 @@
 {% from "_ui.html" import empty %}
 {% from "_feed.html" import feed_list %}
 {% from "_announce.html" import announce_card %}
-{% block title %}Задания — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Задания") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<p class="eyebrow">главная</p>
-<h1>Привет, {{ user.display_name }}</h1>
-<p class="sub">Задания, материалы и объявления.</p>
+<p class="eyebrow">{{ _("главная") }}</p>
+<h1>{{ _("Привет") }}, {{ user.display_name }}</h1>
+<p class="sub">{{ _("Задания, материалы и объявления.") }}</p>
 
 {% if not confirmed %}
 <div class="card callout warn">
-  <h3>{{ icon("shield") }} Подтверди, что ты {{ settings.org_student }}</h3>
+  <h3>{{ icon("shield") }} {{ _("Подтверди, что ты %(who)s") % {"who": settings.org_student} }}</h3>
   <p class="small" style="margin:0 0 12px">
-    Вход через {{ settings.oidc_provider_name }} открывает вступление в группы
-    и задания.{% if settings.telegram_enabled %} Telegram остаётся для входа
-    и уведомлений.{% endif %}
+    {{ _("Вход через %(provider)s открывает вступление в группы и задания.") % {"provider": settings.oidc_provider_name} }}{% if settings.telegram_enabled %}
+    {{ _("Telegram остаётся для входа и уведомлений.") }}{% endif %}
   </p>
-  <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} Войти через {{ settings.oidc_provider_name }}</a>
+  <a class="btn small" href="/login/oidc?link=1">{{ icon("shield") }} {{ _("Войти через") }} {{ settings.oidc_provider_name }}</a>
 </div>
 {% endif %}
 
 {% if missing_accounts %}
 <div class="card callout warn">
-  <h3>{{ icon("link") }} Привяжи аккаунты</h3>
+  <h3>{{ icon("link") }} {{ _("Привяжи аккаунты") }}</h3>
   <p class="small" style="margin:0 0 12px">
-    Без них решения не засчитываются. Не привязано:
+    {{ _("Без них решения не засчитываются.") }} {{ _("Не привязано:") }}
     {% for p in missing_accounts %}<span class="badge warn">{{ p.title }}</span> {% endfor %}
   </p>
-  <a class="btn small" href="/me">{{ icon("plus") }} Привязать</a>
+  <a class="btn small" href="/me">{{ icon("plus") }} {{ _("Привязать") }}</a>
 </div>
 {% endif %}
 
 {% if announcements %}
-<h2>{{ icon("megaphone") }} Объявления</h2>
+<h2>{{ icon("megaphone") }} {{ _("Объявления") }}</h2>
 <div class="grid two">
   {% for item in announcements %}{{ announce_card(item, compact=True) }}{% endfor %}
 </div>
 {% endif %}
 
-<h2>{{ icon("tasks") }} Задания</h2>
+<h2>{{ icon("tasks") }} {{ _("Задания") }}</h2>
 {% if cards %}
 <div class="grid two">
   {% for card in cards %}
@@ -46,22 +45,22 @@
     <div class="row between">
       <h3>{{ card.assignment.title }}</h3>
       {% if card.total and card.solved == card.total %}
-        <span class="badge ok">{{ icon("check") }} готово</span>
+        <span class="badge ok">{{ icon("check") }} {{ _("готово") }}</span>
       {% elif card.overdue %}
-        <span class="badge bad">{{ icon("alert") }} просрочено</span>
+        <span class="badge bad">{{ icon("alert") }} {{ _("просрочено") }}</span>
       {% elif card.assignment.deadline %}
-        <span class="badge warn">{{ icon("clock") }} до {{ card.assignment.deadline | dt("%d.%m %H:%M") }}</span>
+        <span class="badge warn">{{ icon("clock") }} {{ _("до") }} {{ card.assignment.deadline | dt("%d.%m %H:%M") }}</span>
       {% endif %}
     </div>
     <p class="small muted" style="margin:0 0 12px">
       {% if card.assignment.group %}{{ card.assignment.group.title }} · {% endif %}
-      выдано {{ card.assignment.assigned_at | ago }}
+      {{ _("выдано") }} {{ card.assignment.assigned_at | ago }}
     </p>
     <div class="bar {{ 'done' if card.total and card.solved == card.total }}">
       <span style="width: {{ (100 * card.solved / card.total) if card.total else 0 }}%"></span>
     </div>
     <div class="progress-line">
-      <span><b>{{ card.solved }}</b> из <b>{{ card.total }}</b> задач</span>
+      <span>{{ (_("<b>%(solved)s</b> из <b>%(total)s</b> задач") % {"solved": card.solved, "total": card.total}) | safe }}</span>
       <span>{{ ((100 * card.solved / card.total) | round | int) if card.total else 0 }}%</span>
     </div>
   </a>
@@ -70,14 +69,14 @@
 {% else %}
 <div class="card flat">
   <p class="row small muted" style="margin:0">
-    {{ icon("inbox") }} Заданий пока нет — вступи в группу по коду ↓
+    {{ icon("inbox") }} {{ _("Заданий пока нет — вступи в группу по коду ↓") }}
   </p>
 </div>
 {% endif %}
 
 <div class="grid two" style="align-items: start">
   <div>
-    <h2>{{ icon("users") }} Группы</h2>
+    <h2>{{ icon("users") }} {{ _("Группы") }}</h2>
     <div class="card">
       {% if groups %}
         <div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:12px">
@@ -85,39 +84,38 @@
           <span class="row" style="gap:4px; flex-wrap:nowrap">
             <span class="badge info">{{ group.title }}</span>
             <a class="btn ghost small" href="/groups/{{ group.id }}/leave"
-               title="выйти из группы">{{ icon("logout") }}</a>
+               title="{{ _("выйти из группы") }}">{{ icon("logout") }}</a>
           </span>
           {% endfor %}
         </div>
       {% else %}
-        <p class="small muted" style="margin-top:0">Ты пока не состоишь ни в одной группе.</p>
+        <p class="small muted" style="margin-top:0">{{ _("Ты пока не состоишь ни в одной группе.") }}</p>
       {% endif %}
       {% if confirmed %}
       <form method="post" action="/groups/join" class="inline-form">
         <div class="field" style="flex:1; min-width: 180px;">
-          <label for="join_code">Код группы</label>
+          <label for="join_code">{{ _("Код группы") }}</label>
           <input type="text" id="join_code" name="join_code" placeholder="ABC123"
                  autocomplete="off" required>
         </div>
-        <button type="submit">{{ icon("plus") }} Вступить</button>
+        <button type="submit">{{ icon("plus") }} {{ _("Вступить") }}</button>
       </form>
       {% else %}
       <p class="small muted">
-        Вступить в группу можно после входа через {{ settings.oidc_provider_name }} —
-        так портал знает, что ты {{ settings.org_student }}.
+        {{ _("Вступить в группу можно после входа через %(provider)s — так портал знает, что ты %(who)s.") % {"provider": settings.oidc_provider_name, "who": settings.org_student} }}
       </p>
-      <a class="btn small" href="/accounts">{{ icon("shield") }} Подтвердить</a>
+      <a class="btn small" href="/accounts">{{ icon("shield") }} {{ _("Подтвердить") }}</a>
       {% endif %}
     </div>
   </div>
 
   <div>
-    <h2>{{ icon("activity") }} {{ "Твои решения" if groups | length == 0 else "Что решают рядом" }}</h2>
+    <h2>{{ icon("activity") }} {{ _("Твои решения") if groups | length == 0 else _("Что решают рядом") }}</h2>
     <div class="card">
       {{ feed_list(feed_items, show_day=False) }}
       {% if feed_items %}
       <hr class="divider">
-      <a class="small" href="/feed">Вся лента {{ icon("chevron") }}</a>
+      <a class="small" href="/feed">{{ _("Вся лента") }} {{ icon("chevron") }}</a>
       {% endif %}
     </div>
   </div>

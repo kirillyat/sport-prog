@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Видимость разделов — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Видимость разделов") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow"><a href="/teacher">жюри</a> / видимость</p>
-    <h1>Видимость разделов</h1>
+    <p class="eyebrow"><a href="/teacher">{{ _("жюри") }}</a> / {{ _("видимость") }}</p>
+    <h1>{{ _("Видимость разделов") }}</h1>
     <p class="sub">
-      Что показывать студентам, а что пока только преподавателям. Снятая галочка
-      прячет пункт из меню и закрывает раздел по прямому адресу.
+      {{ _("Что показывать студентам, а что пока только преподавателям. Снятая галочка прячет пункт из меню и закрывает раздел по прямому адресу.") }}
     </p>
   </div>
 </div>
@@ -18,25 +17,25 @@
 <form method="post" action="/teacher/features">
   <div class="card table-wrap" style="padding:6px">
     <table>
-      <thead><tr><th>Раздел</th><th>Студентам</th><th>Преподавателям</th></tr></thead>
+      <thead><tr><th>{{ _("Раздел") }}</th><th>{{ _("Студентам") }}</th><th>{{ _("Преподавателям") }}</th></tr></thead>
       <tbody>
         {% for row in rows %}
         <tr>
           <td>
-            <strong>{{ row.section.title }}</strong>
+            <strong>{{ _(row.section.title) }}</strong>
             <span class="badge mono">{{ row.section.path }}</span>
-            <br><span class="small muted">{{ row.section.hint }}</span>
+            <br><span class="small muted">{{ _(row.section.hint) }}</span>
           </td>
           <td>
             <label class="check">
               <input type="checkbox" name="{{ row.section.key }}:students"
-                     {% if row.for_students %}checked{% endif %}> открыт
+                     {% if row.for_students %}checked{% endif %}> {{ _("открыт") }}
             </label>
           </td>
           <td>
             <label class="check">
               <input type="checkbox" name="{{ row.section.key }}:teachers"
-                     {% if row.for_teachers %}checked{% endif %}> открыт
+                     {% if row.for_teachers %}checked{% endif %}> {{ _("открыт") }}
             </label>
           </td>
         </tr>
@@ -45,11 +44,11 @@
     </table>
   </div>
   <div class="row" style="margin-top:12px">
-    <button type="submit">{{ icon("check") }} Сохранить</button>
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
   </div>
 </form>
 
 <p class="small muted">
-  Закрытый себе раздел возвращается отсюда же: эта страница не прячется никогда.
+  {{ _("Закрытый себе раздел возвращается отсюда же: эта страница не прячется никогда.") }}
 </p>
 {% endblock %}

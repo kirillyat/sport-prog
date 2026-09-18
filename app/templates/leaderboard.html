@@ -1,16 +1,14 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
-{% block title %}Лидерборд — {{ settings.app_name }}{% endblock %}
+{% block title %}{{ _("Лидерборд") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">табло</p>
-    <h1>Лидерборд</h1>
+    <p class="eyebrow">{{ _("табло") }}</p>
+    <h1>{{ _("Лидерборд") }}</h1>
     <p class="sub">
-      {% if my_place and rows | length > 1 %}Твоё место — <strong>{{ my_place }}</strong> из {{ rows | length }}.{% endif %}
-      Табло считается по группе: у разных групп разные задания, общий зачёт
-      сравнивал бы несравнимое. В зачёт идут задачи, решённые после выдачи и до дедлайна.
-      При равном счёте выше тот, кто закончил раньше.
+      {% if my_place and rows | length > 1 %}{{ (_("Твоё место — <strong>%(place)s</strong> из %(total)s.") % {"place": my_place, "total": rows | length}) | safe }}{% endif %}
+      {{ _("Табло считается по группе: у разных групп разные задания, общий зачёт сравнивал бы несравнимое. В зачёт идут задачи, решённые после выдачи и до дедлайна. При равном счёте выше тот, кто закончил раньше.") }}
     </p>
   </div>
   {% if teacher_view %}
@@ -22,7 +20,7 @@
   {% if groups %}
   <form method="get" action="/leaderboard" class="inline-form">
     <div class="field">
-      <label for="group_id">Группа</label>
+      <label for="group_id">{{ _("Группа") }}</label>
       <select id="group_id" name="group_id" onchange="this.form.submit()">
         {% for group in groups %}
         <option value="{{ group.id }}" {% if group_id == group.id %}selected{% endif %}>{{ group.title }}</option>
@@ -30,10 +28,10 @@
       </select>
     </div>
     <div class="field">
-      <label for="period">Период</label>
+      <label for="period">{{ _("Период") }}</label>
       <select id="period" name="period" onchange="this.form.submit()">
         {% for key, item in periods.items() %}
-        <option value="{{ key }}" {% if period == key %}selected{% endif %}>{{ item[0] }}</option>
+        <option value="{{ key }}" {% if period == key %}selected{% endif %}>{{ _(item[0]) }}</option>
         {% endfor %}
       </select>
     </div>
@@ -43,10 +41,10 @@
 
 {% if assignments %}
 <details class="formula" style="margin-bottom:16px">
-  <summary>{{ icon("tasks") }} Задания группы ({{ assignments | length }})</summary>
+  <summary>{{ icon("tasks") }} {{ _("Задания группы") }} ({{ assignments | length }})</summary>
   <div class="card table-wrap" style="padding:6px; margin-top:10px">
     <table>
-      <thead><tr><th>Задание</th><th>Выдано</th><th>Дедлайн</th></tr></thead>
+      <thead><tr><th>{{ _("Задание") }}</th><th>{{ _("Выдано") }}</th><th>{{ _("Дедлайн") }}</th></tr></thead>
       <tbody>
         {% for item in assignments %}
         <tr>
@@ -56,7 +54,7 @@
             {% if item.deadline %}
               <span class="badge {{ 'bad' if item.deadline < now() else 'warn' }}">
                 {{ icon("clock") }}{{ item.deadline | dt }}</span>
-            {% else %}без срока{% endif %}
+            {% else %}{{ _("без срока") }}{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -86,7 +84,7 @@
 <div class="card table-wrap" style="padding:6px">
   <table class="board">
     <thead>
-      <tr><th>#</th><th>Студент</th><th>Зачтено</th></tr>
+      <tr><th>#</th><th>{{ _("Студент") }}</th><th>{{ _("Зачтено") }}</th></tr>
     </thead>
     <tbody>
     {% for row in rows %}
@@ -95,15 +93,15 @@
           {{ row.place }}
           {% if row.movement %}
           <span class="move {{ 'up' if row.movement > 0 else 'down' }}"
-                title="за неделю">{{ '▲' if row.movement > 0 else '▼' }}{{ row.movement | abs }}</span>
+                title="{{ _("за неделю") }}">{{ '▲' if row.movement > 0 else '▼' }}{{ row.movement | abs }}</span>
           {% endif %}
         </td>
         <td>
           <span class="row" style="gap:9px; flex-wrap:nowrap">
             {{ avatar(row.user, "sm") }}
             <a href="/u/{{ row.user.id }}">{{ row.user.display_name }}</a>
-            {% if row.bonus %}<span class="badge info" title="бонус от жюри">+{{ row.bonus | pts }}</span>{% endif %}
-            {% if row.late %}<span class="badge warn" title="решено после дедлайна">{{ icon("clock") }}{{ row.late }}</span>{% endif %}
+            {% if row.bonus %}<span class="badge info" title="{{ _("бонус от жюри") }}">+{{ row.bonus | pts }}</span>{% endif %}
+            {% if row.late %}<span class="badge warn" title="{{ _("решено после дедлайна") }}">{{ icon("clock") }}{{ row.late }}</span>{% endif %}
           </span>
         </td>
         <td>
@@ -112,7 +110,7 @@
             <span class="bar"><span style="width: {{ row.share }}%"></span></span>
             <span class="score-num"><b>{{ row.solved }}</b><span class="muted">/{{ row.assigned }}</span></span>
           </span>
-          {% else %}<span class="muted small">заданий не было</span>{% endif %}
+          {% else %}<span class="muted small">{{ _("заданий не было") }}</span>{% endif %}
         </td>
       </tr>
     {% endfor %}
@@ -121,10 +119,11 @@
 </div>
 {% elif not groups %}
 <div class="card">{{ empty("users",
-  "Табло считается по группе. " ~ ("Заведи группу и выдай ей задание." if teacher_view
-  else "Вступи в группу по коду от преподавателя — тогда появится и табло."),
-  "/teacher/groups" if teacher_view else "/", "К группам" if teacher_view else "На главную") }}</div>
+  _("Табло считается по группе.") ~ " " ~ (_("Заведи группу и выдай ей задание.") if teacher_view
+  else _("Вступи в группу по коду от преподавателя — тогда появится и табло.")),
+  "/teacher/groups" if teacher_view else "/",
+  _("К группам") if teacher_view else _("На главную")) }}</div>
 {% else %}
-<div class="card">{{ empty("trophy", "Пока никого. Нужны назначенные задания и решённые задачи.") }}</div>
+<div class="card">{{ empty("trophy", _("Пока никого. Нужны назначенные задания и решённые задачи.")) }}</div>
 {% endif %}
 {% endblock %}

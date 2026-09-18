@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from app import oidc
 from app.config import settings
 from app.deps import CurrentUser, OptionalUser, SessionDep, get_optional_user
+from app.i18n import translate as _
 from app.models import LoginToken, Role, User, utcnow
 from app.security import issue_session
 from app.templating import templates
@@ -94,7 +95,7 @@ async def _resolve_oidc_user(session: SessionDep, claims: dict, groups: set[str]
 async def link_telegram_start(request: Request, session: SessionDep, user: CurrentUser):
     """Привязка Telegram к уже существующей учётке (например, входу через OIDC)."""
     if not settings.telegram_enabled:
-        message = quote("Telegram-бот не настроен")
+        message = quote(_("Telegram-бот не настроен"))
         return RedirectResponse(f"/accounts?err={message}", status_code=303)
 
     token = LoginToken(
@@ -122,7 +123,7 @@ async def login_oidc_start(request: Request, user: OptionalUser, link: int = 0):
     if user is not None and not linking:
         return RedirectResponse("/", status_code=303)
     if not settings.oidc_enabled:
-        return RedirectResponse("/login?err=" + quote("OIDC-вход не настроен"), status_code=303)
+        return RedirectResponse("/login?err=" + quote(_("OIDC-вход не настроен")), status_code=303)
     try:
         disc = await oidc.discover()
     except oidc.OIDCError as exc:
@@ -168,10 +169,10 @@ async def login_oidc_callback(request: Request, session: SessionDep):
 
     saved = oidc.unpack_state(request.cookies.get(oidc.STATE_COOKIE))
     if saved is None or request.query_params.get("state") != saved.get("state"):
-        return fail("Сессия входа устарела, попробуй ещё раз")
+        return fail(_("Сессия входа устарела, попробуй ещё раз"))
     code = request.query_params.get("code")
     if not code:
-        return fail("Провайдер не вернул код")
+        return fail(_("Провайдер не вернул код"))
 
     try:
         disc = await oidc.discover()
@@ -181,9 +182,9 @@ async def login_oidc_callback(request: Request, session: SessionDep):
         return fail(f"{settings.oidc_provider_name}: {exc}")
 
     if claims.get("nonce") != saved.get("nonce"):
-        return fail("Ответ провайдера не совпал с запросом")
+        return fail(_("Ответ провайдера не совпал с запросом"))
     if "sub" not in claims:
-        return fail("В токене нет идентификатора пользователя")
+        return fail(_("В токене нет идентификатора пользователя"))
 
     userinfo = await oidc.fetch_userinfo(disc, tokens.get("access_token", ""))
     merged = {**claims, **userinfo}
@@ -193,20 +194,21 @@ async def login_oidc_callback(request: Request, session: SessionDep):
     if link_user_id is not None:
         current = await get_optional_user(request, session)
         if current is None or current.id != link_user_id:
-            return fail("Войди и начни привязку заново")
+            return fail(_("Войди и начни привязку заново"))
         taken = await session.scalar(
             select(User).where(User.oidc_sub == str(merged["sub"]), User.id != current.id)
         )
         if taken is not None:
             return fail(
-                f"Этот аккаунт {settings.oidc_provider_name} уже привязан к другому участнику"
+                _("Этот аккаунт %(provider)s уже привязан к другому участнику")
+                % {"provider": settings.oidc_provider_name}
             )
         current.oidc_sub = str(merged["sub"])
         current.email = merged.get("email") or current.email
         if groups & settings.oidc_teacher_group_set:
             current.role = Role.teacher
         await session.commit()
-        ok = quote(f"{settings.oidc_provider_name} привязан")
+        ok = quote(_("%(provider)s привязан") % {"provider": settings.oidc_provider_name})
         response = RedirectResponse(f"/accounts?ok={ok}", status_code=303)
         response.delete_cookie(oidc.STATE_COOKIE, path="/login/oidc")
         return response
@@ -274,7 +276,7 @@ async def login_complete(request: Request, code: str, session: SessionDep):
         or token.expires_at < now
         or token.telegram_id is None
     ):
-        return RedirectResponse("/login?err=Код+недействителен", status_code=303)
+        return RedirectResponse("/login?err=" + quote(_("Код недействителен")), status_code=303)
 
     if token.link_user_id is not None:
         # Привязку завершает тот же браузер, что её начал, — иначе чужой код
@@ -282,7 +284,7 @@ async def login_complete(request: Request, code: str, session: SessionDep):
         current = await get_optional_user(request, session)
         if current is None or current.id != token.link_user_id:
             # Неавторизованного /accounts всё равно отправит на вход — ведём сразу туда.
-            message = quote("Войди и начни привязку заново")
+            message = quote(_("Войди и начни привязку заново"))
             target = "/accounts" if current else "/login"
             return RedirectResponse(f"{target}?err={message}", status_code=303)
 
@@ -291,14 +293,14 @@ async def login_complete(request: Request, code: str, session: SessionDep):
         )
         if taken is not None:
             return RedirectResponse(
-                "/accounts?err=" + quote("Этот Telegram уже привязан к другому участнику"),
+                "/accounts?err=" + quote(_("Этот Telegram уже привязан к другому участнику")),
                 status_code=303,
             )
         current.telegram_id = token.telegram_id
         current.telegram_username = token.telegram_username
         token.consumed_at = now
         await session.commit()
-        return RedirectResponse("/accounts?ok=" + quote("Telegram привязан"), status_code=303)
+        return RedirectResponse("/accounts?ok=" + quote(_("Telegram привязан")), status_code=303)
 
     token.consumed_at = now
     user = await _resolve_user(session, token)
@@ -310,11 +312,11 @@ async def login_complete(request: Request, code: str, session: SessionDep):
 async def login_dev(session: SessionDep, name: str = Form(...), teacher: bool = Form(False)):
     """Вход без Telegram. Работает только при DEV_LOGIN_ENABLED=true."""
     if not settings.dev_login_enabled:
-        return RedirectResponse("/login?err=Dev-вход+выключен", status_code=303)
+        return RedirectResponse("/login?err=" + quote(_("Dev-вход выключен")), status_code=303)
 
     name = name.strip()
     if not name:
-        return RedirectResponse("/login?err=Введите+имя", status_code=303)
+        return RedirectResponse("/login?err=" + quote(_("Введите имя")), status_code=303)
 
     user = await session.scalar(select(User).where(User.display_name == name))
     if user is None:

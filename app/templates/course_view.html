@@ -4,16 +4,16 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow"><a href="/course">курс</a> / <a href="{{ week.url }}">{{ week.title | lower }}</a> / {{ slot.label }}</p>
+    <p class="eyebrow"><a href="/course">{{ _("курс") }}</a> / <a href="{{ week.url }}">{{ week.title | lower }}</a> / {{ slot.label }}</p>
     <h1>{{ slot.label | capitalize }}</h1>
     <p class="sub">{{ week.lecture_title if slot.key.endswith("lecture") else week.seminar_title }}</p>
   </div>
-  <a class="btn small" href="{{ week.url }}/file/{{ slot.filename }}">{{ icon("download") }} Скачать</a>
+  <a class="btn small" href="{{ week.url }}/file/{{ slot.filename }}">{{ icon("download") }} {{ _("Скачать") }}</a>
 </div>
 
 {% if cells %}
 {{ notebook_body(cells) }}
 {% else %}
-<div class="card"><p class="small muted" style="margin:0">Ноутбук не читается — скачай файл.</p></div>
+<div class="card"><p class="small muted" style="margin:0">{{ _("Ноутбук не читается — скачай файл.") }}</p></div>
 {% endif %}
 {% endblock %}

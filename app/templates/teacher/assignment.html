@@ -4,43 +4,42 @@
 {% block content %}
 <h1>{{ assignment.title }}</h1>
 <p class="sub">
-  {{ assignment.group.title if assignment.group else ("персональное" if assignment.user_id else "всем") }} ·
-  выдано {{ assignment.assigned_at | dt }}
+  {{ assignment.group.title if assignment.group else (_("персональное") if assignment.user_id else _("всем")) }} ·
+  {{ _("выдано") }} {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
-    · дедлайн {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} (жёсткий){% endif %}
+    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} ({{ _("жёсткий") }}){% endif %}
   {% endif %}
 </p>
 {% if assignment.description %}<p class="sub">{{ assignment.description }}</p>{% endif %}
 
 <div class="row" style="gap:8px; margin:0 0 14px">
   <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/export.csv">
-    {{ icon("download") }} Выгрузить в CSV
+    {{ icon("download") }} {{ _("Выгрузить в CSV") }}
   </a>
   <form method="post" action="/teacher/assignments/{{ assignment.id }}/sync">
     <button class="ghost small" type="submit">
-      {{ icon("refresh") }} Обновить результаты всех
+      {{ icon("refresh") }} {{ _("Обновить результаты всех") }}
     </button>
   </form>
 </div>
 
 <details class="formula" style="margin-bottom:18px">
-  <summary>Изменить название и описание</summary>
+  <summary>{{ _("Изменить название и описание") }}</summary>
   <form method="post" action="/teacher/assignments/{{ assignment.id }}/edit" style="margin-top:10px">
     <div class="grid two">
       <div class="field">
-        <label for="title">Название</label>
+        <label for="title">{{ _("Название") }}</label>
         <input type="text" id="title" name="title" value="{{ assignment.title }}" required>
       </div>
       <div class="field">
-        <label for="description">Описание</label>
+        <label for="description">{{ _("Описание") }}</label>
         <input type="text" id="description" name="description" value="{{ assignment.description or '' }}">
       </div>
     </div>
     <p class="small muted">
-      Сроки, задачи, адресат и баллы не меняются после выдачи: пересчёт задним
-      числом сдвинул бы рейтинг у всех участников.
+      {{ _("Сроки, задачи, адресат и баллы не меняются после выдачи: пересчёт задним числом сдвинул бы рейтинг у всех участников.") }}
     </p>
-    <button type="submit">{{ icon("check") }} Сохранить</button>
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
   </form>
 </details>
 
@@ -49,13 +48,13 @@
   <table class="matrix">
     <thead>
       <tr>
-        <th>Студент</th>
+        <th>{{ _("Студент") }}</th>
         {% for problem in progress.problems %}
         <th><a href="{{ problem.url }}" target="_blank" rel="noopener"
                title="{{ problem.title }}">{{ loop.index }}</a></th>
         {% endfor %}
-        <th>Итого</th>
-        {% if assignment.requires_solution %}<th>Решения</th>{% endif %}
+        <th>{{ _("Итого") }}</th>
+        {% if assignment.requires_solution %}<th>{{ _("Решения") }}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -72,7 +71,7 @@
           {% set upload = uploads.get((student.id, problem.id)) if assignment.requires_solution %}
           {% set no_file = assignment.requires_solution and not upload %}
           <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}{{ ' no-file' if no_file }}"
-                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else 'не решено' }}{% if assignment.requires_solution %} · {{ 'решение не сдано' if not upload else 'решение: ' ~ upload.status.value }}{% endif %}">
+                    title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else _('не решено') }}{% if assignment.requires_solution %} · {{ _('решение не сдано') if not upload else _('решение:') ~ ' ' ~ upload.status.value }}{% endif %}">
             {% if upload %}<a href="/solutions/{{ upload.id }}">{{ cell.icon }}</a>
             {% elif cell.counts %}{{ icon("check") }}
             {% elif cell.status == SolveStatus.solved_before %}•{% endif %}
@@ -84,9 +83,9 @@
         <td class="small">
           {% if tally %}
             <span class="{{ 'muted' if tally.complete }}">{{ tally.sent }}/{{ tally.total }}</span>
-            {% if tally.missing %}<span class="badge bad" title="не прислал файл">{{ icon("alert") }} не сдал {{ tally.missing }}</span>{% endif %}
-            {% if tally.waiting %}<span class="badge warn" title="ждёт проверки">{{ icon("clock") }} {{ tally.waiting }}</span>{% endif %}
-            {% if tally.rejected %}<span class="badge err" title="отклонено — зачёт снят">{{ icon("alert") }} {{ tally.rejected }}</span>{% endif %}
+            {% if tally.missing %}<span class="badge bad" title="{{ _("не прислал файл") }}">{{ icon("alert") }} {{ _("не сдал") }} {{ tally.missing }}</span>{% endif %}
+            {% if tally.waiting %}<span class="badge warn" title="{{ _("ждёт проверки") }}">{{ icon("clock") }} {{ tally.waiting }}</span>{% endif %}
+            {% if tally.rejected %}<span class="badge err" title="{{ _("отклонено — зачёт снят") }}">{{ icon("alert") }} {{ tally.rejected }}</span>{% endif %}
           {% else %}<span class="muted">—</span>{% endif %}
         </td>
         {% endif %}
@@ -95,7 +94,7 @@
     </tbody>
     <tfoot>
       <tr>
-        <td class="small muted">Решили</td>
+        <td class="small muted">{{ _("Решили") }}</td>
         {% for problem in progress.problems %}
         <td class="small muted num">{{ progress.problem_solved_count(problem.id) }}</td>
         {% endfor %}
@@ -106,24 +105,24 @@
 </div>
 
 <div class="legend">
-  <span class="item"><span class="cell solved_in_time">{{ icon("check") }}</span> в срок</span>
-  <span class="item"><span class="cell solved_late">{{ icon("check") }}</span> после дедлайна</span>
-  <span class="item"><span class="cell solved_before">•</span> решено до выдачи, не засчитано</span>
+  <span class="item"><span class="cell solved_in_time">{{ icon("check") }}</span> {{ _("в срок") }}</span>
+  <span class="item"><span class="cell solved_late">{{ icon("check") }}</span> {{ _("после дедлайна") }}</span>
+  <span class="item"><span class="cell solved_before">•</span> {{ _("решено до выдачи, не засчитано") }}</span>
   {% if assignment.hard_deadline %}
-  <span class="item"><span class="cell solved_too_late">•</span> после жёсткого дедлайна, не засчитано</span>
+  <span class="item"><span class="cell solved_too_late">•</span> {{ _("после жёсткого дедлайна, не засчитано") }}</span>
   {% endif %}
 </div>
 {% else %}
-<div class="card">{{ empty("users", "В группе нет студентов — раздай код группы.",
-                          "/teacher/groups", "К группам") }}</div>
+<div class="card">{{ empty("users", _("В группе нет студентов — раздай код группы."),
+                          "/teacher/groups", _("К группам")) }}</div>
 {% endif %}
 
-<h2>{{ icon("layers") }} Задачи</h2>
+<h2>{{ icon("layers") }} {{ _("Задачи") }}</h2>
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Решили</th>
-      {% if assignment.requires_solution %}<th>Сдали файл</th>{% endif %}
-      <th>Первым</th></tr></thead>
+    <thead><tr><th>#</th><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th><th>{{ _("Решили") }}</th>
+      {% if assignment.requires_solution %}<th>{{ _("Сдали файл") }}</th>{% endif %}
+      <th>{{ _("Первым") }}</th></tr></thead>
     <tbody>
     {% for problem in progress.problems %}
       {% set solved = progress.problem_solved_count(problem.id) %}
@@ -135,14 +134,14 @@
             {% elif problem.rating %}<span class="badge rating">{{ problem.rating }}</span>{% else %}—{% endif %}</td>
         <td class="num">
           {{ solved }} / {{ progress.participants | length }}
-          {% if progress.participants and solved == 0 %}<span class="badge bad">{{ icon("alert") }} никто</span>{% endif %}
+          {% if progress.participants and solved == 0 %}<span class="badge bad">{{ icon("alert") }} {{ _("никто") }}</span>{% endif %}
         </td>
         {% if assignment.requires_solution %}
         {% set sent = files_by_problem.get(problem.id, 0) %}
         {% set missing = (progress.participants | length) - sent %}
         <td class="num">
           {{ sent }} / {{ progress.participants | length }}
-          {% if missing > 0 %}<span class="badge bad" title="не прислали решение">{{ icon("alert") }} {{ missing }}</span>{% endif %}
+          {% if missing > 0 %}<span class="badge bad" title="{{ _("не прислали решение") }}">{{ icon("alert") }} {{ missing }}</span>{% endif %}
         </td>
         {% endif %}
         <td class="small">

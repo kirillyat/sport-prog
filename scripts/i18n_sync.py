@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -20,27 +21,44 @@ sys.path.insert(0, str(ROOT))
 
 from app.i18n import DEFAULT_LANGUAGE, LANGUAGES, LOCALES_DIR  # noqa: E402
 
-SOURCES = [
-    (ROOT / "app" / "templates", "*.html"),
-    (ROOT / "app", "*.py"),
-]
+TEMPLATES = ROOT / "app" / "templates"
+CODE = ROOT / "app"
 
-# _("…") и _('…'); внутри допускаем экранированные кавычки.
-CALL = re.compile(r"""_\(\s*(?P<q>["'])(?P<text>(?:\\.|(?!(?P=q)).)*)(?P=q)\s*[),]""")
+# В шаблонах разбирать нечем, кроме регулярки: _("…") и N_("…").
+CALL = re.compile(r"""(?<![\w])N?_\(\s*(?P<q>["'])(?P<text>(?:\\.|(?!(?P=q)).)*)(?P=q)\s*[),]""")
 
 
 def unescape(raw: str, quote: str) -> str:
     return raw.replace("\\" + quote, quote).replace("\\\\", "\\")
 
 
+def from_templates(seen: dict[str, None]) -> None:
+    for path in sorted(TEMPLATES.rglob("*.html")):
+        for match in CALL.finditer(path.read_text(encoding="utf-8")):
+            seen.setdefault(unescape(match.group("text"), match.group("q")), None)
+
+
+def from_code(seen: dict[str, None]) -> None:
+    """Питон разбираем деревом: строки бывают склеены из нескольких кусков."""
+    for path in sorted(CODE.rglob("*.py")):
+        if path.name == "i18n.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            name = node.func.id if isinstance(node.func, ast.Name) else None
+            if name not in {"_", "N_"}:
+                continue
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                seen.setdefault(first.value, None)
+
+
 def collect() -> list[str]:
     seen: dict[str, None] = {}
-    for base, pattern in SOURCES:
-        for path in sorted(base.rglob(pattern)):
-            if path.name == "i18n.py" or "locales" in path.parts:
-                continue
-            for match in CALL.finditer(path.read_text(encoding="utf-8")):
-                seen.setdefault(unescape(match.group("text"), match.group("q")), None)
+    from_templates(seen)
+    from_code(seen)
     return list(seen)
 
 

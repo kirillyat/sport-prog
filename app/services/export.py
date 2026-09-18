@@ -14,6 +14,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import mark as N_
+from app.i18n import translate as _
 from app.models import Assignment, Group, GroupMembership, SolveStatus
 from app.services.leaderboard import LeaderboardRow
 from app.services.progress import AssignmentProgress
@@ -22,11 +24,13 @@ from app.templating import fmt_dt, fmt_points
 DELIMITER = ";"
 ENCODING = "utf-8-sig"
 
+# Значения переводятся при выгрузке, а не здесь: словарь собирается один раз
+# на импорте, а язык известен только внутри запроса.
 CELL = {
-    SolveStatus.solved_in_time: "в срок",
-    SolveStatus.solved_late: "после дедлайна",
-    SolveStatus.solved_too_late: "не в счёт",
-    SolveStatus.solved_before: "до выдачи",
+    SolveStatus.solved_in_time: N_("в срок"),
+    SolveStatus.solved_late: N_("после дедлайна"),
+    SolveStatus.solved_too_late: N_("не в счёт"),
+    SolveStatus.solved_before: N_("до выдачи"),
     SolveStatus.not_solved: "",
 }
 
@@ -61,8 +65,8 @@ async def _groups_of(session: AsyncSession, user_ids: list[int]) -> dict[int, li
 async def leaderboard_csv(session: AsyncSession, rows: list[LeaderboardRow]) -> bytes:
     groups = await _groups_of(session, [row.user.id for row in rows])
     header = [
-        "Место", "Студент", "Группы", "Зачтено", "Выдано", "Доля, %",
-        "После дедлайна", "Бонусы", "Последнее решение", "Подтверждён",
+        _("Место"), _("Студент"), _("Группы"), _("Зачтено"), _("Выдано"), _("Доля, %"),
+        _("После дедлайна"), _("Бонусы"), _("Последнее решение"), _("Подтверждён"),
     ]
     body: list[list[object]] = []
     for row in rows:
@@ -76,13 +80,13 @@ async def leaderboard_csv(session: AsyncSession, rows: list[LeaderboardRow]) -> 
             row.late,
             fmt_points(row.bonus),
             _moment(row.last_solved_at),
-            "да" if row.user.oidc_sub else "нет",
+            _("да") if row.user.oidc_sub else _("нет"),
         ])
     return to_csv(header, body)
 
 
 def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> bytes:
-    header = ["Студент", "Зачтено", "Всего задач"]
+    header = [_("Студент"), _("Зачтено"), _("Всего задач")]
     header += [f"{index}. {problem.title}" for index, problem in enumerate(progress.problems, 1)]
 
     body: list[list[object]] = []
@@ -92,7 +96,7 @@ def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> byte
             progress.solved_count(student.id),
             progress.total_problems,
         ]
-        line += [CELL[progress.cell(student.id, p.id).status] for p in progress.problems]
+        line += [_(CELL[progress.cell(student.id, p.id).status]) for p in progress.problems]
         body.append(line)
     return to_csv(header, body)
 
