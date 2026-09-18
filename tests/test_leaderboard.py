@@ -304,3 +304,18 @@ async def test_student_without_groups_sees_an_explanation(session, client):
 
     page = (await client.get("/leaderboard")).text
     assert "Вступи в группу" in page
+
+
+async def test_pinned_group_opens_by_default(session, client):
+    """Закрепил группу — значит с ней и работаешь; табло должно открываться на ней."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Яблоки"})   # позже по алфавиту
+    await client.post("/teacher/groups", data={"title": "Абрикосы"})
+    late = await session.scalar(select(Group).where(Group.title == "Яблоки"))
+
+    page = (await client.get("/leaderboard")).text
+    assert f'value="{late.id}" selected' not in page                 # пока первая по алфавиту
+
+    await client.post(f"/teacher/groups/{late.id}/favorite")
+    page = (await client.get("/leaderboard")).text
+    assert f'value="{late.id}" selected' in page

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from app.deps import CurrentUser, OptionalInt, SessionDep
-from app.models import Group, utcnow
+from app.models import Group, GroupFavorite, utcnow
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import groups_for_user
 from app.templating import templates
@@ -39,8 +39,20 @@ async def leaderboard_page(
     else:
         groups = await groups_for_user(session, user)
 
+    # Закреплённые группы идут первыми: раз преподаватель их закрепил, табло
+    # должно открываться на них, а не на первой по алфавиту.
+    pinned = set(
+        (
+            await session.execute(
+                select(GroupFavorite.group_id).where(GroupFavorite.user_id == user.id)
+            )
+        ).scalars()
+    )
+    groups.sort(key=lambda g: (g.id not in pinned, g.title))
+
     # Общего табло нет: сравнивать студентов из разных групп не за что —
-    # задания у них разные. Не выбрана группа или выбрана чужая — берём первую свою.
+    # задания у них разные. Не выбрана группа или выбрана чужая — берём первую,
+    # то есть закреплённую, если она есть.
     if group_id is None or all(g.id != group_id for g in groups):
         group_id = groups[0].id if groups else None
 
