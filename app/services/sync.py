@@ -8,6 +8,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.db import SessionLocal
 from app.models import Platform, PlatformAccount, Problem, Submission, utcnow
 from app.platforms import CodeforcesClient, LeetCodeClient
 from app.platforms.base import PlatformError, RemoteSubmission
@@ -139,6 +140,35 @@ async def accounts_due_for_sync(session: AsyncSession) -> list[PlatformAccount]:
         (PlatformAccount.last_synced_at.is_(None)) | (PlatformAccount.last_synced_at < threshold),
     )
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def sync_users(session: AsyncSession, user_ids: list[int]) -> tuple[int, int]:
+    """Обновляет подтверждённые аккаунты названных студентов.
+
+    Возвращает (новых посылок, аккаунтов обработано).
+    """
+    if not user_ids:
+        return 0, 0
+    stmt = select(PlatformAccount).where(
+        PlatformAccount.user_id.in_(user_ids), PlatformAccount.verified_at.is_not(None)
+    )
+    accounts = list((await session.execute(stmt)).scalars().all())
+    added = 0
+    for account in accounts:
+        added += await sync_account(session, account)
+    return added, len(accounts)
+
+
+async def sync_users_in_background(user_ids: list[int]) -> None:
+    """Та же работа, но своей сессией: запрос не должен ждать минуту.
+
+    Площадки держат паузу между запросами (Codeforces — две секунды), поэтому
+    группа из двадцати человек обновляется около минуты. Держать всё это время
+    открытым HTTP-запрос преподавателя нельзя.
+    """
+    async with SessionLocal() as session:
+        added, accounts = await sync_users(session, user_ids)
+    logger.info("массовое обновление: аккаунтов %s, новых посылок %s", accounts, added)
 
 
 async def sync_all(session: AsyncSession) -> int:

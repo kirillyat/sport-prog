@@ -49,6 +49,7 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     from app.db import get_session
     from app.main import app
     from app.services import features
+    from app.services import sync as sync_service
 
     async def _override() -> AsyncIterator[AsyncSession]:
         yield session
@@ -57,6 +58,9 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     # Middleware строки событий открывает сессии сам, минуя dependency override.
     monkeypatch.setattr(ticker, "SessionLocal", db)
     monkeypatch.setattr(features, "SessionLocal", db)
+    # Массовое обновление результатов открывает свою сессию: оно живёт в фоне,
+    # когда запрос уже ответил и его сессия закрыта.
+    monkeypatch.setattr(sync_service, "SessionLocal", db)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://test", follow_redirects=True

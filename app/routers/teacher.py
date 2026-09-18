@@ -5,7 +5,7 @@ import string
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,11 @@ from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.problem_parser import parse_problem_list, search_problems
 from app.services.progress import compute_progress, participants_for_assignment
-from app.services.sync import relink_orphan_submissions, sync_all
+from app.services.sync import (
+    relink_orphan_submissions,
+    sync_all,
+    sync_users_in_background,
+)
 from app.templating import parse_local_input, templates
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -229,6 +233,49 @@ async def set_group_chat(
     await session.commit()
     message = "Чат+группы+сохранён" if chat else "Чат+группы+отвязан"
     return _redirect(f"/teacher/groups/{group_id}", message=message)
+
+
+@router.post("/groups/{group_id}/sync")
+async def sync_group(
+    session: SessionDep, user: TeacherUser, group_id: int, background: BackgroundTasks
+):
+    """Обновить результаты всей группы разом — вместо обхода профилей по одному."""
+    group = await session.get(Group, group_id)
+    if group is None:
+        return _redirect("/teacher/groups", error="Группа+не+найдена")
+
+    ids = await _all(
+        session,
+        select(GroupMembership.user_id).where(GroupMembership.group_id == group_id),
+    )
+    if not ids:
+        return _redirect(f"/teacher/groups/{group_id}", error="В+группе+никого+нет")
+
+    background.add_task(sync_users_in_background, list(ids))
+    return _redirect(
+        f"/teacher/groups/{group_id}",
+        message=f"Обновляю+результаты:+{len(ids)}+студентов.+Займёт+около+минуты",
+    )
+
+
+@router.post("/assignments/{assignment_id}/sync")
+async def sync_assignment(
+    session: SessionDep, user: TeacherUser, assignment_id: int, background: BackgroundTasks
+):
+    """То же самое со страницы задания: обновить всех, кто его получил."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error="Задание+не+найдено")
+
+    participants = await participants_for_assignment(session, assignment)
+    if not participants:
+        return _redirect(f"/teacher/assignments/{assignment_id}", error="Участников+нет")
+
+    background.add_task(sync_users_in_background, [p.id for p in participants])
+    return _redirect(
+        f"/teacher/assignments/{assignment_id}",
+        message=f"Обновляю+результаты:+{len(participants)}+студентов.+Займёт+около+минуты",
+    )
 
 
 @router.post("/groups/{group_id}/members")

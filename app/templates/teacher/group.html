@@ -29,6 +29,17 @@
 </div>
 {% endif %}
 
+<div class="row" style="gap:8px; margin-bottom:12px">
+  <form method="post" action="/teacher/groups/{{ group.id }}/sync">
+    <button class="ghost small" type="submit">
+      {{ icon("refresh") }} Обновить результаты группы
+    </button>
+  </form>
+  <span class="small muted" style="align-self:center">
+    тянет посылки всех студентов группы с Codeforces и LeetCode
+  </span>
+</div>
+
 <h2>{{ icon("users") }} Состав ({{ members | length }})</h2>
 {% if candidates %}
 <div class="card">

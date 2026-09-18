@@ -12,11 +12,16 @@
 </p>
 {% if assignment.description %}<p class="sub">{{ assignment.description }}</p>{% endif %}
 
-<p style="margin:0 0 14px">
+<div class="row" style="gap:8px; margin:0 0 14px">
   <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/export.csv">
     {{ icon("download") }} Выгрузить в CSV
   </a>
-</p>
+  <form method="post" action="/teacher/assignments/{{ assignment.id }}/sync">
+    <button class="ghost small" type="submit">
+      {{ icon("refresh") }} Обновить результаты всех
+    </button>
+  </form>
+</div>
 
 <details class="formula" style="margin-bottom:18px">
   <summary>Изменить название и описание</summary>

@@ -157,3 +157,56 @@ async def test_codeforces_first_sync_backfills_deeper(session, monkeypatch):
     fake.calls.clear()
     await sync_service.sync_account(session, acc)
     assert fake.calls == [("borya", sync_service.CF_INCREMENTAL, 1)]
+
+
+async def test_group_sync_updates_every_student(session, client, monkeypatch):
+    """Кнопка «обновить группу»: обход профилей по одному — не работа для человека."""
+    from app.models import Group, GroupMembership, Role
+    from app.platforms import base as platforms_base  # noqa: F401
+
+    teacher = User(display_name="Кирилл", role=Role.teacher)
+    anya, borya = User(display_name="Аня"), User(display_name="Боря")
+    session.add_all([teacher, anya, borya])
+    await session.commit()
+
+    group = Group(title="Осень", join_code="AAA111")
+    session.add(group)
+    await session.commit()
+    session.add_all([
+        GroupMembership(group_id=group.id, user_id=anya.id),
+        GroupMembership(group_id=group.id, user_id=borya.id),
+    ])
+    session.add_all([
+        PlatformAccount(user_id=anya.id, platform=Platform.leetcode,
+                        handle="anya", verified_at=NOW),
+        PlatformAccount(user_id=borya.id, platform=Platform.leetcode,
+                        handle="borya", verified_at=NOW),
+    ])
+    session.add(Problem(platform=Platform.leetcode, external_id="1", slug="two-sum",
+                        title="Two Sum", url="", difficulty="Easy"))
+    await session.commit()
+
+    class PerHandle(FakeClient):
+        """Номер посылки уникален на платформе, поэтому он зависит от студента."""
+
+        async def fetch_submissions(self, handle, count=None, offset=1, limit=None):
+            self.calls.append((handle, count, offset))
+            return [
+                RemoteSubmission(
+                    external_id=f"s-{handle}", problem_external_id=None,
+                    problem_slug="two-sum", problem_title="Two Sum",
+                    verdict="Accepted", is_accepted=True, submitted_at=NOW,
+                )
+            ]
+
+    fake = PerHandle([])
+    monkeypatch.setattr(sync_service, "LeetCodeClient", fake)
+
+    await client.post("/login/dev", data={"name": "Кирилл", "teacher": "true"})
+    response = await client.post(f"/teacher/groups/{group.id}/sync")
+    assert "Обновляю результаты: 2 студентов" in response.text
+
+    # Фоновая задача выполняется после ответа — к этому моменту посылки уже есть.
+    submissions = await session.scalar(select(func.count()).select_from(Submission))
+    assert submissions == 2
+    assert {call[0] for call in fake.calls} == {"anya", "borya"}
