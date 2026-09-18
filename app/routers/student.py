@@ -20,7 +20,7 @@ from app.models import (
     utcnow,
 )
 from app.routers.announcements import upcoming_for_dashboard
-from app.services import solutions
+from app.services import solutions, verification
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import (
@@ -190,6 +190,8 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
             "place_of": len(board),
             "place_group": place_group,
             "accounts": accounts,
+            "platforms": list(Platform),
+            "where_to_put": verification.WHERE_TO_PUT,
             "score": score,
             "assignment_cards": assignment_cards,
             "recent": await build_feed(session, viewer, only_user=target, limit=5),

@@ -780,3 +780,16 @@ async def test_pending_reviews_show_up_in_the_rail(session, client, tmp_path, mo
 
     page = await client.get("/teacher")
     assert "nav-count" in page.text
+
+
+async def test_platform_accounts_live_in_the_profile(session, client):
+    """Привязка аккаунтов — часть настройки себя, рядом с именем и аватаркой."""
+    await _login(client, "Аня")
+    profile = (await client.get("/me")).text
+    assert "Аккаунты платформ" in profile
+    assert 'action="/accounts/link"' in profile
+    assert 'name="back" value="/me"' in profile      # действие вернёт на профиль
+
+    accounts = (await client.get("/accounts")).text
+    assert "Способы входа" in accounts                # вход остался на своей странице
+    assert 'action="/accounts/link"' not in accounts  # а привязка платформ ушла

@@ -319,3 +319,38 @@ async def test_pinned_group_opens_by_default(session, client):
     await client.post(f"/teacher/groups/{late.id}/favorite")
     page = (await client.get("/leaderboard")).text
     assert f'value="{late.id}" selected' in page
+
+
+async def test_board_lists_group_assignments_for_teacher(session, client):
+    """Табло говорит «кто впереди», но переход к заданию нужен почти всегда."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Осень"})
+    group = await session.scalar(select(Group))
+
+    problem_set = ProblemSet(title="Разминка")
+    session.add(problem_set)
+    await session.commit()
+    assignment = Assignment(title="Неделя 1", problem_set_id=problem_set.id, group_id=group.id)
+    session.add(assignment)
+    await session.commit()
+
+    page = (await client.get("/leaderboard")).text
+    assert "Задания группы" in page
+    assert f'/teacher/assignments/{assignment.id}' in page
+
+
+async def test_student_does_not_see_the_assignment_list(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Осень"})
+    group = await session.scalar(select(Group))
+    problem_set = ProblemSet(title="Разминка")
+    session.add(problem_set)
+    await session.commit()
+    session.add(Assignment(title="Неделя 1", problem_set_id=problem_set.id, group_id=group.id))
+    await session.commit()
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    await client.post("/groups/join", data={"join_code": group.join_code})
+    page = (await client.get("/leaderboard")).text
+    assert "Задания группы" not in page

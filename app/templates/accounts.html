@@ -67,79 +67,11 @@
   </div>
 </div>
 
-<h2>{{ icon("code") }} Аккаунты платформ</h2>
-<div class="grid two">
-{% for platform in platforms %}
-  {% set account = user.account_for(platform) %}
-  <div class="card stretch">
-    <div class="row between">
-      <h3>{{ icon("code") }} {{ platform.title }}</h3>
-      {% if account and account.is_verified %}<span class="badge ok">{{ icon("check") }} подтверждён</span>
-      {% elif account %}<span class="badge warn">{{ icon("clock") }} ждёт подтверждения</span>
-      {% else %}<span class="badge">не привязан</span>{% endif %}
-    </div>
-
-    {% if account %}
-      <p class="row small" style="margin-top:4px">
-        {{ icon("user") }}
-        <a href="{{ account.profile_url }}" target="_blank" rel="noopener">{{ account.handle }} {{ icon("external") }}</a>
-      </p>
-
-      {% if account.is_verified %}
-        <p class="small muted" style="margin-bottom:4px">
-          Синхронизировано {{ account.last_synced_at | ago }}
-        </p>
-        {% if platform.value == "leetcode" %}
-        <p class="small muted" style="margin-top:0">
-          LeetCode отдаёт публично последние 20 решений. Синк — каждые
-          {{ settings.sync_interval_seconds // 60 }} мин, этого хватает.
-        </p>
-        {% endif %}
-        {% if account.last_sync_error %}
-          <div class="flash err small">{{ icon("alert") }}<span>{{ account.last_sync_error }}</span></div>
-        {% endif %}
-        <div class="row push-bottom">
-          <form method="post" action="/accounts/{{ account.id }}/sync">
-            <button class="ghost small" type="submit">{{ icon("refresh") }} Синхронизировать</button>
-          </form>
-          <form method="post" action="/accounts/{{ account.id }}/unlink">
-            <button class="danger small" type="submit">{{ icon("trash") }} Отвязать</button>
-          </form>
-        </div>
-      {% else %}
-        <div class="card flat" style="margin: 12px 0 14px">
-          <p class="small muted" style="margin-top:0">{{ where_to_put[platform] }}</p>
-          <div class="code-box">{{ account.verification_code }}</div>
-        </div>
-        <div class="row">
-          <form method="post" action="/accounts/{{ account.id }}/verify">
-            <button class="small" type="submit">{{ icon("check") }} Проверить</button>
-          </form>
-          <form method="post" action="/accounts/{{ account.id }}/unlink">
-            <button class="danger small" type="submit">Отменить</button>
-          </form>
-        </div>
-        <p class="small muted" style="margin-bottom:0">Потом код можно убрать.</p>
-      {% endif %}
-    {% else %}
-      <p class="small muted" style="margin:6px 0 0">
-        {% if platform.value == "codeforces" %}
-          Как в адресе профиля: codeforces.com/profile/<b>tourist</b>
-        {% else %}
-          Как в адресе профиля: leetcode.com/u/<b>lee215</b>
-        {% endif %}
-      </p>
-      <form method="post" action="/accounts/link" class="inline-form push-bottom">
-        <input type="hidden" name="platform" value="{{ platform.value }}">
-        <div class="field" style="flex:1; min-width:170px;">
-          <label for="handle-{{ platform.value }}">{{ "Хэндл" if platform.value == "codeforces" else "Username" }}</label>
-          <input type="text" id="handle-{{ platform.value }}" name="handle" autocomplete="off" required
-                 placeholder="{{ "tourist" if platform.value == "codeforces" else "lee215" }}">
-        </div>
-        <button type="submit">{{ icon("link") }} Привязать</button>
-      </form>
-    {% endif %}
-  </div>
-{% endfor %}
+<div class="card flat">
+  <p class="small muted" style="margin:0">
+    Аккаунты Codeforces и LeetCode переехали в настройки профиля — там же, где
+    имя и аватарка: <a href="/me">моя страница</a>.
+  </p>
 </div>
+
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_platform_accounts.html" import platform_accounts %}
 {% from "_ui.html" import empty %}
 {% from "_feed.html" import feed_list %}
 {% block title %}{{ target.display_name }} — {{ settings.app_name }}{% endblock %}
@@ -47,6 +48,16 @@
         <button type="submit">{{ icon("check") }} Сохранить</button>
         <span class="small muted">Аватарка берётся с gravatar.com по этой почте.</span>
       </form>
+
+      <h3 style="margin:18px 0 8px">{{ icon("code") }} Аккаунты платформ</h3>
+      <p class="small muted" style="margin-top:0">
+        Без них решения не засчитываются: портал узнаёт о них по имени на площадке.
+      </p>
+      {{ platform_accounts(target, platforms, where_to_put, back="/me") }}
+      <p class="small muted">
+        Способы входа — телеграм и учётная запись факультета — на странице
+        <a href="/accounts">аккаунтов</a>.
+      </p>
       {% endif %}
     </div>
     {% endif %}

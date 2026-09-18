@@ -48,6 +48,7 @@
     {{ navlink("/teacher/reviews", "search", "Проверка", count=pending_reviews) }}
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
+    {{ navlink("/announcements", "megaphone", "Анонсы") }}
     {{ navlink("/feed", "activity", "Лента") }}
     {{ navlink("/leaderboard", "trophy", "Табло") }}
   {% else %}

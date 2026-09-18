@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from app.deps import CurrentUser, OptionalInt, SessionDep
-from app.models import Group, GroupFavorite, utcnow
+from app.models import Assignment, Group, GroupFavorite, utcnow
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import groups_for_user
 from app.templating import templates
@@ -57,6 +57,20 @@ async def leaderboard_page(
         group_id = groups[0].id if groups else None
 
     rows = await build_leaderboard(session, group_id=group_id, since=since) if group_id else []
+
+    # Табло отвечает «кто впереди», но не «за что» — поэтому рядом список
+    # заданий группы. Преподавателю почти всегда нужен переход в конкретное.
+    assignments = []
+    if user.is_teacher and group_id is not None:
+        assignments = list(
+            (
+                await session.execute(
+                    select(Assignment)
+                    .where(Assignment.group_id == group_id)
+                    .order_by(Assignment.assigned_at.desc())
+                )
+            ).scalars()
+        )
     my_place = next((i + 1 for i, r in enumerate(rows) if r.user.id == user.id), None)
 
     return templates.TemplateResponse(
@@ -70,6 +84,7 @@ async def leaderboard_page(
             "period": period,
             "periods": PERIODS,
             "my_place": my_place,
+            "assignments": assignments,
             "error": request.query_params.get("err"),
         },
     )

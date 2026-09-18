@@ -41,6 +41,31 @@
   {% endif %}
 </div>
 
+{% if assignments %}
+<details class="formula" style="margin-bottom:16px">
+  <summary>{{ icon("tasks") }} Задания группы ({{ assignments | length }})</summary>
+  <div class="card table-wrap" style="padding:6px; margin-top:10px">
+    <table>
+      <thead><tr><th>Задание</th><th>Выдано</th><th>Дедлайн</th></tr></thead>
+      <tbody>
+        {% for item in assignments %}
+        <tr>
+          <td><a href="/teacher/assignments/{{ item.id }}">{{ item.title }}</a></td>
+          <td class="small muted">{{ item.assigned_at | ago }}</td>
+          <td class="small muted">
+            {% if item.deadline %}
+              <span class="badge {{ 'bad' if item.deadline < now() else 'warn' }}">
+                {{ icon("clock") }}{{ item.deadline | dt }}</span>
+            {% else %}без срока{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+
 {% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
 
 {% if rows %}

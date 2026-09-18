@@ -15,14 +15,19 @@ from app.templating import templates
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
-def _back(message: str | None = None, error: str | None = None) -> RedirectResponse:
+def _back(
+    message: str | None = None, error: str | None = None, back: str = "/accounts"
+) -> RedirectResponse:
     params = []
     if message:
         params.append(f"ok={message}")
     if error:
         params.append(f"err={error}")
     suffix = ("?" + "&".join(params)) if params else ""
-    return RedirectResponse(f"/accounts{suffix}", status_code=303)
+    # Адрес возврата приходит из формы, поэтому принимаем только свой путь:
+    # «//чужой.сайт» тоже начинается со слэша.
+    target = back if back.startswith("/") and not back.startswith("//") else "/accounts"
+    return RedirectResponse(f"{target}{suffix}", status_code=303)
 
 
 @router.get("")
@@ -77,56 +82,66 @@ async def link_account(
     user: CurrentUser,
     platform: str = Form(...),
     handle: str = Form(...),
+    back: str = Form("/accounts"),
 ):
     try:
         target = Platform(platform)
     except ValueError:
-        return _back(error="Неизвестная платформа")
+        return _back(error="Неизвестная платформа", back=back)
 
     try:
         await verification.start_verification(session, user, target, handle)
     except ValueError as exc:
         return _back(error=str(exc))
-    return _back(message="Код выдан, впиши его в профиль и нажми «Проверить»")
+    return _back(message="Код выдан, впиши его в профиль и нажми «Проверить»", back=back)
 
 
 @router.post("/{account_id}/verify")
-async def verify_account(session: SessionDep, user: CurrentUser, account_id: int):
+async def verify_account(
+    session: SessionDep, user: CurrentUser, account_id: int,
+    back: str = Form("/accounts"),
+):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден")
+        return _back(error="Аккаунт не найден", back=back)
     try:
         confirmed = await verification.confirm_verification(session, account)
     except ValueError as exc:
         return _back(error=str(exc))
     if not confirmed:
-        return _back(error="Код в профиле не найден. Сохранил ли ты изменения?")
+        return _back(error="Код в профиле не найден. Сохранил ли ты изменения?", back=back)
 
     await sync_account(session, account)
-    return _back(message=f"{account.platform.title} привязан, посылки загружаются")
+    return _back(message=f"{account.platform.title} привязан, посылки загружаются", back=back)
 
 
 @router.post("/{account_id}/sync")
-async def sync_now(session: SessionDep, user: CurrentUser, account_id: int):
+async def sync_now(
+    session: SessionDep, user: CurrentUser, account_id: int,
+    back: str = Form("/accounts"),
+):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден")
+        return _back(error="Аккаунт не найден", back=back)
     if not account.is_verified:
-        return _back(error="Сначала подтверди аккаунт")
+        return _back(error="Сначала подтверди аккаунт", back=back)
     added = await sync_account(session, account)
     if account.last_sync_error:
-        return _back(error=account.last_sync_error)
-    return _back(message=f"Синхронизировано, новых посылок: {added}")
+        return _back(error=account.last_sync_error, back=back)
+    return _back(message=f"Синхронизировано, новых посылок: {added}", back=back)
 
 
 @router.post("/{account_id}/unlink")
-async def unlink_account(session: SessionDep, user: CurrentUser, account_id: int):
+async def unlink_account(
+    session: SessionDep, user: CurrentUser, account_id: int,
+    back: str = Form("/accounts"),
+):
     account = await session.get(PlatformAccount, account_id)
     if account is None or account.user_id != user.id:
-        return _back(error="Аккаунт не найден")
+        return _back(error="Аккаунт не найден", back=back)
     await session.delete(account)
     await session.commit()
-    return _back(message="Аккаунт отвязан")
+    return _back(message="Аккаунт отвязан", back=back)
 
 
 @router.get("/handles/{platform}")
