@@ -185,6 +185,9 @@ body.with-rail { padding-left: var(--rail); }
   border-bottom: 1px solid var(--line-soft); opacity: .78;
 }
 .nav a .icon, .tabbar a .icon { width: 20px; height: 20px; }
+/* Подпись переносится: в английском и французском слова длиннее русских
+   и «ANNOUNCEMENTS» иначе вылезает за рейку. */
+.nav a span, .tabbar a span { text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
 .nav a:hover, .tabbar a:hover { opacity: 1; text-decoration: none; }
 .nav a.active, .tabbar a.active { opacity: 1; background: var(--inv-text); color: var(--inv-bg); }
 .nav-count { display: inline-block; min-width: 16px; padding: 0 4px; font-size: 9px; line-height: 15px;
@@ -194,6 +197,39 @@ body.with-rail { padding-left: var(--rail); }
 .rail .whoami .avatar { width: 36px; height: 36px; }
 .rail-btn { background: transparent; border: none; box-shadow: none; color: var(--inv-text); padding: 6px; opacity: .8; }
 .rail-btn:hover { opacity: 1; background: transparent; transform: none; }
+
+/* ---------- выбор языка ---------- */
+/* <details> вместо меню на скриптах: открывается силами браузера. */
+.lang { position: relative; }
+.lang > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  padding: 5px 7px; border: 1px solid currentColor; border-radius: 2px;
+  opacity: .8; text-align: center;
+}
+.lang > summary::-webkit-details-marker { display: none; }
+.lang > summary:hover, .lang[open] > summary { opacity: 1; }
+.lang-menu {
+  position: absolute; bottom: 0; left: calc(100% + 8px); z-index: 40;
+  display: flex; flex-direction: column; min-width: 140px;
+  background: var(--bg); color: var(--ink);
+  border: var(--rule) solid var(--ink);
+}
+.lang.up .lang-menu { bottom: auto; top: calc(100% + 8px); left: auto; right: 0; }
+.lang-menu button {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; box-shadow: none; border-radius: 0;
+  color: inherit; font-size: 13px; padding: 9px 12px; letter-spacing: 0;
+  text-transform: none;
+}
+.lang-menu button:hover { background: var(--ink); color: var(--bg); transform: none; }
+.lang-menu button.current { font-weight: 800; }
+.lang-menu button.current::after { content: " ✓"; }
+/* На странице входа рейки нет — переключатель стоит сам по себе. */
+.lang.auth { display: inline-block; margin: 0 0 24px; }
+.lang.auth > summary { display: inline-block; }
+.lang.auth .lang-menu { bottom: auto; top: calc(100% + 8px); left: 0; }
+.mobile-tools { display: flex; align-items: center; gap: 6px; }
 .tabbar { display: none; }
 .mobile-bar { display: none; }
 

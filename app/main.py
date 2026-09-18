@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from app.bot import run_bot
 from app.config import settings
 from app.deps import Forbidden, RedirectToLogin, section_required
+from app.i18n import LANGUAGE_COOKIE, pick_language, set_language
 from app.routers import (
     accounts,
     announcements,
@@ -140,6 +141,20 @@ async def attach_features(request: Request, call_next):
             "pending_reviews": 0,
             "is_teacher": False,
         }
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def attach_language(request: Request, call_next):
+    """Язык страницы — из куки, при первом заходе подсказывает браузер.
+
+    Стоит снаружи остальных middleware: тикер и рейку тоже надо переводить.
+    """
+    language = pick_language(
+        request.cookies.get(LANGUAGE_COOKIE), request.headers.get("accept-language")
+    )
+    set_language(language)
+    request.state.language = language
     return await call_next(request)
 
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ language() }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,6 +23,7 @@
   {% endif %}
 </head>
 <body class="{{ 'with-rail' if user }}">
+{% from "_lang.html" import lang_switch %}
 {% include "_icons.html" %}
 
 {% set path = request.url.path if request else "" %}
@@ -31,7 +32,7 @@
      else ((path == href) or (href != '/' and path.startswith(href))) %}
   <a href="{{ href }}" class="{{ 'active' if is_active }} {{ extra }}" title="{{ label }}">
     {{ icon(name) }}<span>{{ label }}</span>
-    {% if count %}<span class="nav-count" title="ждут проверки">{{ count }}</span>{% endif %}
+    {% if count %}<span class="nav-count" title="{{ _("ждут проверки") }}">{{ count }}</span>{% endif %}
   </a>
 {%- endmacro %}
 {#
@@ -43,23 +44,23 @@
 {% macro navitems() -%}
   {# Преподаватель может смотреть портал глазами студента — тогда и рейка его. #}
   {% if teacher_view %}
-    {{ navlink("/teacher", "shield", "Панель", "teacher-link", exact=True) }}
-    {{ navlink("/teacher/groups", "users", "Группы") }}
-    {{ navlink("/teacher/assignments", "tasks", "Задания") }}
-    {{ navlink("/teacher/reviews", "search", "Проверка", count=pending_reviews) }}
-    {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
-    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
-    {{ navlink("/announcements", "megaphone", "Анонсы") }}
-    {{ navlink("/feed", "activity", "Лента") }}
-    {{ navlink("/leaderboard", "trophy", "Табло") }}
+    {{ navlink("/teacher", "shield", _("Панель"), "teacher-link", exact=True) }}
+    {{ navlink("/teacher/groups", "users", _("Группы")) }}
+    {{ navlink("/teacher/assignments", "tasks", _("Задания")) }}
+    {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
+    {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
+    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
+    {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
+    {{ navlink("/feed", "activity", _("Лента")) }}
+    {{ navlink("/leaderboard", "trophy", _("Табло")) }}
   {% else %}
-    {{ navlink("/", "tasks", "Задания") }}
-    {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
-    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
-    {{ navlink("/announcements", "megaphone", "Анонсы") }}
-    {{ navlink("/feed", "activity", "Лента") }}
-    {{ navlink("/leaderboard", "trophy", "Лидерборд") }}
-    {{ navlink("/accounts", "link", "Аккаунты") }}
+    {{ navlink("/", "tasks", _("Задания")) }}
+    {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
+    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
+    {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
+    {{ navlink("/feed", "activity", _("Лента")) }}
+    {{ navlink("/leaderboard", "trophy", _("Лидерборд")) }}
+    {{ navlink("/accounts", "link", _("Аккаунты")) }}
   {% endif %}
 {%- endmacro %}
 
@@ -84,25 +85,26 @@
   </a>
   <nav class="nav">{{ navitems() }}</nav>
   <div class="rail-foot">
-    <a class="whoami" href="/me" title="{{ user.display_name }} — профиль">
+    <a class="whoami" href="/me" title="{{ user.display_name }} — {{ _("профиль") }}">
       {{ avatar(user) }}
     </a>
     {% if user.is_teacher %}
     <form method="post" action="/view/{{ 'teacher' if as_student else 'student' }}">
       <input type="hidden" name="next" value="{{ path }}">
       <button class="rail-btn" type="submit"
-              title="{{ 'Вернуться к интерфейсу преподавателя' if as_student
-                        else 'Посмотреть портал глазами студента' }}">
+              title="{{ _('Вернуться к интерфейсу преподавателя') if as_student
+                        else _('Посмотреть портал глазами студента') }}">
         {{ icon("user" if not as_student else "shield") }}
       </button>
     </form>
     {% endif %}
     <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
-              title="Тема: светлая">
+              title="{{ _("Тема: светлая") }}">
         {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}
       </button>
+    {{ lang_switch(path) }}
     <form method="post" action="/logout">
-      <button class="rail-btn" type="submit" title="Выйти">{{ icon("logout") }}</button>
+      <button class="rail-btn" type="submit" title="{{ _("Выйти") }}">{{ icon("logout") }}</button>
     </form>
   </div>
 </aside>
@@ -123,21 +125,24 @@
     {% endif %}
     <span>{{ settings.app_short_name }}</span>
   </a>
-  <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
-              title="Тема: светлая">
-        {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}
-      </button>
+  <span class="mobile-tools">
+    {{ lang_switch(path, "up") }}
+    <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
+            title="{{ _("Тема: светлая") }}">
+      {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}
+    </button>
+  </span>
   </div>
   {% endif %}
   {% if user and ticker %}
   {# Ближайшее событие — с любой страницы. #}
   <a class="ticker" href="/announcements">
-    <span class="ticker-label">{{ "идёт" if ticker.state(now()) == "live" else "следующее" }}</span>
+    <span class="ticker-label">{{ _("идёт") if ticker.state(now()) == "live" else _("следующее") }}</span>
     <span class="ticker-title">{{ ticker.title }}</span>
     <span class="countdown" data-countdown data-state="{{ ticker.state(now()) }}"
           data-start="{{ ticker.starts_at.isoformat() }}"
           {% if ticker.ends_at %}data-end="{{ ticker.ends_at.isoformat() }}"{% endif %}>{{
-      "идёт сейчас" if ticker.state(now()) == "live" else "скоро" }}</span>
+      _("идёт сейчас") if ticker.state(now()) == "live" else _("скоро") }}</span>
     <span class="ticker-go">{{ icon("chevron") }}</span>
   </a>
   {% endif %}
@@ -148,6 +153,9 @@
     {% block content %}{% endblock %}
   </main>
 </div>
+{# Переводы для скриптов — данными, чтобы не заводить инлайновый JS. #}
+<script type="application/json" id="js-strings">{{ js_strings()|tojson }}</script>
+<script src="/static/i18n.js?v={{ asset_version }}" defer></script>
 <script src="/static/countdown.js?v={{ asset_version }}" defer></script>
 <script src="/static/theme.js?v={{ asset_version }}" defer></script>
 {% if settings.telegram_enabled %}<script src="/static/telegram-login.js?v={{ asset_version }}" defer></script>{% endif %}

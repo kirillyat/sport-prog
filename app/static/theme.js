@@ -7,10 +7,11 @@
   var KEY = "sport-theme";
   // Порядок обхода; первый — значение по умолчанию.
   var ORDER = ["light", "dark", "auto"];
+  var t = window.portalStrings || function (key, fallback) { return fallback; };
   var LABELS = {
-    auto: "Тема: как в системе",
-    light: "Тема: светлая",
-    dark: "Тема: тёмная",
+    auto: t("theme.auto", "Тема: как в системе"),
+    light: t("theme.light", "Тема: светлая"),
+    dark: t("theme.dark", "Тема: тёмная"),
   };
 
   function read() {

@@ -1,0 +1,20 @@
+{#
+  Выбор языка. Список короткий, поэтому обходимся <details> — раскрывается
+  без единой строчки скрипта. Форма на каждый язык, потому что выбор меняет
+  куку, а это POST.
+#}
+{% macro lang_switch(path="/", extra="") -%}
+<details class="lang {{ extra }}">
+  <summary title="{{ _("Язык интерфейса") }}">{{ language()|upper }}</summary>
+  <div class="lang-menu">
+    {% for code, name in languages.items() %}
+    <form method="post" action="/view/lang">
+      <input type="hidden" name="lang" value="{{ code }}">
+      <input type="hidden" name="next" value="{{ path }}">
+      <button type="submit" class="{{ 'current' if code == language() }}"
+              {{ 'aria-current=true' if code == language() }}>{{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</details>
+{%- endmacro %}

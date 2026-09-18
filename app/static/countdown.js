@@ -8,14 +8,8 @@
     return String(value).padStart(2, "0");
   }
 
-  function pluralRu(count, one, few, many) {
-    var tail = Math.abs(count) % 100;
-    if (tail >= 11 && tail <= 14) return many;
-    tail %= 10;
-    if (tail === 1) return one;
-    if (tail >= 2 && tail <= 4) return few;
-    return many;
-  }
+  var t = window.portalStrings || function (key, fallback) { return fallback; };
+  var plural = window.portalPlural || function (count, forms) { return String(forms).split("|")[0]; };
 
   function setState(el, state, text) {
     el.textContent = text;
@@ -29,14 +23,14 @@
     var target, prefix, state;
 
     if (start && now < start) {
-      target = start; prefix = "до старта"; state = "upcoming";
+      target = start; prefix = t("countdown.before_start", "до старта"); state = "upcoming";
     } else if (end && now < end) {
-      target = end; prefix = "до конца"; state = "live";
+      target = end; prefix = t("countdown.before_end", "до конца"); state = "live";
     } else if (start && !end && now - start < 86400000) {
-      setState(el, "live", "идёт сейчас");
+      setState(el, "live", t("countdown.live", "идёт сейчас"));
       return;
     } else {
-      setState(el, "past", "завершено");
+      setState(el, "past", t("countdown.past", "завершено"));
       return;
     }
 
@@ -47,7 +41,7 @@
     var minutes = Math.floor((left % 3600) / 60);
     var seconds = left % 60;
 
-    var daysPart = days ? days + " " + pluralRu(days, "день", "дня", "дней") + " " : "";
+    var daysPart = days ? days + " " + plural(days, t("countdown.days", "день|дня|дней")) + " " : "";
     setState(el, state, prefix + ": " + daysPart + pad(hours) + ":" + pad(minutes) + ":" + pad(seconds));
   }
 

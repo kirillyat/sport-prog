@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
+from app.i18n import LANGUAGES, current_language
+from app.i18n import translate as _
 from app.models import SolveStatus
 from app.services import course
 
@@ -221,6 +223,26 @@ templates.env.globals["brand_logo_dark"] = _find_asset(LOGO_DARK_NAMES)
 templates.env.globals["favicon_asset"] = _find_asset(FAVICON_NAMES)
 templates.env.globals["brand_mark"] = _find_asset(MARK_NAMES)
 templates.env.globals["course_available"] = course.is_available()
+# Перевод: строка в шаблоне — русская, она же ключ словаря.
+def js_strings() -> dict[str, str]:
+    """Переводы для скриптов: инлайнового JS не держим, поэтому отдаём данными."""
+    return {
+        "theme.light": _("Тема: светлая"),
+        "theme.dark": _("Тема: тёмная"),
+        "theme.auto": _("Тема: как в системе"),
+        "countdown.before_start": _("до старта"),
+        "countdown.before_end": _("до конца"),
+        "countdown.live": _("идёт сейчас"),
+        "countdown.past": _("завершено"),
+        # Формы слова через «|»: сколько их — столько знает язык.
+        "countdown.days": _("день|дня|дней"),
+    }
+
+
+templates.env.globals["_"] = _
+templates.env.globals["js_strings"] = js_strings
+templates.env.globals["languages"] = LANGUAGES
+templates.env.globals["language"] = current_language
 templates.env.globals["settings"] = settings
 templates.env.globals["SolveStatus"] = SolveStatus
 templates.env.globals["now"] = lambda: datetime.now(UTC)

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Вход — {{ settings.app_name }}{% endblock %}
+{% from "_lang.html" import lang_switch %}
+{% block title %}{{ _("Вход") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="auth-shell">
   {% if brand_mark %}
@@ -20,49 +21,46 @@
   <div class="auth-logo">{{ icon("campus", "xl") }}</div>
   {% endif %}
   <h1>{{ settings.app_name }}</h1>
-  <p class="sub">
-    Тренировки, задания и рейтинг. Решения с LeetCode и Codeforces
-    подтягиваются сами.
-  </p>
+  <p class="sub">{{ _("Тренировки, задания и рейтинг. Решения с LeetCode и Codeforces подтягиваются сами.") }}</p>
+  {# Язык до входа: страницу входа тоже надо уметь прочитать. #}
+  {{ lang_switch(request.url.path, "auth") }}
 
   {% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
 
   {% if deep_link %}
   <div class="card" data-tg-code="{{ code }}">
-    <h3>{{ icon("send") }} Вход через Telegram</h3>
-    <p class="small muted">
-      Отправь боту <code class="mono">/start</code> — страница откроется сама.
-    </p>
+    <h3>{{ icon("send") }} {{ _("Вход через Telegram") }}</h3>
+    <p class="small muted">{{ _("Отправь боту <code class=\"mono\">/start</code> — страница откроется сама.") | safe }}</p>
     <p><a class="btn" href="{{ deep_link }}" target="_blank" rel="noopener" data-tg-link>
-      {{ icon("send") }} Войти через Telegram</a></p>
+      {{ icon("send") }} {{ _("Войти через Telegram") }}</a></p>
     <div class="row small muted">
       {{ icon("clock") }}
-      <span id="tg-status">Ждём подтверждения… код живёт {{ settings.login_code_ttl_seconds // 60 }} минут.</span>
+      <span id="tg-status">{{ _("Ждём подтверждения… код живёт %(minutes)s мин.") % {"minutes": settings.login_code_ttl_seconds // 60} }}</span>
     </div>
   </div>
   {% endif %}
 
   {% if oidc_enabled %}
   <div class="card">
-    <h3>{{ icon("shield") }} Вход через {{ oidc_name }}</h3>
-    <p class="small muted">{{ settings.org_account_name | capitalize }}. Роль — по группе в {{ oidc_name }}.</p>
-    <a class="btn" href="/login/oidc?next={{ next | urlencode }}">{{ icon("shield") }} Войти через {{ oidc_name }}</a>
+    <h3>{{ icon("shield") }} {{ _("Вход через") }} {{ oidc_name }}</h3>
+    <p class="small muted">{{ settings.org_account_name | capitalize }}. {{ _("Роль — по группе в") }} {{ oidc_name }}.</p>
+    <a class="btn" href="/login/oidc?next={{ next | urlencode }}">{{ icon("shield") }} {{ _("Войти через") }} {{ oidc_name }}</a>
   </div>
   {% endif %}
 
   {% if dev_login %}
   <div class="card">
-    <h3>{{ icon("user") }} Локальный вход <span class="badge warn">dev</span></h3>
-    <p class="small muted">Только для разработки: <code class="mono">DEV_LOGIN_ENABLED=true</code>.</p>
+    <h3>{{ icon("user") }} {{ _("Локальный вход") }} <span class="badge warn">dev</span></h3>
+    <p class="small muted">{{ _("Только для разработки:") }} <code class="mono">DEV_LOGIN_ENABLED=true</code>.</p>
     <form method="post" action="/login/dev">
       <div class="field">
-        <label for="name">Имя</label>
-        <input type="text" id="name" name="name" required autocomplete="off" placeholder="Как тебя зовут">
+        <label for="name">{{ _("Имя") }}</label>
+        <input type="text" id="name" name="name" required autocomplete="off" placeholder="{{ _("Как тебя зовут") }}">
       </div>
       <div class="field">
-        <label class="check"><input type="checkbox" name="teacher" value="true"> преподаватель</label>
+        <label class="check"><input type="checkbox" name="teacher" value="true"> {{ _("преподаватель") }}</label>
       </div>
-      <button type="submit">{{ icon("chevron") }} Войти</button>
+      <button type="submit">{{ icon("chevron") }} {{ _("Войти") }}</button>
     </form>
   </div>
   {% endif %}
@@ -70,11 +68,8 @@
   {# Пустая страница входа хуже честной ошибки: сказать это можно только здесь. #}
   {% if not deep_link and not oidc_enabled and not dev_login %}
   <div class="card callout warn">
-    <h3>{{ icon("alert") }} Входить нечем</h3>
-    <p class="small muted" style="margin:0">
-      Ни один способ входа не настроен. Включи бота, OIDC-провайдера или
-      dev-вход в <code class="mono">.env</code> и перезапусти приложение.
-    </p>
+    <h3>{{ icon("alert") }} {{ _("Входить нечем") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Ни один способ входа не настроен. Включи бота, OIDC-провайдера или dev-вход в .env и перезапусти приложение.") }}</p>
   </div>
   {% endif %}
 </div>
