@@ -189,8 +189,29 @@ docker compose cp web:/data/backup.db ./backup-$(date +%F).db
 
 ## CI/CD
 
-Источник — Gitea `git.ai.msu.ru`, GitHub держится зеркалом через встроенное
-в Gitea зеркалирование (Настройки репозитория → Зеркала). Правки идут в Gitea.
+Источник — Gitea `git.ai.msu.ru`, правки идут туда. Открытая копия лежит на
+[GitHub](https://github.com/kirillyat/msu-sport-prog-club) и обновляется вручную:
+зеркалирование на `git.ai.msu.ru` отключено, а автоматически туда пушить и не
+надо — см. ниже.
+
+### Что не уезжает в открытую копию
+
+В репозитории лежит каталог `course/` с материалами курса: конспекты, практики
+и домашние задания. Это чужая работа — материалы авторские, и выкладывать их
+под MIT вместе с кодом портала нельзя. Поэтому на GitHub уходит история без
+этого каталога:
+
+```bash
+git branch -f publish HEAD
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
+    --index-filter 'git rm -r --cached --ignore-unmatch course > /dev/null' \
+    --prune-empty -- github/main..publish
+git push github publish:main
+```
+
+Портал без каталога работает как обычно: раздел «Курс» просто не показывается,
+пока материалов нет (`course.is_available()`). Фирменный знак вуза так же
+живёт в томе данных, а не в исходниках.
 
 Выкатка живёт в `.gitea/workflows/deploy.yml`. Она запускается на push
 в `main` и кнопкой «Run workflow» на вкладке Actions, а всю работу делает
