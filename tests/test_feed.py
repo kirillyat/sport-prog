@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from app.models import (
     Assignment,
@@ -231,3 +232,24 @@ async def test_teachers_never_appear_in_the_feed(session, world):
     # Ни студенту, ни самому преподавателю.
     assert all(item.user.id != teacher.id for item in await build_feed(session, world["anya"]))
     assert all(item.user.id != teacher.id for item in await build_feed(session, teacher))
+
+
+async def test_feed_opens_on_the_pinned_group(session, client):
+    """Лента без выбора открывалась на всех сразу — преподаватель смотрит свою."""
+    from app.models import Group
+
+    await client.post("/login/dev", data={"name": "Кирилл", "teacher": "true"})
+    await client.post("/teacher/groups", data={"title": "Яблоки"})
+    await client.post("/teacher/groups", data={"title": "Абрикосы"})
+    late = await session.scalar(select(Group).where(Group.title == "Яблоки"))
+
+    page = (await client.get("/feed")).text
+    assert '<option value="0" selected>' in page          # пока показываем всех
+
+    await client.post(f"/teacher/groups/{late.id}/favorite")
+    page = (await client.get("/feed")).text
+    assert f'value="{late.id}" selected' in page
+
+    # «Все группы» остаются доступными осознанным выбором.
+    page = (await client.get("/feed?group_id=0")).text
+    assert '<option value="0" selected>' in page
