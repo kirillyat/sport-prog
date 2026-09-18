@@ -291,7 +291,7 @@ async def test_matrix_marks_the_problem_where_the_code_is_missing(session, clien
     """Счётчик по студенту отвечает «кто», а клетка и столбец — «по какой задаче»."""
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "no-code" in page                  # уголок в клетке
+    assert "код не сдан" in page              # подпись клетки, а не легенды
     assert "Сдали код" in page                # столбец в таблице задач
     assert "0 / 1" in page                    # прислал ноль из одного
 
@@ -302,5 +302,5 @@ async def test_matrix_marks_the_problem_where_the_code_is_missing(session, clien
 
     await _login(client, "Кирилл", teacher=True)
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
-    assert "no-code" not in page
+    assert "код не сдан" not in page
     assert "1 / 1" in page

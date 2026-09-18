@@ -311,6 +311,8 @@
   "в срок": "dans les temps",
   "решено до выдачи, не засчитано": "résolu avant l’attribution, non compté",
   "после жёсткого дедлайна, не засчитано": "après l’échéance stricte, non compté",
+  "кода нет — не засчитано": "pas de code — non compté",
+  "код отклонён — не засчитано": "code refusé — non compté",
   "В группе нет студентов — раздай код группы.": "Le groupe n’a pas d’étudiants — distribue le code du groupe.",
   "Задачи": "Problèmes",
   "Сдали код": "Code rendu",

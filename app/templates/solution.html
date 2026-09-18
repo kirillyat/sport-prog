@@ -21,9 +21,6 @@
   <a class="btn small" href="/solutions/{{ upload.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
 </div>
 
-{% if ok %}<div class="flash ok">{{ icon("check") }}<span>{{ ok }}</span></div>{% endif %}
-{% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
-
 {% if upload.comment %}
 <div class="card callout {{ 'warn' if upload.status.value == 'rejected' }}">
   <h3>{{ icon("shield") }} {{ _("Комментарий преподавателя") }}</h3>

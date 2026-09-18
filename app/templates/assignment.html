@@ -22,9 +22,6 @@
   </div>
 </div>
 
-{% if ok %}<div class="flash ok">{{ icon("check") }}<span>{{ ok }}</span></div>{% endif %}
-{% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
-
 {% if assignment.requires_solution %}
 <div class="card callout">
   <h3>{{ icon("shield") }} {{ _("К задачам нужно прислать код") }}</h3>

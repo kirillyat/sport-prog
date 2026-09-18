@@ -111,6 +111,13 @@
   {% if assignment.hard_deadline %}
   <span class="item"><span class="cell solved_too_late">•</span> {{ _("после жёсткого дедлайна, не засчитано") }}</span>
   {% endif %}
+  {% if assignment.requires_solution %}
+  {# Уголок в клетке теперь стоит денег — значит, ему место в легенде. #}
+  <span class="item"><span class="cell solved_in_time no-code">{{ icon("check") }}</span>
+    {{ _("кода нет — не засчитано") }}</span>
+  <span class="item"><span class="cell solved_in_time rejected">{{ icon("check") }}</span>
+    {{ _("код отклонён — не засчитано") }}</span>
+  {% endif %}
 </div>
 {% else %}
 <div class="card">{{ empty("users", _("В группе нет студентов — раздай код группы."),

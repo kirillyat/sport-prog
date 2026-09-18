@@ -311,6 +311,8 @@
   "в срок": "on time",
   "решено до выдачи, не засчитано": "solved before the assignment, not counted",
   "после жёсткого дедлайна, не засчитано": "after the hard deadline, not counted",
+  "кода нет — не засчитано": "no code — not counted",
+  "код отклонён — не засчитано": "code rejected — not counted",
   "В группе нет студентов — раздай код группы.": "The group has no students — hand out the group code.",
   "Задачи": "Problems",
   "Сдали код": "Code sent",
