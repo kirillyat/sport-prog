@@ -6,8 +6,9 @@
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python -m app.cli gen-secret          # ключ в .env
+pip install -e .
+pip install pytest pytest-asyncio ruff   # инструменты разработки
+python -m app.cli gen-secret             # ключ в .env
 alembic upgrade head
 uvicorn app.main:app --reload
 ```

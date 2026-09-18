@@ -24,7 +24,12 @@ jobs:
           cache: pip
 
       - name: Поставить зависимости
-        run: pip install -e ".[dev]"
+        # Инструменты разработки перечислены в [dependency-groups] (PEP 735),
+        # а не в extras, поэтому `pip install -e ".[dev]"` их не видит.
+        # Ставим так же, как образ для тестов, — без привязки к версии pip.
+        run: |
+          pip install -e .
+          pip install pytest pytest-asyncio ruff
 
       - name: Линтер
         run: ruff check app tests scripts migrations
