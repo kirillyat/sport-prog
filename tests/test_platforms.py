@@ -185,3 +185,25 @@ async def test_leetcode_retries_then_fails():
             await client.fetch_profile("anya")
 
     assert calls["n"] == 3  # первая попытка + два ретрая
+
+
+async def test_limiter_spaces_requests_across_clients(monkeypatch):
+    """Клиент заводится на каждый аккаунт, а лимит у площадки один.
+
+    Раньше лимитер жил внутри клиента и начинал отсчёт с нуля, поэтому синк
+    группы уходил на Codeforces пачкой запросов и получал «Call limit exceeded».
+    """
+    import time
+
+    from app.config import settings
+    from app.platforms import CodeforcesClient
+
+    monkeypatch.setattr(settings, "codeforces_min_interval", 0.05)
+    start = time.monotonic()
+    for _ in range(4):
+        async with CodeforcesClient(_client(lambda r: httpx.Response(200, json={}))) as client:
+            async with client._limiter:
+                pass
+    spent = time.monotonic() - start
+    # Первый запрос идёт сразу, три следующих ждут свою паузу.
+    assert spent >= 0.05 * 3

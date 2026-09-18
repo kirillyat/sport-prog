@@ -11,6 +11,11 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("DEV_LOGIN_ENABLED", "true")
 os.environ.setdefault("ENABLE_SCHEDULER", "false")
 os.environ.setdefault("ENABLE_BOT", "false")
+# Паузы между запросами к площадкам общие на процесс, поэтому в тестах они
+# складывались бы в реальные секунды ожидания. Сам интервал проверяется
+# отдельно в tests/test_platforms.py.
+os.environ.setdefault("CODEFORCES_MIN_INTERVAL", "0")
+os.environ.setdefault("LEETCODE_MIN_INTERVAL", "0")
 
 from sqlalchemy import event  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402

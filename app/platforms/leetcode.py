@@ -9,11 +9,11 @@ from app.config import settings
 from app.i18n import translate as _
 from app.platforms.base import (
     PlatformError,
-    RateLimiter,
     RemoteProblem,
     RemoteProfile,
     RemoteSubmission,
     UserNotFound,
+    limiter_for,
 )
 
 GRAPHQL = "https://leetcode.com/graphql/"
@@ -70,7 +70,7 @@ class LeetCodeClient:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client
         self._owns_client = client is None
-        self._limiter = RateLimiter(settings.leetcode_min_interval)
+        self._limiter = limiter_for("leetcode", lambda: settings.leetcode_min_interval)
 
     async def __aenter__(self) -> LeetCodeClient:
         if self._client is None:

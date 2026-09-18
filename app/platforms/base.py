@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -51,19 +52,40 @@ class RateLimiter:
 
     Codeforces просит не чаще одного запроса в 2 секунды, LeetCode
     официальных лимитов не публикует, но охотно отдаёт 429.
+
+    Лимитер один на процесс и на площадку — см. `limiter_for`. Когда он лежал
+    внутри клиента, а клиент заводился на каждый аккаунт, пауза не работала
+    вовсе: у нового лимитера `_last` равен нулю, и первый запрос уходил
+    немедленно. Обновление группы из тридцати человек выстреливало тридцать
+    запросов подряд и получало от Codeforces «Call limit exceeded».
+
+    Интервал спрашивается у настроек на каждом запросе, а не запоминается:
+    иначе значение застывало бы на том, что было при импорте модуля.
     """
 
-    def __init__(self, min_interval: float) -> None:
-        self._min_interval = min_interval
+    def __init__(self, interval: Callable[[], float]) -> None:
+        self._interval = interval
         self._lock = asyncio.Lock()
         self._last = 0.0
 
     async def __aenter__(self) -> None:
         await self._lock.acquire()
-        wait = self._min_interval - (time.monotonic() - self._last)
+        wait = self._interval() - (time.monotonic() - self._last)
         if wait > 0:
             await asyncio.sleep(wait)
 
     async def __aexit__(self, *exc_info) -> None:
         self._last = time.monotonic()
         self._lock.release()
+
+
+# Общие лимитеры процесса. Ключ — название площадки, а не класс клиента:
+# клиентов за один синк создаётся много, площадка остаётся одна.
+_LIMITERS: dict[str, RateLimiter] = {}
+
+
+def limiter_for(platform: str, interval: Callable[[], float]) -> RateLimiter:
+    """Лимитер площадки. Один на процесс, сколько бы клиентов ни завели."""
+    if platform not in _LIMITERS:
+        _LIMITERS[platform] = RateLimiter(interval)
+    return _LIMITERS[platform]

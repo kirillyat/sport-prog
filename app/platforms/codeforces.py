@@ -9,11 +9,11 @@ from app.config import settings
 from app.i18n import translate as _
 from app.platforms.base import (
     PlatformError,
-    RateLimiter,
     RemoteProblem,
     RemoteProfile,
     RemoteSubmission,
     UserNotFound,
+    limiter_for,
 )
 
 API = "https://codeforces.com/api"
@@ -57,7 +57,7 @@ class CodeforcesClient:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client
         self._owns_client = client is None
-        self._limiter = RateLimiter(settings.codeforces_min_interval)
+        self._limiter = limiter_for("codeforces", lambda: settings.codeforces_min_interval)
 
     async def __aenter__(self) -> CodeforcesClient:
         if self._client is None:
