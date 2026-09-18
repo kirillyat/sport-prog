@@ -58,16 +58,13 @@ class Cell:
         return not self.rejected and not self.code_missing
 
     @property
-    def icon(self) -> str:
-        if self.rejected:
-            return "✗"
-        return {
-            SolveStatus.solved_in_time: "✓",
-            SolveStatus.solved_late: "✓",
-            SolveStatus.solved_too_late: "•",
-            SolveStatus.solved_before: "•",
-            SolveStatus.not_solved: "",
-        }[self.status]
+    def awaiting_code(self) -> bool:
+        """Решено в срок, а зачёта нет только потому, что код не прислан.
+
+        Отдельно от `code_missing`: там, где задача и не решена, требование
+        кода ничего не меняет, и красить клетку нечем.
+        """
+        return self.status == SolveStatus.solved_in_time and self.code_missing
 
 
 @dataclass(slots=True)

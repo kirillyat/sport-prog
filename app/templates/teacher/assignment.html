@@ -1,6 +1,18 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ assignment.title }} — {{ settings.app_name }}{% endblock %}
+{#
+  Значок в клетке отвечает на вопрос «что произошло», а заливка — «зачлось ли».
+  Раньше здесь стояли текстовые ✓ и ✗: они не попадали в шрифт и терялись
+  на чёрной заливке.
+#}
+{% macro mark(cell) -%}
+  {%- if cell.rejected %}{{ icon("close") }}
+  {%- elif cell.status in (SolveStatus.solved_in_time, SolveStatus.solved_late) %}{{ icon("check") }}
+  {%- elif cell.status in (SolveStatus.solved_before, SolveStatus.solved_too_late) %}<i class="dot"></i>
+  {%- endif %}
+{%- endmacro %}
+
 {% block content %}
 <h1>{{ assignment.title }}</h1>
 <p class="sub">
@@ -69,12 +81,12 @@
         {% for problem in progress.problems %}
           {% set cell = progress.cell(student.id, problem.id) %}
           {% set upload = uploads.get((student.id, problem.id)) if assignment.requires_solution %}
-          {% set no_code = assignment.requires_solution and not upload %}
-          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}{{ ' no-code' if no_code }}"
+          <td><span class="cell {{ cell.status.value }}{{ ' counted' if cell.counts }}{{ ' rejected' if cell.rejected }}{{ ' no-code' if cell.awaiting_code }}"
                     title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else _('не решено') }}{% if assignment.requires_solution %} · {{ _('код не сдан') if not upload else _('код:') ~ ' ' ~ upload.status.value }}{% endif %}">
-            {% if upload %}<a href="/solutions/{{ upload.id }}">{{ cell.icon }}</a>
-            {% elif cell.counts %}{{ icon("check") }}
-            {% elif cell.status == SolveStatus.solved_before %}•{% endif %}
+            {# Класс обязателен: `main a:not([class])` перекрашивает ссылки в цвет
+               текста, и галка внутри чёрной клетки пропадала. #}
+            {% if upload %}<a class="cell-go" href="/solutions/{{ upload.id }}">{{ mark(cell) }}</a>
+            {% else %}{{ mark(cell) }}{% endif %}
           </span></td>
         {% endfor %}
         <td class="num"><strong>{{ progress.solved_count(student.id) }}/{{ progress.total_problems }}</strong></td>
@@ -105,17 +117,19 @@
 </div>
 
 <div class="legend">
-  <span class="item"><span class="cell solved_in_time">{{ icon("check") }}</span> {{ _("в срок") }}</span>
-  <span class="item"><span class="cell solved_late">{{ icon("check") }}</span> {{ _("после дедлайна") }}</span>
-  <span class="item"><span class="cell solved_before">•</span> {{ _("решено до выдачи, не засчитано") }}</span>
+  <span class="item"><span class="cell solved_in_time counted">{{ icon("check") }}</span> {{ _("в срок") }}</span>
+  <span class="item"><span class="cell solved_late">{{ icon("check") }}</span> {{ _("после дедлайна, не засчитано") }}</span>
+  <span class="item"><span class="cell solved_before"><i class="dot"></i></span>
+    {{ _("решено до выдачи, не засчитано") }}</span>
   {% if assignment.hard_deadline %}
-  <span class="item"><span class="cell solved_too_late">•</span> {{ _("после жёсткого дедлайна, не засчитано") }}</span>
+  <span class="item"><span class="cell solved_too_late"><i class="dot"></i></span>
+    {{ _("после жёсткого дедлайна, не засчитано") }}</span>
   {% endif %}
   {% if assignment.requires_solution %}
-  {# Уголок в клетке теперь стоит денег — значит, ему место в легенде. #}
+  {# Уголок и крестик стоят зачёта — значит, им место в легенде. #}
   <span class="item"><span class="cell solved_in_time no-code">{{ icon("check") }}</span>
     {{ _("кода нет — не засчитано") }}</span>
-  <span class="item"><span class="cell solved_in_time rejected">{{ icon("check") }}</span>
+  <span class="item"><span class="cell solved_in_time rejected">{{ icon("close") }}</span>
     {{ _("код отклонён — не засчитано") }}</span>
   {% endif %}
 </div>
