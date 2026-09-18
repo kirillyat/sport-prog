@@ -14,7 +14,7 @@
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Эта же документация сайтом:
-**<https://kirillyat.github.io/msu-sport-prog-club/>** — собирается из тех же
+**<https://kirillyat.github.io/sport-prog/>** — собирается из тех же
 файлов, так что расходиться ей не с чем.
 
 Один Python-процесс + SQLite в томе. Ни Postgres, ни Kafka, ни Redis, ни отдельного воркера.
