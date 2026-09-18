@@ -334,6 +334,30 @@ class Assignment(Base):
     group: Mapped[Group | None] = relationship(lazy="selectin")
 
 
+class HiddenAnnouncement(Base):
+    """Объявление, которое человек убрал с главной.
+
+    Своё для каждого: закреплённый анонс висит наверху у всей группы, и тому,
+    кто уже зарегистрировался на контест, он только мешает. Снимать закрепление
+    ради одного человека нельзя — остальные его тогда не увидят.
+
+    Объявление при этом никуда не девается: на странице анонсов оно на месте,
+    и там же его можно вернуть.
+    """
+
+    __tablename__ = "hidden_announcements"
+    __table_args__ = (
+        UniqueConstraint("user_id", "announcement_id", name="uq_hidden_announcement"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    announcement_id: Mapped[int] = mapped_column(
+        ForeignKey("announcements.id", ondelete="CASCADE"), index=True
+    )
+    hidden_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
 class Announcement(Base):
     """Объявление: анонс контеста, сбор, организационная новость."""
 

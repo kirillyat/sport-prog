@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
-from app.models import Announcement, Group, User
+from app.models import Announcement, Group, User, utcnow
 
 
 async def _login(client, name, teacher=False):
@@ -69,3 +69,18 @@ async def test_ticker_respects_group_visibility(session, client):
 
     page = await client.get("/")
     assert 'class="ticker"' not in page.text
+
+
+async def test_ticker_can_be_hidden_from_any_page(session, client):
+    """Полоса висит на каждой странице — значит, и убирать её надо оттуда же."""
+    await client.post("/login/dev", data={"name": "Аня"})
+    session.add(Announcement(title="Yandex Cup", starts_at=utcnow() + timedelta(days=3)))
+    await session.commit()
+
+    page = await client.get("/leaderboard")
+    assert "Yandex Cup" in page.text
+    assert "/hide" in page.text          # крестик на самой полосе
+
+    item = await session.scalar(select(Announcement))
+    await client.post(f"/announcements/{item.id}/hide", data={"next": "/leaderboard"})
+    assert "Yandex Cup" not in (await client.get("/leaderboard")).text

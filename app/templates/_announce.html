@@ -2,13 +2,23 @@
   Карточка объявления. Используется на странице объявлений и врезкой на главной.
   Обратный отсчёт считает браузер — сервер отдаёт только метки времени в UTC.
 #}
-{% macro announce_card(item, compact=False) -%}
+{#
+  `hide_to` — куда вернуться после нажатия крестика. Пусто — крестика нет:
+  на странице анонсов убирать нечего, там объявление и должно лежать.
+#}
+{% macro announce_card(item, compact=False, hide_to=None, hidden=False) -%}
 <div class="announce {{ 'pinned' if item.pinned }}">
   <div class="announce-head">
     <h3>
       {% if item.pinned %}<span class="pin" title="{{ _("Закреплено") }}">{{ icon("flame") }}</span>{% endif %}
       {{ item.title }}
     </h3>
+    {% if hide_to %}
+    <form method="post" action="/announcements/{{ item.id }}/hide" class="announce-hide">
+      <input type="hidden" name="next" value="{{ hide_to }}">
+      <button class="rail-btn" type="submit" title="{{ _("Убрать с главной") }}">{{ icon("close") }}</button>
+    </form>
+    {% endif %}
     {% if item.starts_at %}
       {# Начальный текст считает сервер: если JS не отработает, останется он. #}
       {% set state = item.state(now()) %}
@@ -31,10 +41,18 @@
 
   {% if item.body and not compact %}<p class="announce-body">{{ item.body }}</p>{% endif %}
 
-  {% if item.url %}
-  <a class="btn small" href="{{ item.url }}" target="_blank" rel="noopener">
-    {{ icon("external") }} {{ item.url_label or _("Перейти к соревнованию") }}
-  </a>
-  {% endif %}
+  <div class="row" style="gap:8px">
+    {% if item.url %}
+    <a class="btn small" href="{{ item.url }}" target="_blank" rel="noopener">
+      {{ icon("external") }} {{ item.url_label or _("Перейти к соревнованию") }}
+    </a>
+    {% endif %}
+    {% if hidden %}
+    {# Убранное с главной видно только здесь — значит, отсюда и возвращаем. #}
+    <form method="post" action="/announcements/{{ item.id }}/show">
+      <button class="ghost small" type="submit">{{ icon("check") }} {{ _("Вернуть на главную") }}</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 {%- endmacro %}

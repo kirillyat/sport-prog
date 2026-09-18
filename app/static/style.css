@@ -236,11 +236,16 @@ body.with-rail { padding-left: var(--rail); }
 /* ---------- строка события — инвертированная полоса ---------- */
 .ticker {
   position: sticky; top: 0; z-index: 20;
-  display: flex; align-items: center; gap: 16px;
-  min-height: 48px; padding: 8px 28px;
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px; padding: 8px 20px 8px 28px;
   background: var(--inv-bg); color: var(--inv-text);
 }
-.ticker:hover { text-decoration: none; }
+/* Ссылкой остаётся сама полоса, крестик — её сосед. */
+.ticker-main { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; color: inherit; }
+.ticker-main:hover, .ticker:hover { text-decoration: none; }
+.ticker-hide .rail-btn { color: currentColor; opacity: .55; padding: 4px; }
+.ticker-hide .rail-btn:hover { opacity: 1; color: var(--err); }
+.ticker-hide .icon { width: 16px; height: 16px; }
 .ticker-label { font-size: 10px; opacity: .8; }
 .ticker-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ticker .countdown { margin-left: auto; background: transparent; color: var(--inv-text); border: 2px solid var(--inv-text); }
@@ -552,15 +557,26 @@ tr.me { outline: var(--rule) solid var(--ink); outline-offset: -3px; }
 /* ============================================================
    Объявления и отсчёт
    ============================================================ */
-.announce { border: var(--rule) solid var(--ink); padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; background: var(--panel); }
+.announce { position: relative; border: var(--rule) solid var(--ink); padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; background: var(--panel); }
 .announce.pinned { background: var(--inv-bg); color: var(--inv-text); }
 .announce.pinned .muted, .announce.pinned .announce-body { color: inherit; opacity: .85; }
 .announce.pinned .badge { border-color: var(--inv-text); color: var(--inv-text); background: transparent; }
 .announce.pinned .btn { background: var(--inv-text); color: var(--inv-bg); border-color: var(--inv-text); }
 .announce.pinned .btn:hover { box-shadow: 4px 4px 0 var(--inv-text); color: var(--inv-bg); }
 .announce.pinned .countdown { background: var(--inv-text); color: var(--inv-bg); border-color: var(--inv-text); }
-.announce-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; }
+/* Отступ справа — под крестик: он лежит вне потока, и без запаса на него
+   наезжал таймер, когда заголовок короткий и помещается в одну строку. */
+.announce-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; padding-right: 28px; }
 .announce-head h3 { margin: 0; font-size: 20px; }
+/* Крестик «убрать с главной» держится за угол карточки, а не едет за
+   заголовком: у длинного названия голова переносится, и кнопка оказывалась
+   посреди карточки. Заметен при наведении — закрывают анонс один раз,
+   а читают каждый день. */
+.announce-hide { position: absolute; top: 10px; right: 12px; }
+.announce-hide .rail-btn { color: currentColor; opacity: .45; padding: 2px; }
+.announce:hover .announce-hide .rail-btn { opacity: 1; }
+.announce-hide .rail-btn:hover { color: var(--err); }
+.announce-hide .icon { width: 16px; height: 16px; }
 .announce .pin { display: none; }
 .announce-meta { gap: 8px; margin: 0; }
 .announce-body { margin: 0; color: var(--text-2); white-space: pre-line; }

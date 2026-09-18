@@ -33,7 +33,7 @@
 {% if announcements %}
 <h2>{{ icon("megaphone") }} {{ _("Объявления") }}</h2>
 <div class="grid two">
-  {% for item in announcements %}{{ announce_card(item, compact=True) }}{% endfor %}
+  {% for item in announcements %}{{ announce_card(item, compact=True, hide_to="/") }}{% endfor %}
 </div>
 {% endif %}
 

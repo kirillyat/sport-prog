@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.db import SessionLocal
-from app.models import Announcement, GroupMembership, User, utcnow
+from app.models import Announcement, GroupMembership, HiddenAnnouncement, User, utcnow
 from app.security import read_session
 
 SKIP_PREFIXES = ("/static", "/healthz", "/login", "/logout")
@@ -36,6 +36,12 @@ async def load_ticker(request: Request) -> Announcement | None:
             stmt = stmt.where(
                 (Announcement.group_id.is_(None)) | (Announcement.group_id.in_(my_groups))
             )
+        # Убранное с главной не должно возвращаться строкой наверху страницы:
+        # там оно мешает даже сильнее, чем карточкой.
+        hidden = select(HiddenAnnouncement.announcement_id).where(
+            HiddenAnnouncement.user_id == user.id
+        )
+        stmt = stmt.where(Announcement.id.not_in(hidden))
         items = list((await session.execute(stmt)).scalars().all())
 
     now = utcnow()

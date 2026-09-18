@@ -5,10 +5,17 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.models import Announcement, Group, GroupMembership, Role, User
+from app.models import Announcement, Group, GroupMembership, Role, User, utcnow
 from app.routers.announcements import list_visible, split_by_state, upcoming_for_dashboard
 
 NOW = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
+
+
+async def _login(client, name, teacher=False):
+    data = {"name": name}
+    if teacher:
+        data["teacher"] = "true"
+    await client.post("/login/dev", data=data)
 
 
 @pytest.fixture
@@ -138,3 +145,52 @@ async def test_announcements_page_empty_state(session, client):
     await client.post("/login/dev", data={"name": "Аня", "teacher": "true"})
     response = await client.get("/announcements")
     assert "Объявлений пока нет" in response.text
+
+
+async def test_student_hides_a_pinned_announcement(session, client):
+    """Закреплённый анонс висит у всей группы, а мешает — конкретному человеку."""
+    await _login(client, "Кирилл", teacher=True)
+    session.add(Announcement(title="Сбор в 17:45", pinned=True,
+                             starts_at=utcnow() + timedelta(hours=2)))
+    await session.commit()
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    assert "Сбор в 17:45" in (await client.get("/")).text
+
+    item = await session.scalar(select(Announcement))
+    await client.post(f"/announcements/{item.id}/hide", data={"next": "/"})
+    assert "Сбор в 17:45" not in (await client.get("/")).text
+    # На своей странице анонс остаётся: убрали с главной, а не удалили.
+    assert "Сбор в 17:45" in (await client.get("/announcements")).text
+
+
+async def test_hidden_announcement_comes_back(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    session.add(Announcement(title="Сбор в 17:45", pinned=True,
+                             starts_at=utcnow() + timedelta(hours=2)))
+    await session.commit()
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    item = await session.scalar(select(Announcement))
+    await client.post(f"/announcements/{item.id}/hide", data={"next": "/"})
+    await client.post(f"/announcements/{item.id}/show")
+    assert "Сбор в 17:45" in (await client.get("/")).text
+
+
+async def test_hiding_is_personal(session, client):
+    """Аня убрала — у Бори осталось: иначе это снятие закрепления за всех."""
+    await _login(client, "Кирилл", teacher=True)
+    session.add(Announcement(title="Сбор в 17:45", pinned=True,
+                             starts_at=utcnow() + timedelta(hours=2)))
+    await session.commit()
+    await client.post("/logout")
+
+    await _login(client, "Аня")
+    item = await session.scalar(select(Announcement))
+    await client.post(f"/announcements/{item.id}/hide", data={"next": "/"})
+    await client.post("/logout")
+
+    await _login(client, "Боря")
+    assert "Сбор в 17:45" in (await client.get("/")).text

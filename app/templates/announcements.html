@@ -24,17 +24,17 @@
 
 {% if live %}
 <h2>{{ icon("flame") }} {{ _("Идёт сейчас") }}</h2>
-<div class="grid two">{% for item in live %}{{ announce_card(item) }}{% endfor %}</div>
+<div class="grid two">{% for item in live %}{{ announce_card(item, hidden=item.id in hidden, hide_to="/announcements" if item.id not in hidden else None) }}{% endfor %}</div>
 {% endif %}
 
 {% if upcoming %}
 <h2>{{ icon("clock") }} {{ _("Скоро") }}</h2>
-<div class="grid two">{% for item in upcoming %}{{ announce_card(item) }}{% endfor %}</div>
+<div class="grid two">{% for item in upcoming %}{{ announce_card(item, hidden=item.id in hidden, hide_to="/announcements" if item.id not in hidden else None) }}{% endfor %}</div>
 {% endif %}
 
 {% if plain %}
 <h2>{{ icon("megaphone") }} {{ _("Объявления") }}</h2>
-<div class="grid two">{% for item in plain %}{{ announce_card(item) }}{% endfor %}</div>
+<div class="grid two">{% for item in plain %}{{ announce_card(item, hidden=item.id in hidden, hide_to="/announcements" if item.id not in hidden else None) }}{% endfor %}</div>
 {% endif %}
 
 {% if past %}

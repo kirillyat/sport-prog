@@ -1,0 +1,44 @@
+# Проверки открытой копии: линтер и тесты.
+#
+# Выкатка сюда не входит — она живёт в Gitea рядом с сервером и в открытый
+# репозиторий не уезжает. Здесь проверяется только то, что код собирается
+# и проходит тесты у любого, кто его склонировал.
+name: Проверки
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Та же версия, что в образе портала.
+          python-version: "3.12"
+          cache: pip
+
+      - name: Поставить зависимости
+        run: pip install -e ".[dev]"
+
+      - name: Линтер
+        run: ruff check app tests scripts migrations
+
+      - name: Тесты
+        env:
+          # Ключ подписи сессий нужен приложению при старте; в тестах он любой.
+          SECRET_KEY: ci-secret-not-used-anywhere-else
+        run: pytest -q
+
+  docker:
+    # Портал разворачивают образом, поэтому проверяем, что он вообще собирается.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать образ
+        run: docker build -t sport-web .

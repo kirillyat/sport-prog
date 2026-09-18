@@ -135,16 +135,25 @@
   </div>
   {% endif %}
   {% if user and ticker %}
-  {# Ближайшее событие — с любой страницы. #}
-  <a class="ticker" href="/announcements">
-    <span class="ticker-label">{{ _("идёт") if ticker.state(now()) == "live" else _("следующее") }}</span>
-    <span class="ticker-title">{{ ticker.title }}</span>
-    <span class="countdown" data-countdown data-state="{{ ticker.state(now()) }}"
-          data-start="{{ ticker.starts_at.isoformat() }}"
-          {% if ticker.ends_at %}data-end="{{ ticker.ends_at.isoformat() }}"{% endif %}>{{
-      _("идёт сейчас") if ticker.state(now()) == "live" else _("скоро") }}</span>
-    <span class="ticker-go">{{ icon("chevron") }}</span>
-  </a>
+  {# Ближайшее событие — с любой страницы. Полоса не ссылка целиком: рядом
+     живёт крестик, а кнопку внутрь ссылки класть нельзя. #}
+  <div class="ticker">
+    <a class="ticker-main" href="/announcements">
+      <span class="ticker-label">{{ _("идёт") if ticker.state(now()) == "live" else _("следующее") }}</span>
+      <span class="ticker-title">{{ ticker.title }}</span>
+      <span class="countdown" data-countdown data-state="{{ ticker.state(now()) }}"
+            data-start="{{ ticker.starts_at.isoformat() }}"
+            {% if ticker.ends_at %}data-end="{{ ticker.ends_at.isoformat() }}"{% endif %}>{{
+        _("идёт сейчас") if ticker.state(now()) == "live" else _("скоро") }}</span>
+      <span class="ticker-go">{{ icon("chevron") }}</span>
+    </a>
+    {# Полоса висит на каждой странице, поэтому убирать её надо отсюда же:
+       карточка объявления есть только на главной, а у преподавателя её нет. #}
+    <form method="post" action="/announcements/{{ ticker.id }}/hide" class="ticker-hide">
+      <input type="hidden" name="next" value="{{ path }}">
+      <button class="rail-btn" type="submit" title="{{ _("Убрать с главной") }}">{{ icon("close") }}</button>
+    </form>
+  </div>
   {% endif %}
 
   <main>
