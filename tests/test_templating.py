@@ -90,3 +90,12 @@ def test_difficulty_sorting():
     assert sorted(keys, key=lambda k: _difficulty_order((k, 0))) == [
         "Easy", "Medium", "Hard", "800+", "1400+", "2000+",
     ]
+
+
+def test_sentence_keeps_abbreviations():
+    """«учётная запись МГУ» → «Учётная запись МГУ», а не «Учётная запись мгу»."""
+    from app.templating import sentence
+
+    assert sentence("учётная запись МГУ") == "Учётная запись МГУ"
+    assert sentence("") == ""
+    assert sentence(None) == ""

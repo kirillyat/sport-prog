@@ -43,7 +43,7 @@
   {% if oidc_enabled %}
   <div class="card">
     <h3>{{ icon("shield") }} {{ _("Вход через") }} {{ oidc_name }}</h3>
-    <p class="small muted">{{ settings.org_account_name | capitalize }}. {{ _("Роль — по группе в") }} {{ oidc_name }}.</p>
+    <p class="small muted">{{ settings.org_account_name | sentence }}. {{ _("Роль — по группе в") }} {{ oidc_name }}.</p>
     <a class="btn" href="/login/oidc?next={{ next | urlencode }}">{{ icon("shield") }} {{ _("Войти через") }} {{ oidc_name }}</a>
   </div>
   {% endif %}

@@ -148,6 +148,16 @@ def timeago(value: datetime | None, now: datetime | None = None) -> str:
     return f"{local:%d.%m.%Y}"
 
 
+def sentence(text: str | None) -> str:
+    """Заглавная только первая буква; остальное как есть.
+
+    Не `capitalize`: тот опускает хвост, и «учётная запись МГУ» превращается
+    в «Учётная запись мгу». Аббревиатуры в названиях вузов — обычное дело.
+    """
+    value = str(text or "")
+    return value[:1].upper() + value[1:]
+
+
 def initials(name: str | None) -> str:
     if not name:
         return "?"
@@ -239,6 +249,7 @@ templates.env.filters["pts"] = fmt_points
 templates.env.filters["dtinput"] = to_local_input
 templates.env.filters["ago"] = timeago
 templates.env.filters["initials"] = initials
+templates.env.filters["sentence"] = sentence
 templates.env.filters["hue"] = avatar_hue
 templates.env.filters["plural"] = plural
 templates.env.filters["gravatar"] = gravatar_url

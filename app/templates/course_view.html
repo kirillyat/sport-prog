@@ -5,7 +5,7 @@
 <div class="page-head">
   <div>
     <p class="eyebrow"><a href="/course">{{ _("курс") }}</a> / <a href="{{ week.url }}">{{ week.title | lower }}</a> / {{ _(slot.label) }}</p>
-    <h1>{{ _(slot.label) | capitalize }}</h1>
+    <h1>{{ _(slot.label) | sentence }}</h1>
     <p class="sub">{{ week.lecture_title if slot.key.endswith("lecture") else week.seminar_title }}</p>
   </div>
   <a class="btn small" href="{{ week.url }}/file/{{ slot.filename }}">{{ icon("download") }} {{ _("Скачать") }}</a>
