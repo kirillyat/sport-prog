@@ -12,13 +12,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import SessionLocal
-from app.models import FeatureFlag, User, utcnow
+from app.models import FeatureFlag, ReviewStatus, SolutionUpload, User, utcnow
 from app.security import read_session
 
 
@@ -92,20 +92,39 @@ def visible(flags: Flags, user: User | None) -> set[str]:
 SKIP_PREFIXES = ("/static", "/healthz", "/login", "/logout")
 
 
-async def load_for_request(request) -> set[str]:
+EMPTY_NAV: dict = {"sections_on": set(), "pending_reviews": 0}
+
+
+async def load_for_request(request) -> dict:
+    """Что нужно рейке на каждой странице: видимые разделы и счётчик проверки."""
     if request.method != "GET" or request.url.path.startswith(SKIP_PREFIXES):
-        return set()
+        return dict(EMPTY_NAV)
     token = request.cookies.get(settings.session_cookie)
     user_id = read_session(token) if token else None
     if user_id is None:
-        return set()
+        return dict(EMPTY_NAV)
 
     async with SessionLocal() as session:
         user = await session.get(User, user_id)
         if user is None or not user.is_active:
-            return set()
-        return visible(await load(session), user)
+            return dict(EMPTY_NAV)
+
+        pending = 0
+        if user.is_teacher:
+            pending = await session.scalar(
+                select(func.count())
+                .select_from(SolutionUpload)
+                .where(SolutionUpload.status == ReviewStatus.pending)
+            )
+        return {
+            "sections_on": visible(await load(session), user),
+            "pending_reviews": int(pending or 0),
+        }
 
 
 def features_context(request) -> dict:
-    return {"sections_on": getattr(request.state, "sections_on", None) or set()}
+    nav = getattr(request.state, "nav", None) or EMPTY_NAV
+    return {
+        "sections_on": nav["sections_on"],
+        "pending_reviews": nav.get("pending_reviews", 0),
+    }

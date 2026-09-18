@@ -26,21 +26,39 @@
 {% include "_icons.html" %}
 
 {% set path = request.url.path if request else "" %}
-{% macro navlink(href, name, label, extra="") -%}
-  {% set is_active = (path == href) or (href != '/' and path.startswith(href)) %}
+{% macro navlink(href, name, label, extra="", exact=False, count=0) -%}
+  {% set is_active = (path == href) if exact
+     else ((path == href) or (href != '/' and path.startswith(href))) %}
   <a href="{{ href }}" class="{{ 'active' if is_active }} {{ extra }}" title="{{ label }}">
     {{ icon(name) }}<span>{{ label }}</span>
+    {% if count %}<span class="nav-count" title="ждут проверки">{{ count }}</span>{% endif %}
   </a>
 {%- endmacro %}
+{#
+  Рейка зависит от роли. У преподавателя свои страницы лежали за «Жюри», то
+  есть в два клика от любого места, а первым пунктом стояли чужие задания.
+  Поэтому у него в рейке его собственная работа, а личные страницы —
+  под аватаркой внизу.
+#}
 {% macro navitems() -%}
-  {{ navlink("/", "tasks", "Задания") }}
-  {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
-  {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
-  {{ navlink("/announcements", "megaphone", "Анонсы") }}
-  {{ navlink("/feed", "activity", "Лента") }}
-  {{ navlink("/leaderboard", "trophy", "Лидерборд") }}
-  {{ navlink("/accounts", "link", "Аккаунты") }}
-  {% if user.is_teacher %}{{ navlink("/teacher", "shield", "Жюри", "teacher-link") }}{% endif %}
+  {% if user.is_teacher %}
+    {{ navlink("/teacher", "shield", "Панель", "teacher-link", exact=True) }}
+    {{ navlink("/teacher/groups", "users", "Группы") }}
+    {{ navlink("/teacher/assignments", "tasks", "Задания") }}
+    {{ navlink("/teacher/reviews", "search", "Проверка", count=pending_reviews) }}
+    {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
+    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
+    {{ navlink("/feed", "activity", "Лента") }}
+    {{ navlink("/leaderboard", "trophy", "Табло") }}
+  {% else %}
+    {{ navlink("/", "tasks", "Задания") }}
+    {% if "materials" in sections_on %}{{ navlink("/materials", "book", "Материалы") }}{% endif %}
+    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", "Курс") }}{% endif %}
+    {{ navlink("/announcements", "megaphone", "Анонсы") }}
+    {{ navlink("/feed", "activity", "Лента") }}
+    {{ navlink("/leaderboard", "trophy", "Лидерборд") }}
+    {{ navlink("/accounts", "link", "Аккаунты") }}
+  {% endif %}
 {%- endmacro %}
 
 {% if user %}

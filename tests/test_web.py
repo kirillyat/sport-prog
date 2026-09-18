@@ -734,3 +734,49 @@ async def test_teacher_pins_a_group_to_the_panel(session, client):
     await client.post(f"/teacher/groups/{group.id}/favorite")
     panel = await client.get("/teacher")
     assert "Мои группы" not in panel.text
+
+
+async def test_rail_differs_for_teacher_and_student(session, client):
+    """У преподавателя в рейке его работа, а не чужие задания."""
+    await _login(client, "Кирилл", teacher=True)
+    rail = (await client.get("/teacher")).text
+    assert 'href="/teacher/groups"' in rail
+    assert 'href="/teacher/assignments"' in rail
+    assert 'href="/teacher/reviews"' in rail
+    assert 'href="/accounts"' in rail            # личное осталось ссылкой на панели
+
+    await client.post("/logout")
+    await _login(client, "Аня")
+    rail = (await client.get("/")).text
+    assert 'href="/teacher' not in rail
+    assert 'href="/accounts"' in rail
+    assert 'href="/announcements"' in rail
+
+
+async def test_pending_reviews_show_up_in_the_rail(session, client, tmp_path, monkeypatch):
+    """Счётчик проверки — единственный способ узнать о работе, не заходя в раздел."""
+    from app.models import ReviewStatus, SolutionUpload
+
+    await _login(client, "Кирилл", teacher=True)
+    assert "nav-count" not in (await client.get("/teacher")).text
+
+    from app.models import Assignment, ProblemSet
+
+    problem = Problem(platform=Platform.leetcode, external_id="1", slug="two-sum",
+                      title="Two Sum", url="", difficulty="Easy")
+    problem_set = ProblemSet(title="Разминка")
+    author = await session.scalar(select(User))
+    session.add_all([problem, problem_set])
+    await session.commit()
+    assignment = Assignment(title="Неделя 1", problem_set_id=problem_set.id,
+                            requires_solution=True)
+    session.add(assignment)
+    await session.commit()
+    session.add(SolutionUpload(
+        assignment_id=assignment.id, problem_id=problem.id, user_id=author.id,
+        filename="s.py", stored_name="x.py", size=3, status=ReviewStatus.pending,
+    ))
+    await session.commit()
+
+    page = await client.get("/teacher")
+    assert "nav-count" in page.text

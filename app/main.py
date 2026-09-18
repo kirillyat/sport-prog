@@ -122,10 +122,13 @@ async def attach_ticker(request: Request, call_next):
 async def attach_features(request: Request, call_next):
     """Какие разделы показывать этому человеку — нужно рейке на каждой странице."""
     try:
-        request.state.sections_on = await features.load_for_request(request)
-    except Exception:  # флаги не должны ронять страницу; молчим и показываем всё
-        logger.exception("не удалось прочитать флаги разделов")
-        request.state.sections_on = {section.key for section in features.SECTIONS}
+        request.state.nav = await features.load_for_request(request)
+    except Exception:  # рейка не должна ронять страницу; показываем всё
+        logger.exception("не удалось собрать состояние навигации")
+        request.state.nav = {
+            "sections_on": {section.key for section in features.SECTIONS},
+            "pending_reviews": 0,
+        }
     return await call_next(request)
 
 
