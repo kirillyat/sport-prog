@@ -774,7 +774,7 @@ async def test_pending_reviews_show_up_in_the_rail(session, client, tmp_path, mo
     await session.commit()
     session.add(SolutionUpload(
         assignment_id=assignment.id, problem_id=problem.id, user_id=author.id,
-        filename="s.py", stored_name="x.py", size=3, status=ReviewStatus.pending,
+        code="print(1)", status=ReviewStatus.pending,
     ))
     await session.commit()
 

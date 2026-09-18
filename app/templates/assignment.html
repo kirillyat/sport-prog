@@ -26,7 +26,7 @@
 <div class="card callout">
   <h3>{{ icon("shield") }} {{ _("К задачам нужно прислать код") }}</h3>
   <p class="small" style="margin:0">
-    {{ _("Кроме посылки на платформе пришли сам код: %(formats)s, до %(mb)s МБ.") % {"formats": solution_hint, "mb": solution_mb} }}
+    {{ _("Кроме посылки на платформе пришли сам код — текстом, прямо на портале.") }}
     {{ _("Без кода зачёта по задаче нет, даже если она решена на площадке. Преподаватель код читает; отклонённый снимает зачёт. Прислать можно повторно — тогда проверка начнётся заново.") }}
   </p>
 </div>
@@ -78,15 +78,9 @@
             {% endif %}
             <br>
           {% endif %}
-          <form method="post" enctype="multipart/form-data"
-                action="/assignments/{{ assignment.id }}/solutions/{{ problem.id }}"
-                class="row" style="gap:6px; margin-top:4px">
-            <input type="file" name="file" required
-                   style="max-width:190px; font-size:11px">
-            <button class="ghost small" type="submit">
-              {{ icon("plus") }} {{ _("Заменить") if mine else _("Прислать") }}
-            </button>
-          </form>
+          <a class="btn ghost small" href="/assignments/{{ assignment.id }}/solutions/{{ problem.id }}">
+            {{ icon("edit") }} {{ _("Заменить") if mine else _("Прислать код") }}
+          </a>
         </td>
         {% endif %}
         <td class="small">

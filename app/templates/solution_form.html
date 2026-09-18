@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ problem.title }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      <a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> / {{ _("код решения") }}
+    </p>
+    <h1>{{ problem.title }}</h1>
+    <p class="sub">
+      {{ _("Вставь код решения — тот, что приняла площадка. Файл прикладывать не нужно.") }}
+      {% if upload %}
+      <br><span class="muted">{{ _("Отправка заменит прошлую и вернёт решение на проверку.") }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <a class="btn ghost small" href="{{ problem.url }}" target="_blank" rel="noopener">
+    {{ icon("external") }} {{ _("Задача") }}
+  </a>
+</div>
+
+{% if upload %}
+<div class="card callout {{ 'warn' if upload.status.value == 'rejected' }}">
+  <h3>
+    {% if upload.status.value == "accepted" %}{{ icon("check") }} {{ _("Принято") }}
+    {% elif upload.status.value == "rejected" %}{{ icon("alert") }} {{ _("Отклонено") }}
+    {% else %}{{ icon("clock") }} {{ _("Ждёт проверки") }}{% endif %}
+  </h3>
+  <p class="small" style="margin:0">
+    {{ _("прислано") }} {{ upload.submitted_at | ago }}
+    {% if upload.comment %}<br>{{ _("Комментарий преподавателя:") }} {{ upload.comment }}{% endif %}
+  </p>
+</div>
+{% endif %}
+
+<form method="post" action="/assignments/{{ assignment.id }}/solutions/{{ problem.id }}">
+  <div class="field">
+    <label for="code">{{ _("Код") }}</label>
+    <textarea id="code" name="code" class="code-input" spellcheck="false"
+              maxlength="{{ max_chars }}" required
+              placeholder="def two_sum(nums, target):&#10;    ...">{{ upload.code if upload }}</textarea>
+  </div>
+  <div class="row" style="gap:8px">
+    <button type="submit">{{ icon("send") }} {{ _("Отправить на проверку") }}</button>
+    <a class="btn ghost" href="/assignments/{{ assignment.id }}">{{ _("Назад к заданию") }}</a>
+  </div>
+</form>
+{% endblock %}

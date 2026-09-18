@@ -447,11 +447,15 @@ class Material(Base):
 
 
 class SolutionUpload(Base):
-    """Решение задачи, присланное студентом файлом.
+    """Код решения, присланный студентом.
 
-    Одно на пару «задание × задача»: повторная отправка заменяет файл и снова
+    Одно на пару «задание × задача»: повторная отправка заменяет код и снова
     отправляет его на проверку. Отклонённое решение снимает зачёт по задаче —
     иначе проверка была бы отметкой без последствий.
+
+    Код лежит прямо в базе, а не файлом на диске: решение — это текст на
+    полсотни строк, для него не нужны ни загрузка вложений, ни уборка
+    осиротевших файлов после удаления задания.
     """
 
     __tablename__ = "solution_uploads"
@@ -468,9 +472,7 @@ class SolutionUpload(Base):
     problem_id: Mapped[int] = mapped_column(ForeignKey("problems.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
-    filename: Mapped[str] = mapped_column(String(200))
-    stored_name: Mapped[str] = mapped_column(String(80))
-    size: Mapped[int] = mapped_column(Integer, default=0)
+    code: Mapped[str] = mapped_column(Text, default="")
     submitted_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     status: Mapped[ReviewStatus] = mapped_column(

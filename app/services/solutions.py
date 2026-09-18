@@ -1,88 +1,30 @@
-"""Решения, присланные студентами файлом.
+"""Код решения, присланный студентом.
 
 Зачем вообще: у LeetCode исходник посылки видно только автору, официального
 способа получить его у портала нет и не будет. Поэтому там, где преподавателю
-нужен текст решения, задание требует прислать его отдельно.
+нужен текст решения, студент присылает его сам.
 
-Файлы лежат на диске рядом с базой, имя на диске случайное — пользовательское
-в путь не попадает, как и у материалов.
+Код хранится текстом в базе. Файлов не принимаем: решение — это несколько
+десятков строк, ради них незачем заводить загрузку вложений, следить за
+расширениями и подчищать файлы после удаления задания.
 """
 
 from __future__ import annotations
 
-import secrets
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.models import ReviewStatus, SolutionUpload, utcnow
 
-MAX_BYTES = 2 * 1024 * 1024
+# Потолок на длину: решение задачи столько не занимает, а вставленный по
+# ошибке ноутбук или лог — запросто.
+MAX_CHARS = 60_000
 
-# Исходники и разборы. Архивы и бинарники не принимаем: проверять их всё равно
-# нельзя, а хранить чужой исполняемый файл на портале незачем.
-ALLOWED = {
-    ".py": "text/x-python",
-    ".ipynb": "application/x-ipynb+json",
-    ".cpp": "text/x-c++src",
-    ".cc": "text/x-c++src",
-    ".c": "text/x-csrc",
-    ".h": "text/x-chdr",
-    ".java": "text/x-java-source",
-    ".kt": "text/x-kotlin",
-    ".go": "text/x-go",
-    ".rs": "text/rust",
-    ".js": "text/javascript",
-    ".ts": "text/x-typescript",
-    ".cs": "text/x-csharp",
-    ".rb": "text/x-ruby",
-    ".txt": "text/plain",
-    ".md": "text/markdown",
-}
-
-EXTENSIONS_HINT = "py, ipynb, cpp, c, java, kt, go, rs, js, ts, cs, rb, txt, md"
-
-
-def storage_dir() -> Path:
-    path = settings.data_dir / "solutions"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def extension_of(filename: str) -> str:
-    return Path(filename or "").suffix.lower()
-
-
-def is_allowed(filename: str) -> bool:
-    return extension_of(filename) in ALLOWED
-
-
-def content_type_for(filename: str) -> str:
-    return ALLOWED.get(extension_of(filename), "text/plain")
-
-
-def safe_filename(filename: str) -> str:
-    name = Path(filename or "").name.strip()
-    return name[:200] or "solution.txt"
-
-
-def new_stored_name(filename: str) -> str:
-    return secrets.token_hex(16) + extension_of(filename)
-
-
-def path_for(stored_name: str) -> Path:
-    return storage_dir() / Path(stored_name).name
-
-
-def save(stored_name: str, data: bytes) -> None:
-    path_for(stored_name).write_bytes(data)
-
-
-def remove(stored_name: str) -> None:
-    path_for(stored_name).unlink(missing_ok=True)
+# Подсветка и имя при скачивании. Курс питоновский; другой язык всё равно
+# сохранится как есть, просто подсветится по питоновским правилам.
+FILENAME = "solution.py"
 
 
 async def for_assignment(
@@ -116,19 +58,12 @@ async def put(
     assignment_id: int,
     problem_id: int,
     user_id: int,
-    filename: str,
-    data: bytes,
+    code: str,
 ) -> SolutionUpload:
-    """Кладём решение. Повторная отправка заменяет файл и снова просит проверки."""
+    """Кладём код. Повторная отправка заменяет его и снова просит проверки."""
     existing = await get(session, assignment_id, problem_id, user_id)
-    stored = new_stored_name(filename)
-    save(stored, data)
-
     if existing is not None:
-        remove(existing.stored_name)
-        existing.filename = safe_filename(filename)
-        existing.stored_name = stored
-        existing.size = len(data)
+        existing.code = code
         existing.submitted_at = utcnow()
         existing.status = ReviewStatus.pending
         existing.comment = None
@@ -141,9 +76,7 @@ async def put(
         assignment_id=assignment_id,
         problem_id=problem_id,
         user_id=user_id,
-        filename=safe_filename(filename),
-        stored_name=stored,
-        size=len(data),
+        code=code,
     )
     session.add(upload)
     await session.commit()

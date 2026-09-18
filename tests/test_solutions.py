@@ -1,8 +1,9 @@
-"""Сдача решения файлом и его проверка преподавателем.
+"""Сдача кода решения и его проверка преподавателем.
 
 Смысл механики: у LeetCode исходник посылки портал получить не может, поэтому
-там, где преподавателю нужен текст решения, его присылает сам студент.
-Отклонённое решение снимает зачёт — иначе проверка была бы отметкой без веса.
+там, где преподавателю нужен текст решения, его присылает сам студент —
+текстом, без файлов. Отклонённое решение снимает зачёт, иначе проверка была бы
+отметкой без веса.
 """
 
 from __future__ import annotations
@@ -27,17 +28,10 @@ from app.models import (
     Submission,
     User,
 )
-from app.services import solutions
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import compute_progress
 
 BASE = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
-
-
-@pytest.fixture(autouse=True)
-def storage(tmp_path, monkeypatch):
-    monkeypatch.setattr(solutions.settings, "data_dir", tmp_path)
-    return tmp_path / "solutions"
 
 
 @pytest.fixture
@@ -91,14 +85,13 @@ async def _login(client, name, teacher=False):
     await client.post("/login/dev", data=data)
 
 
-def _file(name="solution.py", content=b"print(1)\n"):
-    return {"file": (name, content, "text/plain")}
+CODE = "def two_sum(nums, target):\n    return []\n"
 
 
-async def _send(client, world, **kw):
+async def _send(client, world, code=CODE):
     return await client.post(
         f"/assignments/{world['assignment'].id}/solutions/{world['problem'].id}",
-        files=_file(**kw),
+        data={"code": code},
     )
 
 
@@ -109,8 +102,7 @@ async def test_student_sends_a_solution_and_it_waits_for_review(session, client,
 
     upload = await session.scalar(select(SolutionUpload))
     assert upload.status == ReviewStatus.pending
-    assert upload.filename == "solution.py"
-    assert solutions.path_for(upload.stored_name).is_file()
+    assert upload.code == CODE.strip()
 
 
 async def test_rejected_solution_removes_the_credit(session, client, world):
@@ -205,30 +197,38 @@ async def test_resending_starts_the_review_over(session, client, world):
     await client.post("/logout")
 
     await _login(client, "Аня")
-    await _send(client, world, name="fixed.py", content=b"print(2)\n")
+    await _send(client, world, code="def two_sum(nums, target):\n    return [0, 1]\n")
 
     again = await session.scalar(select(SolutionUpload))
-    assert again.status == ReviewStatus.pending and again.filename == "fixed.py"
+    assert again.status == ReviewStatus.pending and "[0, 1]" in again.code
     assert again.comment is None
     # И зачёт вернулся: отклонение было снято новой отправкой.
     progress = await compute_progress(session, world["assignment"], [world["anya"]])
     assert progress.solved_count(world["anya"].id) == 1
 
 
-async def test_only_allowed_extensions_are_accepted(session, client, world):
+async def test_empty_code_is_refused(session, client, world):
     await _login(client, "Аня")
-    response = await _send(client, world, name="solution.exe", content=b"MZ")
-    assert "не принимаем" in response.text
+    response = await _send(client, world, code="   \n  ")
+    assert "Пустое решение" in response.text
     assert await session.scalar(select(SolutionUpload)) is None
 
 
-async def test_assignment_without_the_flag_takes_no_files(session, client, world):
+async def test_too_long_code_is_refused(session, client, world):
+    """Потолок нужен, чтобы вместо решения не вставили лог на мегабайт."""
+    await _login(client, "Аня")
+    response = await _send(client, world, code="x = 1\n" * 20_000)
+    assert "длиннее" in response.text
+    assert await session.scalar(select(SolutionUpload)) is None
+
+
+async def test_assignment_without_the_flag_takes_no_code(session, client, world):
     world["assignment"].requires_solution = False
     await session.commit()
 
     await _login(client, "Аня")
     response = await _send(client, world)
-    assert "решения файлом не требует" in response.text
+    assert "решения кодом не требует" in response.text
 
 
 async def test_student_cannot_read_a_foreign_solution(session, client, world):

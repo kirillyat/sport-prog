@@ -121,8 +121,6 @@ async def assignment_detail(
             "progress": progress,
             "problems": progress.problems,
             "my_solutions": mine,
-            "solution_hint": solutions.EXTENSIONS_HINT,
-            "solution_mb": solutions.MAX_BYTES // 1024 // 1024,
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),
         },

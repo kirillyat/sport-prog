@@ -1,12 +1,10 @@
 {% extends "base.html" %}
-{% from "_notebook.html" import notebook_body %}
 {% block title %}{{ _("Решение") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="eyebrow">
       {% if teacher_view %}<a href="/teacher/reviews">{{ _("проверка") }}</a>{% else %}{{ _("решение") }}{% endif %}
-      / {{ upload.filename }}
     </p>
     <h1>{{ problem.title if problem else _("Задача") }}</h1>
     <p class="sub">
@@ -50,16 +48,8 @@
 </div>
 {% endif %}
 
-{% if cells %}
-{{ notebook_body(cells) }}
-{% elif code %}
 <div class="nb-code">
-  <span class="nb-lang">{{ upload.filename.split(".") | last }}</span>
+  <span class="nb-lang">py</span>
   <pre><code>{{ code | safe }}</code></pre>
 </div>
-{% elif rendered %}
-<div class="card nb-md">{{ rendered | safe }}</div>
-{% else %}
-<div class="card"><pre class="nb-raw">{{ text }}</pre></div>
-{% endif %}
 {% endblock %}
