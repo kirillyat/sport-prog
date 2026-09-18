@@ -792,7 +792,8 @@ async def test_platform_accounts_live_in_the_profile(session, client):
 
     accounts = (await client.get("/accounts")).text
     assert "Способы входа" in accounts                # вход остался на своей странице
-    assert 'action="/accounts/link"' not in accounts  # а привязка платформ ушла
+    assert 'action="/accounts/link"' in accounts      # и привязка платформ тоже здесь
+    assert 'name="back" value="/accounts"' in accounts
 
 
 async def test_teacher_can_look_through_student_eyes(session, client):

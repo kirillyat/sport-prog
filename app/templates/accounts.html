@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_platform_accounts.html" import platform_accounts %}
 {% block title %}Аккаунты — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <h1>Аккаунты платформ</h1>
@@ -67,11 +68,11 @@
   </div>
 </div>
 
-<div class="card flat">
-  <p class="small muted" style="margin:0">
-    Аккаунты Codeforces и LeetCode переехали в настройки профиля — там же, где
-    имя и аватарка: <a href="/me">моя страница</a>.
-  </p>
-</div>
+<h2>{{ icon("code") }} Аккаунты платформ</h2>
+<p class="small muted" style="margin-top:-6px">
+  Без них решения не засчитываются: портал узнаёт о них по имени на площадке.
+  То же самое есть в <a href="/me">настройках профиля</a> — рядом с именем и аватаркой.
+</p>
+{{ platform_accounts(user, platforms, where_to_put, back="/accounts") }}
 
 {% endblock %}
