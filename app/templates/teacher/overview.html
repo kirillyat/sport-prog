@@ -20,6 +20,52 @@
 </div>
 {% endif %}
 
+{% if pinned %}
+<h2>{{ icon("users") }} Мои группы</h2>
+<div class="grid three">
+  {% for item in pinned %}
+  <a class="card" href="/teacher/groups/{{ item.group.id }}">
+    <h3>{{ item.group.title }}</h3>
+    <p class="small muted" style="margin:0">
+      студентов: {{ item.size }} · код {{ item.group.join_code }}
+    </p>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if running %}
+<h2>{{ icon("tasks") }} Идут сейчас</h2>
+<div class="card table-wrap" style="padding:6px">
+  <table>
+    <thead><tr><th>Задание</th><th>Кому</th><th>Закрыто</th><th>Дедлайн</th></tr></thead>
+    <tbody>
+      {% for item in running %}
+      <tr>
+        <td><a href="/teacher/assignments/{{ item.assignment.id }}">{{ item.assignment.title }}</a></td>
+        <td class="small muted">
+          {{ item.assignment.group.title if item.assignment.group
+             else ("персонально" if item.assignment.user_id else "всем") }} ·
+          {{ item.people }} чел.
+        </td>
+        <td>
+          <span class="score-cell">
+            <span class="bar"><span style="width: {{ item.share }}%"></span></span>
+            <span class="score-num"><b>{{ item.share }}%</b>
+              <span class="muted">· закончили {{ item.done }}</span></span>
+          </span>
+        </td>
+        <td class="small muted">
+          {% if item.assignment.deadline %}{{ item.assignment.deadline | dt }}
+          {% else %}без срока{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if counts.students or not onboarding %}
 <h2>{{ icon("activity") }} Сейчас в системе</h2>
 <div class="grid stats">

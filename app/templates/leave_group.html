@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Выйти из группы — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/">главная</a> / выход из группы</p>
+    <h1>Выйти из «{{ group.title }}»?</h1>
+  </div>
+</div>
+
+<div class="card callout warn">
+  <h3>{{ icon("alert") }} Что изменится</h3>
+  <ul class="small">
+    <li><strong>Задания группы исчезнут</strong> из твоего списка — сейчас их
+      {{ assignments }}. Прогресс по ним перестанет считаться и показываться.</li>
+    <li><strong>Пропадёт место в табло группы</strong>: оно считается только среди
+      участников, а общего табло на портале нет.</li>
+    <li>Одногруппники исчезнут из ленты решений — останутся только твои.</li>
+  </ul>
+  <p class="small" style="margin:10px 0 0">
+    Чего <strong>не</strong> случится: решённые задачи, привязанные аккаунты
+    и присланные решения никуда не денутся. Вступишь снова по коду
+    <span class="badge mono">{{ group.join_code }}</span> — прогресс вернётся
+    в том же виде, он считается заново, а не хранится.
+  </p>
+</div>
+
+<div class="row" style="gap:8px">
+  <form method="post" action="/groups/{{ group.id }}/leave">
+    <button class="danger" type="submit">{{ icon("logout") }} Да, выйти</button>
+  </form>
+  <a class="btn ghost" href="/">Остаться</a>
+</div>
+{% endblock %}

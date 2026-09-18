@@ -30,6 +30,12 @@
 {% endif %}
 
 <div class="row" style="gap:8px; margin-bottom:12px">
+  <form method="post" action="/teacher/groups/{{ group.id }}/favorite">
+    <button class="ghost small" type="submit"
+            title="закрепить группу на панели преподавателя">
+      {{ icon("medal") }} {{ "Открепить" if is_favorite else "Закрепить у себя" }}
+    </button>
+  </form>
   <form method="post" action="/teacher/groups/{{ group.id }}/sync">
     <button class="ghost small" type="submit">
       {{ icon("refresh") }} Обновить результаты группы

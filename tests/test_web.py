@@ -672,6 +672,12 @@ async def test_student_leaves_a_group_and_can_come_back(session, client):
     page = await client.get("/")
     assert f"/groups/{group.id}/leave" in page.text
 
+    # Сначала страница подтверждения: выход меняет больше, чем кажется.
+    warning = await client.get(f"/groups/{group.id}/leave")
+    assert "Что изменится" in warning.text
+    assert "Задания группы исчезнут" in warning.text
+    assert group.join_code in warning.text        # сказано, как вернуться
+
     left = await client.post(f"/groups/{group.id}/leave")
     assert "ты вышел" in left.text
     assert not await session.scalar(
@@ -693,3 +699,38 @@ async def test_leaving_a_foreign_group_changes_nothing(session, client):
     await _login(client, "Аня")
     response = await client.post(f"/groups/{group.id}/leave")
     assert "не в этой группе" in response.text
+
+
+async def test_students_page_has_two_tabs(session, client):
+    """Преподаватели терялись в общем списке, а нужны при выдаче роли."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/logout")
+    await _login(client, "Аня")
+    await client.post("/logout")
+    await _login(client, "Кирилл", teacher=True)
+
+    students = await client.get("/teacher/students")
+    assert "Аня" in students.text and "Кирилл" not in students.text.split("<table")[1]
+
+    teachers = await client.get("/teacher/students?role=teacher")
+    assert "Кирилл" in teachers.text
+    assert "Аня" not in teachers.text.split("<table")[1]
+
+
+async def test_teacher_pins_a_group_to_the_panel(session, client):
+    """Панель должна открываться на том, с чем работаешь сегодня."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/teacher/groups", data={"title": "Осень"})
+    group = await session.scalar(select(Group))
+
+    panel = await client.get("/teacher")
+    assert "Мои группы" not in panel.text          # пока ничего не закреплено
+
+    pinned = await client.post(f"/teacher/groups/{group.id}/favorite")
+    assert "Группа закреплена" in pinned.text
+    panel = await client.get("/teacher")
+    assert "Мои группы" in panel.text and "Осень" in panel.text
+
+    await client.post(f"/teacher/groups/{group.id}/favorite")
+    panel = await client.get("/teacher")
+    assert "Мои группы" not in panel.text

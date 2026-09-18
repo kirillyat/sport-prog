@@ -254,6 +254,22 @@ class FeatureFlag(Base):
     updated_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
+class GroupFavorite(Base):
+    """Группа, закреплённая преподавателем у себя на панели.
+
+    У каждого своё: один ведёт два потока, другой — шесть, и общий список
+    быстро перестаёт помогать.
+    """
+
+    __tablename__ = "group_favorites"
+    __table_args__ = (UniqueConstraint("user_id", "group_id", name="uq_group_favorite"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
 class ProblemSet(Base):
     __tablename__ = "problem_sets"
 

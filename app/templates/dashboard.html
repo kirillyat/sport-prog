@@ -84,10 +84,8 @@
           {% for group in groups %}
           <span class="row" style="gap:4px; flex-wrap:nowrap">
             <span class="badge info">{{ group.title }}</span>
-            <form method="post" action="/groups/{{ group.id }}/leave">
-              <button class="ghost small" type="submit"
-                      title="выйти из группы — вернуться можно по коду">{{ icon("logout") }}</button>
-            </form>
+            <a class="btn ghost small" href="/groups/{{ group.id }}/leave"
+               title="выйти из группы">{{ icon("logout") }}</a>
           </span>
           {% endfor %}
         </div>

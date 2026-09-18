@@ -17,6 +17,7 @@ from app.models import (
     Assignment,
     BonusPoint,
     Group,
+    GroupFavorite,
     GroupMembership,
     Platform,
     Problem,
@@ -100,6 +101,55 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
         "submissions": await session.scalar(select(func.count()).select_from(Submission)),
     }
     catalog = {p.title: await problem_count(session, p) for p in Platform}
+
+    # Закреплённые группы — первыми, остальные следом: панель должна открываться
+    # на том, с чем работаешь сегодня, а не на полном списке потоков.
+    pinned_ids = set(
+        await _all(
+            session, select(GroupFavorite.group_id).where(GroupFavorite.user_id == user.id)
+        )
+    )
+    groups = await _all(
+        session, select(Group).where(Group.is_archived.is_(False)).order_by(Group.title)
+    )
+    sizes = dict(
+        (
+            await session.execute(
+                select(GroupMembership.group_id, func.count())
+                .group_by(GroupMembership.group_id)
+            )
+        ).all()
+    )
+    pinned = [
+        {"group": g, "size": sizes.get(g.id, 0)} for g in groups if g.id in pinned_ids
+    ]
+
+    # Что идёт сейчас: выданное и ещё не просроченное, вместе с долей закрытого.
+    now = utcnow()
+    running = []
+    stmt = (
+        select(Assignment)
+        .where(
+            Assignment.assigned_at <= now,
+            (Assignment.deadline.is_(None)) | (Assignment.deadline >= now),
+        )
+        .order_by(Assignment.assigned_at.desc())
+        .limit(6)
+    )
+    for assignment in await _all(session, stmt):
+        participants = await participants_for_assignment(session, assignment)
+        progress = await compute_progress(session, assignment, participants)
+        done = sum(1 for p in participants if progress.is_complete(p.id))
+        solved = sum(progress.solved_count(p.id) for p in participants)
+        total = progress.total_problems * len(participants)
+        running.append(
+            {
+                "assignment": assignment,
+                "people": len(participants),
+                "done": done,
+                "share": round(100 * solved / total) if total else 0,
+            }
+        )
     # Пока курс не собран целиком, панель показывает шаги, а не нули в плитках.
     steps = [
         {"done": bool(counts["groups"]), "title": "Создать группу",
@@ -115,6 +165,8 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
         {
             "user": user,
             "counts": counts,
+            "pinned": pinned,
+            "running": running,
             "steps": steps,
             "onboarding": not all(step["done"] for step in steps),
             "catalog": catalog,
@@ -210,6 +262,12 @@ async def group_detail(request: Request, session: SessionDep, user: TeacherUser,
             "group": group,
             "members": members,
             "candidates": candidates,
+            "is_favorite": await session.scalar(
+                select(GroupFavorite.id).where(
+                    GroupFavorite.user_id == user.id, GroupFavorite.group_id == group_id
+                )
+            )
+            is not None,
             "assignments": assignments,
             "feed_items": await build_feed(session, user, group_id=group_id, limit=20),
             **_flash(request),
@@ -232,6 +290,28 @@ async def set_group_chat(
     group.telegram_chat_id = chat or None
     await session.commit()
     message = "Чат+группы+сохранён" if chat else "Чат+группы+отвязан"
+    return _redirect(f"/teacher/groups/{group_id}", message=message)
+
+
+@router.post("/groups/{group_id}/favorite")
+async def toggle_favorite(session: SessionDep, user: TeacherUser, group_id: int):
+    """Закрепить группу у себя на панели или снять закрепление."""
+    group = await session.get(Group, group_id)
+    if group is None:
+        return _redirect("/teacher/groups", error="Группа+не+найдена")
+
+    existing = await session.scalar(
+        select(GroupFavorite).where(
+            GroupFavorite.user_id == user.id, GroupFavorite.group_id == group_id
+        )
+    )
+    if existing is None:
+        session.add(GroupFavorite(user_id=user.id, group_id=group_id))
+        message = "Группа+закреплена"
+    else:
+        await session.delete(existing)
+        message = "Группа+откреплена"
+    await session.commit()
     return _redirect(f"/teacher/groups/{group_id}", message=message)
 
 
@@ -828,8 +908,27 @@ async def delete_announcement(session: SessionDep, user: TeacherUser, announceme
 
 
 @router.get("/students")
-async def students_page(request: Request, session: SessionDep, user: TeacherUser):
-    students = await _all(session, select(User).order_by(User.display_name))
+async def students_page(
+    request: Request, session: SessionDep, user: TeacherUser, role: str = "student"
+):
+    """Две вкладки: студенты и преподаватели.
+
+    В общем списке преподаватели терялись среди сотни студентов, а нужны они
+    ровно тогда, когда кому-то выдают или снимают роль.
+    """
+    role = "teacher" if role == "teacher" else "student"
+    wanted = Role.teacher if role == "teacher" else Role.student
+    students = await _all(
+        session, select(User).where(User.role == wanted).order_by(User.display_name)
+    )
+    tabs = {
+        "student": await session.scalar(
+            select(func.count()).select_from(User).where(User.role == Role.student)
+        ),
+        "teacher": await session.scalar(
+            select(func.count()).select_from(User).where(User.role == Role.teacher)
+        ),
+    }
     solved = dict(
         (
             await session.execute(
@@ -854,6 +953,8 @@ async def students_page(request: Request, session: SessionDep, user: TeacherUser
         {
             "user": user,
             "students": students,
+            "role": role,
+            "tabs": tabs,
             "solved": solved,
             "bonuses": bonuses,
             **_flash(request),

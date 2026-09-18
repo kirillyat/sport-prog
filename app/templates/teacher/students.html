@@ -2,8 +2,17 @@
 {% from "_ui.html" import empty %}
 {% block title %}Студенты — {{ settings.app_name }}{% endblock %}
 {% block content %}
-<h1>Студенты</h1>
+<h1>{{ "Преподаватели" if role == "teacher" else "Студенты" }}</h1>
 <p class="sub">Роли и бонусы.</p>
+
+<div class="row" style="gap:8px; margin-bottom:14px">
+  <a class="btn {{ 'ghost' if role == 'teacher' }} small" href="/teacher/students">
+    {{ icon("user") }} Студенты <span class="badge">{{ tabs.student }}</span>
+  </a>
+  <a class="btn {{ 'ghost' if role != 'teacher' }} small" href="/teacher/students?role=teacher">
+    {{ icon("shield") }} Преподаватели <span class="badge">{{ tabs.teacher }}</span>
+  </a>
+</div>
 
 {% if students %}
 <div class="card table-wrap" style="padding:6px">
@@ -56,6 +65,12 @@
   </table>
 </div>
 {% else %}
-<div class="card">{{ empty("user", "Пока никто не зарегистрировался.", "/teacher/groups", "Создать группу") }}</div>
+<div class="card">
+  {% if role == "teacher" %}
+    {{ empty("shield", "Преподаватель пока один — ты. Роль выдаётся на вкладке «Студенты».") }}
+  {% else %}
+    {{ empty("user", "Пока никто не зарегистрировался.", "/teacher/groups", "Создать группу") }}
+  {% endif %}
+</div>
 {% endif %}
 {% endblock %}
