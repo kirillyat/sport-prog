@@ -158,14 +158,13 @@ def _status(
     first_after: datetime | None,
     deadline: datetime | None,
     count_prior: bool,
-    hard_deadline: bool = False,
 ) -> tuple[SolveStatus, datetime | None]:
     if first_after is not None:
         if deadline is None or first_after <= deadline:
             return SolveStatus.solved_in_time, first_after
-        # Жёсткий дедлайн: после срока не половина баллов, а ноль.
-        if hard_deadline:
-            return SolveStatus.solved_too_late, first_after
+        # После дедлайна решение видно, но в зачёт не идёт — одинаково у всех
+        # заданий. Отдельного «жёсткого» дедлайна больше нет: пока опоздание
+        # засчитывалось наполовину, разница была, теперь её нет.
         return SolveStatus.solved_late, first_after
     if first_ever is not None:
         # Задача была решена ещё до выдачи задания. По умолчанию не засчитываем,
@@ -211,7 +210,6 @@ async def compute_progress(
             first_after,
             assignment.deadline,
             assignment.count_prior_solves,
-            assignment.hard_deadline,
         )
         progress.cells[(user_id, problem_id)] = Cell(
             status=status,

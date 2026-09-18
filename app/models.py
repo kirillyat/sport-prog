@@ -97,7 +97,6 @@ class SolveStatus(enum.StrEnum):
     not_solved = "not_solved"
     solved_in_time = "solved_in_time"
     solved_late = "solved_late"          # после мягкого дедлайна: половина баллов
-    solved_too_late = "solved_too_late"  # после жёсткого дедлайна: не засчитываем
     solved_before = "solved_before"      # решена до выдачи задания — не засчитываем
 
 
@@ -322,8 +321,6 @@ class Assignment(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     assigned_at: Mapped[datetime] = mapped_column(default=utcnow)
     deadline: Mapped[datetime | None] = mapped_column()
-    # Жёсткий дедлайн: после срока решение не засчитывается вовсе. Так делаются марафоны.
-    hard_deadline: Mapped[bool] = mapped_column(Boolean, default=False)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     # Требовать вместе с посылкой сам текст решения файлом. Нужно там, где
     # платформа исходник не отдаёт: у LeetCode его видно только автору.

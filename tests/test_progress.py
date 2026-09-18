@@ -165,17 +165,15 @@ async def test_complete_when_all_solved(session, world):
     assert progress.problem_solved_count(world["problems"][0].id) == 1
 
 
-async def test_hard_deadline_does_not_count_late_solves(session, world):
-    """Жёсткий дедлайн: после срока не половина баллов, а ноль."""
+async def test_late_solve_is_visible_but_gives_nothing(session, world):
+    """После дедлайна решение видно значком, а счёта не даёт — у всех заданий."""
     deadline = BASE + timedelta(days=7)
     await _accept(session, world, world["problems"][0], deadline + timedelta(hours=1), "s1")
     assignment = await _assignment(session, world, assigned_at=BASE, deadline=deadline)
-    assignment.hard_deadline = True
-    await session.commit()
 
     progress = await compute_progress(session, assignment, [world["student"]])
     cell = progress.cell(world["student"].id, world["problems"][0].id)
-    assert cell.status == SolveStatus.solved_too_late
+    assert cell.status == SolveStatus.solved_late
     assert cell.counts is False
     assert progress.solved_count(world["student"].id) == 0
 

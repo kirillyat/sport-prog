@@ -133,8 +133,9 @@ async def test_reminder_is_sent_once(session, world, outbox):
     assert item.reminded_at is not None
 
 
-async def test_hard_deadline_says_so(session, world, outbox):
-    await _assign(session, world, deadline=utcnow() + timedelta(hours=2), hard_deadline=True)
+async def test_reminder_says_the_deadline_is_final(session, world, outbox):
+    """Напоминание должно называть цену опоздания, иначе оно просто шум."""
+    await _assign(session, world, deadline=utcnow() + timedelta(hours=2))
 
     await notify.send_deadline_reminders(session)
     assert "не засчитываются" in outbox[0][1]

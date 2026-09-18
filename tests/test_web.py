@@ -311,7 +311,7 @@ async def test_rename_form_hidden_from_outsiders(session, client):
 
 
 async def test_assignment_form_creates_marathon(session, client):
-    """Марафон теперь создаётся как задание с жёстким дедлайном и плоскими баллами."""
+    """Марафон — обычное задание с дедлайном: после срока не засчитывается."""
     from app.models import Assignment, ProblemSet
 
     await _login(client, "Кирилл", teacher=True)
@@ -322,29 +322,12 @@ async def test_assignment_form_creates_marathon(session, client):
     response = await client.post("/teacher/assignments", data={
         "title": "Субботний марафон", "problem_set_id": problem_set.id,
         "group_id": "", "starts_at": "2026-12-06T12:00", "deadline": "2026-12-06T20:00",
-        "hard_deadline": "true",
     })
     assert "Задание выдано" in response.text
 
     item = await session.scalar(select(Assignment))
     assert item.group_id is None and item.user_id is None      # всем
-    assert item.hard_deadline is True
     assert item.deadline is not None
-
-
-async def test_hard_deadline_requires_a_date(session, client):
-    from app.models import ProblemSet
-
-    await _login(client, "Кирилл", teacher=True)
-    problem_set = ProblemSet(title="Список")
-    session.add(problem_set)
-    await session.commit()
-
-    response = await client.post("/teacher/assignments", data={
-        "title": "Без даты", "problem_set_id": problem_set.id,
-        "group_id": "", "hard_deadline": "true",
-    })
-    assert "без даты не работает" in response.text
 
 
 async def test_only_title_and_description_are_editable(session, client):

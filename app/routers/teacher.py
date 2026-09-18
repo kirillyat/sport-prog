@@ -681,7 +681,6 @@ async def create_assignment(
     description: str = Form(""),
     starts_at: str = Form(""),
     deadline: str = Form(""),
-    hard_deadline: bool = Form(False),
     count_prior_solves: bool = Form(False),
     requires_solution: bool = Form(False),
 ):
@@ -701,9 +700,6 @@ async def create_assignment(
     if end is not None and end <= start:
         return _redirect("/teacher/assignments", error=_("Дедлайн раньше начала"))
 
-    if hard_deadline and end is None:
-        return _redirect("/teacher/assignments", error=_("Жёсткий дедлайн без даты не работает"))
-
     assignment = Assignment(
         title=title,
         description=description.strip() or None,
@@ -711,7 +707,6 @@ async def create_assignment(
         group_id=target_group,
         assigned_at=start,
         deadline=end,
-        hard_deadline=hard_deadline,
         created_by_id=user.id,
         count_prior_solves=count_prior_solves,
         requires_solution=requires_solution,

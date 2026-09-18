@@ -9,7 +9,7 @@
 {% macro mark(cell) -%}
   {%- if cell.rejected %}{{ icon("close") }}
   {%- elif cell.status in (SolveStatus.solved_in_time, SolveStatus.solved_late) %}{{ icon("check") }}
-  {%- elif cell.status in (SolveStatus.solved_before, SolveStatus.solved_too_late) %}<i class="dot"></i>
+  {%- elif cell.status == SolveStatus.solved_before %}<i class="dot"></i>
   {%- endif %}
 {%- endmacro %}
 
@@ -19,7 +19,7 @@
   {{ assignment.group.title if assignment.group else (_("персональное") if assignment.user_id else _("всем")) }} ·
   {{ _("выдано") }} {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
-    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} ({{ _("жёсткий") }}){% endif %}
+    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}
   {% endif %}
 </p>
 {% if assignment.description %}<p class="sub">{{ assignment.description }}</p>{% endif %}
@@ -121,10 +121,6 @@
   <span class="item"><span class="cell solved_late">{{ icon("check") }}</span> {{ _("после дедлайна, не засчитано") }}</span>
   <span class="item"><span class="cell solved_before"><i class="dot"></i></span>
     {{ _("решено до выдачи, не засчитано") }}</span>
-  {% if assignment.hard_deadline %}
-  <span class="item"><span class="cell solved_too_late"><i class="dot"></i></span>
-    {{ _("после жёсткого дедлайна, не засчитано") }}</span>
-  {% endif %}
   {% if assignment.requires_solution %}
   {# Уголок и крестик стоят зачёта — значит, им место в легенде. #}
   <span class="item"><span class="cell solved_in_time no-code">{{ icon("check") }}</span>

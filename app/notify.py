@@ -263,8 +263,11 @@ def assignment_text(item: Assignment, problems: int) -> str:
         _("Задач: %(count)s") % {"count": problems},
     ]
     if item.deadline:
-        suffix = " " + _("(после срока не засчитывается)") if item.hard_deadline else ""
-        lines.append(_("Дедлайн: %(when)s") % {"when": fmt_dt(item.deadline)} + suffix)
+        lines.append(
+            _("Дедлайн: %(when)s") % {"when": fmt_dt(item.deadline)}
+            + " "
+            + _("(после срока не засчитывается)")
+        )
     return "\n".join(lines)
 
 
@@ -333,8 +336,7 @@ def deadline_reminder_text(item: Assignment, left: int, total: int) -> str:
         _("Осталось задач: %(left)s из %(total)s") % {"left": left, "total": total},
         _("Срок: %(when)s") % {"when": fmt_dt(item.deadline)},
     ]
-    if item.hard_deadline:
-        lines.append(_("После срока решения не засчитываются."))
+    lines.append(_("После срока решения не засчитываются."))
     return "\n".join(lines)
 
 

@@ -29,7 +29,6 @@ ENCODING = "utf-8-sig"
 CELL = {
     SolveStatus.solved_in_time: N_("в срок"),
     SolveStatus.solved_late: N_("после дедлайна"),
-    SolveStatus.solved_too_late: N_("не в счёт"),
     SolveStatus.solved_before: N_("до выдачи"),
     SolveStatus.not_solved: "",
 }

@@ -7,7 +7,7 @@
 <p class="sub">
   {{ _("Выдано") }} {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
-    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% if assignment.hard_deadline %} ({{ _("жёсткий") }}){% endif %}
+    · {{ _("дедлайн") }} {{ assignment.deadline | dt }}
   {% endif %}
   {% if assignment.group %} · {{ assignment.group.title }}{% endif %}
 </p>
@@ -55,8 +55,7 @@
         </td>
         <td>
           {% if cell.status == SolveStatus.solved_in_time %}<span class="badge ok">{{ icon("check") }} {{ _("решено") }}</span>
-          {% elif cell.status == SolveStatus.solved_late %}<span class="badge warn">{{ icon("clock") }} {{ _("после дедлайна") }}</span>
-          {% elif cell.status == SolveStatus.solved_too_late %}<span class="badge">{{ _("после дедлайна, не засчитано") }}</span>
+          {% elif cell.status == SolveStatus.solved_late %}<span class="badge warn">{{ icon("clock") }} {{ _("после дедлайна, не засчитано") }}</span>
           {% elif cell.status == SolveStatus.solved_before %}<span class="badge">{{ _("решено до выдачи") }}</span>
           {% else %}<span class="muted">—</span>{% endif %}
         </td>

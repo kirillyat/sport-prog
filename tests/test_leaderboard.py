@@ -135,11 +135,11 @@ async def test_prior_solve_does_not_count(session, world):
     assert all(r.solved == 0 for r in rows)
 
 
-async def test_hard_deadline_leaves_nothing_for_latecomers(session, world):
-    """Марафон: после срока решение не засчитывается вовсе, даже как опоздание."""
+async def test_latecomers_get_nothing(session, world):
+    """После дедлайна решение в зачёт не идёт — на табло видно только опоздание."""
     session.add(Assignment(
         title="Марафон", problem_set_id=world["set"].id, group_id=world["group"].id,
-        assigned_at=BASE, deadline=BASE + timedelta(hours=8), hard_deadline=True,
+        assigned_at=BASE, deadline=BASE + timedelta(hours=8),
     ))
     await session.commit()
 
@@ -152,7 +152,7 @@ async def test_hard_deadline_leaves_nothing_for_latecomers(session, world):
     rows = await build_leaderboard(session)
     by_name = {r.user.display_name: r for r in rows}
     assert by_name["Аня"].solved == 2
-    assert (by_name["Боря"].solved, by_name["Боря"].late) == (0, 0)
+    assert (by_name["Боря"].solved, by_name["Боря"].late) == (0, 1)
 
 
 async def test_club_wide_assignment_counts_for_everyone(session, world):
