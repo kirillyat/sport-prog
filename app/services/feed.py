@@ -68,14 +68,14 @@ class FeedItem:
 
 
 async def visible_user_ids(
-    session: AsyncSession, viewer: User, group_id: int | None = None
+    session: AsyncSession, viewer: User, group_id: int | None = None, as_student: bool = False
 ) -> list[int]:
     """Чьи решения показываем: преподавателю — всех студентов, студенту — одногруппников.
 
     Преподавателей в ленте нет ни у кого, включая их самих: лента — про то, как
     идёт группа, а решения преподавателя в этой картине только сбивают счёт.
     """
-    if viewer.is_teacher:
+    if viewer.is_teacher and not as_student:
         stmt = select(User.id).where(User.is_active.is_(True), User.role != Role.teacher)
         if group_id is not None:
             stmt = stmt.join(GroupMembership, GroupMembership.user_id == User.id).where(
@@ -97,7 +97,7 @@ async def visible_user_ids(
         .distinct()
     )
     ids = set((await session.execute(stmt)).scalars().all())
-    if not viewer.is_teacher:
+    if not viewer.is_teacher or as_student:
         ids.add(viewer.id)
     return sorted(ids)
 
@@ -175,12 +175,13 @@ async def build_feed(
     group_id: int | None = None,
     only_user: User | None = None,
     limit: int = DEFAULT_LIMIT,
+    as_student: bool = False,
 ) -> list[FeedItem]:
     if only_user is not None:
         # Лента одного человека для страницы профиля.
         user_ids = [only_user.id]
     else:
-        user_ids = await visible_user_ids(session, viewer, group_id)
+        user_ids = await visible_user_ids(session, viewer, group_id, as_student)
     if not user_ids:
         return []
 
@@ -250,9 +251,11 @@ async def build_feed(
     return feed
 
 
-async def groups_for_feed(session: AsyncSession, viewer: User) -> list[Group]:
+async def groups_for_feed(
+    session: AsyncSession, viewer: User, as_student: bool = False
+) -> list[Group]:
     stmt = select(Group).where(Group.is_archived.is_(False))
-    if not viewer.is_teacher:
+    if not viewer.is_teacher or as_student:
         stmt = stmt.join(GroupMembership, GroupMembership.group_id == Group.id).where(
             GroupMembership.user_id == viewer.id
         )

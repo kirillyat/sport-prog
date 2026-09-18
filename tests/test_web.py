@@ -793,3 +793,39 @@ async def test_platform_accounts_live_in_the_profile(session, client):
     accounts = (await client.get("/accounts")).text
     assert "Способы входа" in accounts                # вход остался на своей странице
     assert 'action="/accounts/link"' not in accounts  # а привязка платформ ушла
+
+
+async def test_teacher_can_look_through_student_eyes(session, client):
+    """Проверить, что видят студенты, не заводя второй аккаунт."""
+    await _login(client, "Кирилл", teacher=True)
+
+    page = (await client.get("/teacher")).text
+    assert 'href="/teacher/groups"' in page                  # рейка преподавателя
+
+    switched = await client.post("/view/student", data={"next": "/"})
+    assert switched.status_code == 200
+    page = (await client.get("/")).text
+    assert 'href="/teacher/groups"' not in page              # рейка студенческая
+    assert 'href="/accounts"' in page
+
+    back = await client.post("/view/teacher", data={"next": "/teacher"})
+    assert back.status_code == 200
+    assert 'href="/teacher/groups"' in (await client.get("/teacher")).text
+
+
+async def test_student_view_hides_teacher_buttons(session, client):
+    """Иначе просмотр обманывает: рейка студенческая, а кнопки жюри на месте."""
+    await _login(client, "Кирилл", teacher=True)
+    assert "Опубликовать материал" in (await client.get("/materials")).text
+
+    await client.post("/view/student", data={"next": "/"})
+    assert "Опубликовать материал" not in (await client.get("/materials")).text
+
+
+async def test_switch_returns_only_to_own_paths(session, client):
+    """Адрес возврата приходит формой — уводить им на чужой сайт нельзя."""
+    await _login(client, "Кирилл", teacher=True)
+    response = await client.post(
+        "/view/student", data={"next": "//example.com/"}, follow_redirects=False
+    )
+    assert response.headers["location"] == "/"

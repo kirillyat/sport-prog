@@ -41,7 +41,8 @@
   под аватаркой внизу.
 #}
 {% macro navitems() -%}
-  {% if user.is_teacher %}
+  {# Преподаватель может смотреть портал глазами студента — тогда и рейка его. #}
+  {% if teacher_view %}
     {{ navlink("/teacher", "shield", "Панель", "teacher-link", exact=True) }}
     {{ navlink("/teacher/groups", "users", "Группы") }}
     {{ navlink("/teacher/assignments", "tasks", "Задания") }}
@@ -86,6 +87,16 @@
     <a class="whoami" href="/me" title="{{ user.display_name }} — профиль">
       {{ avatar(user) }}
     </a>
+    {% if user.is_teacher %}
+    <form method="post" action="/view/{{ 'teacher' if as_student else 'student' }}">
+      <input type="hidden" name="next" value="{{ path }}">
+      <button class="rail-btn" type="submit"
+              title="{{ 'Вернуться к интерфейсу преподавателя' if as_student
+                        else 'Посмотреть портал глазами студента' }}">
+        {{ icon("user" if not as_student else "shield") }}
+      </button>
+    </form>
+    {% endif %}
     <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
               title="Тема: светлая">
         {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}

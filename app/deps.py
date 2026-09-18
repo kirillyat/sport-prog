@@ -63,6 +63,19 @@ async def require_teacher(request: Request, session: SessionDep) -> User:
     return user
 
 
+VIEW_COOKIE = "view_as"
+
+
+def viewing_as_student(request: Request) -> bool:
+    """Преподаватель попросил показать портал глазами студента.
+
+    Права это не меняет: страницы жюри по-прежнему открываются по прямому
+    адресу. Меняется то, что портал показывает и как считает «своих».
+    """
+    return request.cookies.get(VIEW_COOKIE) == "student"
+
+
+AsStudent = Annotated[bool, Depends(viewing_as_student)]
 CurrentUser = Annotated[User, Depends(require_user)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 TeacherUser = Annotated[User, Depends(require_teacher)]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from sqlalchemy import select
 
-from app.deps import CurrentUser, OptionalInt, SessionDep
+from app.deps import AsStudent, CurrentUser, OptionalInt, SessionDep
 from app.models import GroupFavorite
 from app.services.feed import build_feed, groups_for_feed
 from app.templating import templates
@@ -17,9 +17,13 @@ ALL_GROUPS = 0
 
 @router.get("/feed")
 async def feed_page(
-    request: Request, session: SessionDep, user: CurrentUser, group_id: OptionalInt = None
+    request: Request,
+    session: SessionDep,
+    user: CurrentUser,
+    as_student: AsStudent,
+    group_id: OptionalInt = None,
 ):
-    groups = await groups_for_feed(session, user)
+    groups = await groups_for_feed(session, user, as_student)
 
     # Закреплённые группы — первыми и по умолчанию: лента без выбора открывалась
     # на всех сразу, а преподаватель почти всегда смотрит свою.
@@ -39,7 +43,7 @@ async def feed_page(
         # Ноль — это «все группы», выбранные осознанно; чужая группа — тоже все.
         group_id = None
 
-    items = await build_feed(session, user, group_id=group_id)
+    items = await build_feed(session, user, group_id=group_id, as_student=as_student)
     return templates.TemplateResponse(
         request,
         "feed.html",

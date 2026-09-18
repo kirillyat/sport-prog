@@ -92,7 +92,7 @@ def visible(flags: Flags, user: User | None) -> set[str]:
 SKIP_PREFIXES = ("/static", "/healthz", "/login", "/logout")
 
 
-EMPTY_NAV: dict = {"sections_on": set(), "pending_reviews": 0}
+EMPTY_NAV: dict = {"sections_on": set(), "pending_reviews": 0, "is_teacher": False}
 
 
 async def load_for_request(request) -> dict:
@@ -119,12 +119,20 @@ async def load_for_request(request) -> dict:
         return {
             "sections_on": visible(await load(session), user),
             "pending_reviews": int(pending or 0),
+            "is_teacher": user.is_teacher,
         }
 
 
 def features_context(request) -> dict:
+    """Общий контекст шаблонов: что показывать и чьими глазами."""
     nav = getattr(request.state, "nav", None) or EMPTY_NAV
+    as_student = request.cookies.get("view_as") == "student"
     return {
         "sections_on": nav["sections_on"],
         "pending_reviews": nav.get("pending_reviews", 0),
+        # Читаем куку прямо здесь: это взгляд, а не данные, запрос к базе не нужен.
+        "as_student": as_student,
+        # «Преподаватель» для показа: он сам может попросить показать портал
+        # глазами студента, и тогда преподавательских кнопок быть не должно.
+        "teacher_view": nav.get("is_teacher", False) and not as_student,
     }

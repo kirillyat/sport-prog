@@ -10,7 +10,7 @@
   </div>
 </div>
 
-{% if user.is_teacher %}
+{% if teacher_view %}
 <details class="formula" style="margin-bottom:18px" {% if not items %}open{% endif %}>
   <summary>{{ icon("plus") }} Опубликовать материал</summary>
   <form method="post" action="/materials" enctype="multipart/form-data" style="margin-top:12px">
@@ -60,7 +60,7 @@
       {% else %}
       <a class="btn small" href="/materials/{{ item.id }}/download">{{ icon("download") }} Скачать</a>
       {% endif %}
-      {% if user.is_teacher %}
+      {% if teacher_view %}
       <form method="post" action="/materials/{{ item.id }}/delete"
             onsubmit="return confirm('Удалить «{{ item.title }}»?')">
         <button class="danger small" type="submit">{{ icon("trash") }}</button>
@@ -72,7 +72,7 @@
 </div>
 {% else %}
 <div class="card">
-  {{ empty("book", "Материалов пока нет." if not user.is_teacher
+  {{ empty("book", "Материалов пока нет." if not teacher_view
            else "Материалов пока нет — выложи первый в форме выше.") }}
 </div>
 {% endif %}

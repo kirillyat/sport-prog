@@ -5,7 +5,7 @@
 <div class="page-head">
   <div>
     <p class="eyebrow">
-      {% if user.is_teacher %}<a href="/teacher/reviews">проверка</a>{% else %}решение{% endif %}
+      {% if teacher_view %}<a href="/teacher/reviews">проверка</a>{% else %}решение{% endif %}
       / {{ upload.filename }}
     </p>
     <h1>{{ problem.title if problem else "Задача" }}</h1>
@@ -31,7 +31,7 @@
 </div>
 {% endif %}
 
-{% if user.is_teacher %}
+{% if teacher_view %}
 <div class="card">
   <h3>{{ icon("shield") }} Проверка</h3>
   <p class="small muted" style="margin-top:0">

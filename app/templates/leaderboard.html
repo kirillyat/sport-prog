@@ -13,7 +13,7 @@
       При равном счёте выше тот, кто закончил раньше.
     </p>
   </div>
-  {% if user.is_teacher %}
+  {% if teacher_view %}
   <a class="btn ghost small" style="align-self:flex-end"
      href="/teacher/export/leaderboard.csv?group_id={{ group_id }}&period={{ period }}">
     {{ icon("download") }} CSV
@@ -121,9 +121,9 @@
 </div>
 {% elif not groups %}
 <div class="card">{{ empty("users",
-  "Табло считается по группе. " ~ ("Заведи группу и выдай ей задание." if user.is_teacher
+  "Табло считается по группе. " ~ ("Заведи группу и выдай ей задание." if teacher_view
   else "Вступи в группу по коду от преподавателя — тогда появится и табло."),
-  "/teacher/groups" if user.is_teacher else "/", "К группам" if user.is_teacher else "На главную") }}</div>
+  "/teacher/groups" if teacher_view else "/", "К группам" if teacher_view else "На главную") }}</div>
 {% else %}
 <div class="card">{{ empty("trophy", "Пока никого. Нужны назначенные задания и решённые задачи.") }}</div>
 {% endif %}

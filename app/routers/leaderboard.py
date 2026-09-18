@@ -5,7 +5,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Request
 from sqlalchemy import select
 
-from app.deps import CurrentUser, OptionalInt, SessionDep
+from app.deps import AsStudent, CurrentUser, OptionalInt, SessionDep
 from app.models import Assignment, Group, GroupFavorite, utcnow
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import groups_for_user
@@ -25,6 +25,7 @@ async def leaderboard_page(
     request: Request,
     session: SessionDep,
     user: CurrentUser,
+    as_student: AsStudent,
     group_id: OptionalInt = None,
     period: str = "all",
 ):
@@ -33,7 +34,7 @@ async def leaderboard_page(
     _, days = PERIODS[period]
     since = utcnow() - timedelta(days=days) if days else None
 
-    if user.is_teacher:
+    if user.is_teacher and not as_student:
         stmt = select(Group).where(Group.is_archived.is_(False)).order_by(Group.title)
         groups = list((await session.execute(stmt)).scalars().all())
     else:
@@ -61,7 +62,7 @@ async def leaderboard_page(
     # Табло отвечает «кто впереди», но не «за что» — поэтому рядом список
     # заданий группы. Преподавателю почти всегда нужен переход в конкретное.
     assignments = []
-    if user.is_teacher and group_id is not None:
+    if user.is_teacher and not as_student and group_id is not None:
         assignments = list(
             (
                 await session.execute(

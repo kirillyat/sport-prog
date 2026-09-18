@@ -45,8 +45,19 @@ def leetcode_url(external_id: str, problem_slug: str | None) -> str:
     return f"https://leetcode.com/submissions/detail/{external_id}/"
 
 
+async def open_page(page, url: str) -> bool:
+    """Переход, который не роняет всю работу: страница может увести на логин."""
+    try:
+        await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
+        return True
+    except Exception as exc:
+        print(f"    страница не открылась: {str(exc).splitlines()[0]}")
+        return False
+
+
 async def grab_codeforces(page, url: str) -> str | None:
-    await page.goto(url, wait_until="domcontentloaded")
+    if not await open_page(page, url):
+        return None
     try:
         await page.wait_for_selector(CF_SOURCE, timeout=45_000)
     except Exception:
@@ -56,7 +67,11 @@ async def grab_codeforces(page, url: str) -> str | None:
 
 async def grab_leetcode(page, url: str, external_id: str) -> str | None:
     """Код берём запросом самой страницы: так работает её сессия, а не наша."""
-    await page.goto(url, wait_until="domcontentloaded")
+    if not await open_page(page, url):
+        return None
+    if "accounts/login" in page.url:
+        print("    LeetCode просит войти — запустите с --login")
+        return None
     query = """
     query detail($id: Int!) {
       submissionDetails(submissionId: $id) { code }
@@ -81,6 +96,38 @@ async def grab_leetcode(page, url: str, external_id: str) -> str | None:
     return result
 
 
+async def login(args) -> int:
+    """Открывает окно и ждёт, пока в профиле появится сессия LeetCode.
+
+    Профиль остаётся на диске, поэтому вход нужен один раз, а не каждый запуск.
+    """
+    import asyncio
+
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch_persistent_context(
+            str(PROFILE),
+            channel=None if args.channel == "chromium" else args.channel,
+            headless=False,
+        )
+        page = browser.pages[0] if browser.pages else await browser.new_page()
+        await open_page(page, "https://leetcode.com/accounts/login/")
+        print(f"окно открыто: войдите в LeetCode. Жду до {args.wait} с…")
+
+        for _ in range(args.wait):
+            cookies = await browser.cookies("https://leetcode.com")
+            if any(c["name"] == "LEETCODE_SESSION" and c["value"] for c in cookies):
+                print("сессия LeetCode есть — профиль сохранён")
+                await browser.close()
+                return 0
+            await asyncio.sleep(1)
+
+        print("не дождался входа; попробуйте ещё раз")
+        await browser.close()
+        return 1
+
+
 async def main() -> int:
     import httpx
     from playwright.async_api import async_playwright
@@ -90,7 +137,16 @@ async def main() -> int:
     parser.add_argument("--limit", type=int, default=25, help="сколько посылок за раз")
     parser.add_argument("--channel", default="chromium", help="chromium или chrome")
     parser.add_argument("--headless", action="store_true", help="без окна (после первой проверки)")
+    parser.add_argument(
+        "--login",
+        action="store_true",
+        help="открыть браузер и подождать, пока вы войдёте на площадки",
+    )
+    parser.add_argument("--wait", type=int, default=300, help="сколько ждать входа, секунд")
     args = parser.parse_args()
+
+    if args.login:
+        return await login(args)
 
     token = os.environ.get("INGEST_TOKEN", "")
     if not token:

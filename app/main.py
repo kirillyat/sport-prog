@@ -27,6 +27,7 @@ from app.routers import (
     solutions,
     student,
     teacher,
+    view,
 )
 from app.scheduler import run_scheduler
 from app.services import features
@@ -105,6 +106,7 @@ app.include_router(materials.router, dependencies=[Depends(section_required("mat
 app.include_router(course.router, dependencies=[Depends(section_required("course"))])
 app.include_router(solutions.router)
 app.include_router(ingest.router)
+app.include_router(view.router)
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
 
@@ -130,6 +132,7 @@ async def attach_features(request: Request, call_next):
         request.state.nav = {
             "sections_on": {section.key for section in features.SECTIONS},
             "pending_reviews": 0,
+            "is_teacher": False,
         }
     return await call_next(request)
 
