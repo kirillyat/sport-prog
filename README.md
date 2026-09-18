@@ -210,7 +210,7 @@ pytest -q
 ### Открытая копия
 
 Правки идут в наш Gitea, оттуда выкатываются на сервер, и оттуда же снимок
-уходит на [GitHub](https://github.com/kirillyat/msu-sport-prog-club) одной
+уходит на [GitHub](https://github.com/kirillyat/sport-prog) одной
 командой:
 
 ```bash

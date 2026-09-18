@@ -7,8 +7,8 @@
 site_name: Портал тренировок по программированию
 site_description: "Учебный портал: задания с LeetCode и Codeforces, табло, проверка решений"
 site_url: https://kirillyat.github.io/msu-sport-prog-club/
-repo_url: https://github.com/kirillyat/msu-sport-prog-club
-repo_name: kirillyat/msu-sport-prog-club
+repo_url: https://github.com/kirillyat/sport-prog
+repo_name: kirillyat/sport-prog
 edit_uri: ""
 
 docs_dir: site-src
