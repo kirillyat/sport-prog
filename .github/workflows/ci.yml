@@ -15,9 +15,9 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           # Та же версия, что в образе портала.
           python-version: "3.12"
@@ -44,6 +44,6 @@ jobs:
     # Портал разворачивают образом, поэтому проверяем, что он вообще собирается.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Собрать образ
         run: docker build -t sport-web .
