@@ -1,0 +1,68 @@
+# Публикация документации на GitHub Pages.
+#
+# Содержимое не дублируется: страницы собираются из README, DEPLOY
+# и CONTRIBUTING репозитория. Правка в README сразу становится правкой сайта.
+name: Документация
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Одна выкладка за раз; начатую не обрываем.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Поставить mkdocs
+        run: pip install mkdocs-material
+
+      - name: Собрать страницы из файлов репозитория
+        run: |
+          mkdir -p site-src
+          cp README.md site-src/index.md
+          cp DEPLOY.md site-src/deploy.md
+          cp CONTRIBUTING.md site-src/contributing.md
+          cp README.en.md site-src/english.md
+          # Ссылки между файлами репозитория ведут на .md в корне —
+          # на сайте те же файлы лежат под другими именами.
+          sed -i 's|(DEPLOY\.md)|(deploy.md)|g; s|(CONTRIBUTING\.md)|(contributing.md)|g; s|(README\.en\.md)|(english.md)|g' site-src/*.md
+          sed -i 's|(README\.md)|(index.md)|g' site-src/*.md
+          # Ссылки на исходники на сайте вести некуда — отправляем их в репозиторий.
+          blob="https://github.com/${GITHUB_REPOSITORY}/blob/main"
+          # Разделитель «#», потому что «|» занят перечислением каталогов.
+          sed -Ei "s#\]\((app|scripts|migrations|tests)/([^)]*)\)#](${blob}/\1/\2)#g" site-src/*.md
+          sed -i "s|](LICENSE)|](${blob}/LICENSE)|g" site-src/*.md
+
+      - name: Построить сайт
+        run: mkdocs build --strict
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

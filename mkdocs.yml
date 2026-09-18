@@ -1,0 +1,56 @@
+# Сайт документации на GitHub Pages.
+#
+# Страницы не пишутся отдельно: они собираются из тех же README, DEPLOY
+# и CONTRIBUTING, которые лежат в корне репозитория. Иначе документация
+# разъезжается — на сайте одно, в репозитории другое, и никто не знает,
+# чему верить. Раскладку делает шаг «Собрать страницы» в workflow.
+site_name: Портал тренировок по программированию
+site_description: "Учебный портал: задания с LeetCode и Codeforces, табло, проверка решений"
+site_url: https://kirillyat.github.io/msu-sport-prog-club/
+repo_url: https://github.com/kirillyat/msu-sport-prog-club
+repo_name: kirillyat/msu-sport-prog-club
+edit_uri: ""
+
+docs_dir: site-src
+
+theme:
+  name: material
+  language: ru
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: "#"
+      # Якоря из русских заголовков: стандартный slugify выбрасывает кириллицу,
+      # и ссылка вида (#языки) переставала вести куда-либо.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Портал: index.md
+  - Развёртывание: deploy.md
+  - Участие: contributing.md
+  - In English: english.md
