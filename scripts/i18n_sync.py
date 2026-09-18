@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app.i18n import DEFAULT_LANGUAGE, LANGUAGES, LOCALES_DIR  # noqa: E402
+from app.i18n import LANGUAGES, LOCALES_DIR, SOURCE_LANGUAGE  # noqa: E402
 
 TEMPLATES = ROOT / "app" / "templates"
 CODE = ROOT / "app"
@@ -66,7 +66,7 @@ def main() -> int:
     keys = collect()
     LOCALES_DIR.mkdir(exist_ok=True)
     for code in LANGUAGES:
-        if code == DEFAULT_LANGUAGE:
+        if code == SOURCE_LANGUAGE:
             continue
         path = LOCALES_DIR / f"{code}.json"
         old = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}

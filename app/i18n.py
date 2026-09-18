@@ -16,10 +16,14 @@ import logging
 from contextvars import ContextVar
 from pathlib import Path
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 LOCALES_DIR = Path(__file__).parent / "locales"
-DEFAULT_LANGUAGE = "ru"
+# Язык исходников: строка в шаблоне — русская, она же ключ словаря.
+# Не то же самое, что язык по умолчанию: его вуз выбирает сам в DEFAULT_LANGUAGE.
+SOURCE_LANGUAGE = "ru"
 
 # Что предлагаем в переключателе. Значение — как язык называет сам себя.
 LANGUAGES: dict[str, str] = {
@@ -31,13 +35,13 @@ LANGUAGES: dict[str, str] = {
 LANGUAGE_COOKIE = "lang"
 LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 3600
 
-_current: ContextVar[str] = ContextVar("language", default=DEFAULT_LANGUAGE)
+_current: ContextVar[str] = ContextVar("language", default=SOURCE_LANGUAGE)
 
 
 def _load() -> dict[str, dict[str, str]]:
     catalogs: dict[str, dict[str, str]] = {}
     for code in LANGUAGES:
-        if code == DEFAULT_LANGUAGE:
+        if code == SOURCE_LANGUAGE:
             continue
         path = LOCALES_DIR / f"{code}.json"
         if not path.is_file():
@@ -53,6 +57,12 @@ def _load() -> dict[str, dict[str, str]]:
 CATALOGS = _load()
 
 
+def default_language() -> str:
+    """Язык портала, когда человек ничего не выбрал и браузер не помог."""
+    code = settings.default_language.strip().lower()
+    return code if code in LANGUAGES else SOURCE_LANGUAGE
+
+
 def pick_language(cookie: str | None, accept_language: str | None = None) -> str:
     """Выбор человека важнее настроек браузера; браузер подсказывает при первом заходе."""
     if cookie and cookie.lower() in LANGUAGES:
@@ -61,11 +71,11 @@ def pick_language(cookie: str | None, accept_language: str | None = None) -> str
         code = part.split(";")[0].split("-")[0].strip().lower()
         if code in LANGUAGES:
             return code
-    return DEFAULT_LANGUAGE
+    return default_language()
 
 
 def set_language(code: str) -> None:
-    _current.set(code if code in LANGUAGES else DEFAULT_LANGUAGE)
+    _current.set(code if code in LANGUAGES else default_language())
 
 
 def current_language() -> str:

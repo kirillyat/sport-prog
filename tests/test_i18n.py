@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import json
+import re
 
 import httpx
 
-from app.i18n import CATALOGS, DEFAULT_LANGUAGE, LANGUAGES, LOCALES_DIR, pick_language
+from app.config import settings
+from app.i18n import (
+    CATALOGS,
+    LANGUAGES,
+    LOCALES_DIR,
+    SOURCE_LANGUAGE,
+    pick_language,
+)
 
 
 async def _login(client: httpx.AsyncClient, name: str = "Аня"):
@@ -23,19 +31,54 @@ def test_browser_hint_used_on_first_visit():
 
 
 def test_unknown_language_falls_back_to_russian():
-    assert pick_language("kz", "de-DE") == DEFAULT_LANGUAGE
-    assert pick_language(None, None) == DEFAULT_LANGUAGE
+    assert pick_language("kz", "de-DE") == SOURCE_LANGUAGE
+    assert pick_language(None, None) == SOURCE_LANGUAGE
+
+
+def test_portal_default_closes_the_chain(monkeypatch):
+    """Вуз может поставить свой язык по умолчанию — но выбор человека главнее."""
+    monkeypatch.setattr(settings, "default_language", "fr")
+    assert pick_language(None, "de-DE") == "fr"
+    assert pick_language("en", "de-DE") == "en"
+    assert pick_language(None, "ru-RU,ru") == "ru"
 
 
 def test_catalogs_cover_the_same_strings():
     """Пустое значение в словаре — тоже пропуск: страница останется русской."""
     for code in LANGUAGES:
-        if code == DEFAULT_LANGUAGE:
+        if code == SOURCE_LANGUAGE:
             continue
         catalog = json.loads((LOCALES_DIR / f"{code}.json").read_text(encoding="utf-8"))
         missing = [key for key, value in catalog.items() if not value]
         assert not missing, f"{code}: без перевода {missing[:5]}"
-    assert set(CATALOGS) == set(LANGUAGES) - {DEFAULT_LANGUAGE}
+    assert set(CATALOGS) == set(LANGUAGES) - {SOURCE_LANGUAGE}
+
+
+def test_placeholders_survive_translation():
+    """`%(count)s` в переводе обязан остаться: иначе подстановка упадёт при выводе."""
+    holder = re.compile(r"%\([a-z_]+\)s")
+    for code in LANGUAGES:
+        if code == SOURCE_LANGUAGE:
+            continue
+        catalog = json.loads((LOCALES_DIR / f"{code}.json").read_text(encoding="utf-8"))
+        for source, translated in catalog.items():
+            assert set(holder.findall(source)) == set(holder.findall(translated)), (
+                f"{code}: подстановки разъехались в {source!r}"
+            )
+
+
+def test_plural_forms_match_the_language():
+    """Формы через «|»: три у русского, две у английского и французского."""
+    for code in LANGUAGES:
+        if code == SOURCE_LANGUAGE:
+            continue
+        catalog = json.loads((LOCALES_DIR / f"{code}.json").read_text(encoding="utf-8"))
+        for source, translated in catalog.items():
+            if "|" not in source:
+                assert "|" not in translated, f"{code}: лишние формы в {source!r}"
+                continue
+            assert source.count("|") == 2, f"русских форм должно быть три: {source!r}"
+            assert translated.count("|") == 1, f"{code}: нужны две формы в {source!r}"
 
 
 async def test_login_page_speaks_the_browser_language(session, client):

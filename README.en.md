@@ -52,12 +52,40 @@ signed with it, and a known value lets anyone sign in as anyone.
 | `APP_NAME`, `APP_SHORT_NAME` | title in the rail, browser tab, notifications |
 | `ORG_NAME` | the wording "confirm you are a student of X" |
 | `ORG_ACCOUNT_NAME` | what the institutional login is called |
+| `COURSE_TITLE`, `COURSE_SUBTITLE` | the heading of the "Course" section |
+| `DEFAULT_LANGUAGE` | `ru`, `en` or `fr` for visitors who never chose |
 | `OIDC_*` | any OpenID Connect provider; group → teacher role mapping |
 | `TELEGRAM_*` | optional login and notifications through a bot |
 
 Branding lives in the data volume, not in the image: drop `logo.svg`,
 `logo-dark.svg`, `mark.svg` or `favicon.svg` into `DATA_DIR/branding` and the
 portal picks them up — no rebuild, and your emblem never enters the source tree.
+
+## Languages
+
+The interface speaks Russian, English and French. The switcher sits in the rail
+next to the theme and on the sign-in page — a language is needed before signing
+in no less than after. The choice lives in the `lang` cookie; for a first-time
+visitor the browser suggests one through `Accept-Language`, and
+`DEFAULT_LANGUAGE` closes the chain.
+
+The mechanism is deliberately small: **the string in the template is the
+dictionary key**.
+
+```jinja
+{{ _("Задания") }}
+```
+
+The translation is looked up in `app/locales/en.json` and `fr.json`. Not found —
+the Russian source is shown, so a partial translation never breaks a page, it
+only leaves it Russian. No gettext, no `.mo` compilation step.
+
+To add a language: put its code and endonym into `LANGUAGES` in `app/i18n.py`,
+run `python scripts/i18n_sync.py` — it creates the dictionary and lists what is
+missing — then fill in `app/locales/<code>.json`. Plural rules for the new
+language go into `plural` (`app/templating.py`) and `portalPlural`
+(`app/static/i18n.js`). Tests check that `%(count)s` placeholders survive the
+translation and that the number of word forms matches the language.
 
 Authentication is deliberately pluggable: sign-in through a Telegram bot works
 without a public domain, OIDC works with any provider, and a dev login exists

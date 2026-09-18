@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # у каждого вуза курс свой, а в исходнике чужое название ни к чему.
     course_title: str = ""
     course_subtitle: str = ""
+    # Язык портала для тех, кто ничего не выбрал: ru, en или fr. Выбор человека
+    # и подсказку браузера он не перебивает — только замыкает цепочку.
+    default_language: str = "ru"
     display_timezone: str = "Europe/Moscow"
     base_url: str = "http://localhost:8000"
     secret_key: str = INSECURE_SECRET
