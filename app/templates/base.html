@@ -161,16 +161,6 @@
     {% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
     {% block content %}{% endblock %}
   </main>
-
-  {% if settings.docs_url %}
-  {# Подвал нужен ровно ради одной ссылки: куда идти, когда непонятно,
-     как что-то устроено. Поэтому он тихий и без второго этажа. #}
-  <footer class="foot">
-    <a href="{{ settings.docs_url }}" target="_blank" rel="noopener">
-      {{ icon("book") }} {{ _("Документация") }} {{ icon("external") }}
-    </a>
-  </footer>
-  {% endif %}
 </div>
 {# Переводы для скриптов — данными, чтобы не заводить инлайновый JS. #}
 <script type="application/json" id="js-strings">{{ js_strings()|tojson }}</script>

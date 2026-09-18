@@ -252,13 +252,7 @@ body.with-rail { padding-left: var(--rail); }
 .ticker .countdown[data-state="live"] { background: var(--err); color: var(--err-text); border-color: var(--err); }
 .ticker-go { display: inline-flex; }
 
-main { max-width: 1180px; margin: 0 auto; padding: 34px 32px 40px; }
-/* Подвал: тонкая линия и одна ссылка. Нижний отступ больше обычного —
-   на телефоне под ним стоит панель вкладок. */
-.foot { max-width: 1180px; margin: 0 auto; padding: 0 32px 90px; }
-.foot a { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.foot a:hover { color: var(--text); }
-.foot .icon { width: 14px; height: 14px; }
+main { max-width: 1180px; margin: 0 auto; padding: 34px 32px 90px; }
 
 /* ============================================================
    Типографика
