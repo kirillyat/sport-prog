@@ -13,7 +13,15 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 
 from app.deps import CurrentUser, SessionDep
-from app.models import Assignment, GroupMembership, Problem, ProblemSetItem, SolutionUpload
+from app.models import (
+    Assignment,
+    GroupMembership,
+    Problem,
+    ProblemSetItem,
+    SolutionUpload,
+    Submission,
+    User,
+)
 from app.services import notebook, solutions
 from app.templating import templates
 
@@ -148,6 +156,33 @@ async def view_solution(request: Request, session: SessionDep, user: CurrentUser
             "code": code,
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),
+        },
+    )
+
+
+@router.get("/submissions/{submission_id}")
+async def view_submission(
+    request: Request, session: SessionDep, user: CurrentUser, submission_id: int
+):
+    """Код посылки, если он уже загружен скриптом с машины преподавателя."""
+    submission = await session.get(Submission, submission_id)
+    if submission is None or (not user.is_teacher and submission.user_id != user.id):
+        return RedirectResponse("/?err=Посылка+не+найдена", status_code=303)
+    if not submission.code:
+        return RedirectResponse("/?err=Исходник+этой+посылки+не+загружен", status_code=303)
+
+    author = await session.get(User, submission.user_id)
+    problem = await session.get(Problem, submission.problem_id) if submission.problem_id else None
+    name = f"solution.{(submission.language or 'txt').lower()}"
+    return templates.TemplateResponse(
+        request,
+        "submission.html",
+        {
+            "user": user,
+            "submission": submission,
+            "author": author,
+            "problem": problem,
+            "code": notebook.highlight_file(submission.code, name),
         },
     )
 

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     secret_key: str = INSECURE_SECRET
     # Осознанное разрешение работать с дефолтным ключом (тесты, разовая проверка).
     allow_insecure_secret: bool = False
+    # Токен для загрузки исходников посылок скриптом с машины преподавателя.
+    # Пусто — приём выключен: лучше не иметь ручки вовсе, чем открытую.
+    ingest_token: str = ""
     data_dir: Path = Path("./data")
 
     # Telegram

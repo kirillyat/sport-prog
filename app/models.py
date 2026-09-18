@@ -393,6 +393,11 @@ class Submission(Base):
     verdict: Mapped[str | None] = mapped_column(String(48))
     is_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     language: Mapped[str | None] = mapped_column(String(80))
+    # Текст решения. Портал сам его не добывает: страницы площадок закрыты
+    # Cloudflare для любых автоматических клиентов. Код приносит скрипт,
+    # который работает в браузере преподавателя, — см. scripts/fetch_sources.py.
+    code: Mapped[str | None] = mapped_column(Text)
+    code_fetched_at: Mapped[datetime | None] = mapped_column()
     submitted_at: Mapped[datetime] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
