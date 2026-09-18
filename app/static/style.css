@@ -387,6 +387,10 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 .cell.not_solved     { border-color: var(--line-soft); border-style: dotted; }
 /* Решение отклонено: зачёт снят, и это должно быть видно без наведения. */
 .cell.rejected { background: transparent; border-color: var(--err); color: var(--err); }
+/* Файл по задаче не сдан: уголок, который видно, не наводя мышь. */
+.cell.no-file { position: relative; }
+.cell.no-file::after { content: ""; position: absolute; right: -2px; bottom: -2px;
+  border: 5px solid transparent; border-right-color: var(--err); border-bottom-color: var(--err); }
 .cell a { color: inherit; text-decoration: none; }
 .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 10px; margin-top: 12px; }
 .legend span.item { display: inline-flex; align-items: center; gap: 8px; }

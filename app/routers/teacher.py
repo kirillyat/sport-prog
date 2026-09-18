@@ -729,6 +729,7 @@ async def assignment_matrix(
     progress = await compute_progress(session, assignment, participants)
 
     files: dict[int, solutions.Tally] = {}
+    files_by_problem: dict[int, int] = {}
     uploads: dict[tuple[int, int], SolutionUpload] = {}
     if assignment.requires_solution:
         uploads = await solutions.for_assignment(
@@ -739,6 +740,14 @@ async def assignment_matrix(
             student.id: solutions.tally(uploads, student.id, problem_ids)
             for student in participants
         }
+        # Сколько файлов прислано по каждой задаче: видно, что просели именно
+        # на ней, а не «у кого-то что-то не сдано».
+        files_by_problem = {
+            problem_id: sum(
+                1 for student in participants if (student.id, problem_id) in uploads
+            )
+            for problem_id in problem_ids
+        }
 
     return templates.TemplateResponse(
         request,
@@ -748,6 +757,7 @@ async def assignment_matrix(
             "assignment": assignment,
             "progress": progress,
             "files": files,
+            "files_by_problem": files_by_problem,
             "uploads": uploads,
             **_flash(request),
         },

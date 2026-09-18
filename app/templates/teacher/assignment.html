@@ -70,7 +70,8 @@
         {% for problem in progress.problems %}
           {% set cell = progress.cell(student.id, problem.id) %}
           {% set upload = uploads.get((student.id, problem.id)) if assignment.requires_solution %}
-          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}"
+          {% set no_file = assignment.requires_solution and not upload %}
+          <td><span class="cell {{ cell.status.value }}{{ ' rejected' if cell.rejected }}{{ ' no-file' if no_file }}"
                     title="{{ problem.title }} — {{ cell.solved_at | dt if cell.solved_at else 'не решено' }}{% if assignment.requires_solution %} · {{ 'решение не сдано' if not upload else 'решение: ' ~ upload.status.value }}{% endif %}">
             {% if upload %}<a href="/solutions/{{ upload.id }}">{{ cell.icon }}</a>
             {% elif cell.counts %}{{ icon("check") }}
@@ -120,7 +121,9 @@
 <h2>{{ icon("layers") }} Задачи</h2>
 <div class="card table-wrap" style="padding:6px">
   <table>
-    <thead><tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Решили</th><th>Первым</th></tr></thead>
+    <thead><tr><th>#</th><th>Задача</th><th>Платформа</th><th>Сложность</th><th>Решили</th>
+      {% if assignment.requires_solution %}<th>Сдали файл</th>{% endif %}
+      <th>Первым</th></tr></thead>
     <tbody>
     {% for problem in progress.problems %}
       {% set solved = progress.problem_solved_count(problem.id) %}
@@ -134,6 +137,14 @@
           {{ solved }} / {{ progress.participants | length }}
           {% if progress.participants and solved == 0 %}<span class="badge bad">{{ icon("alert") }} никто</span>{% endif %}
         </td>
+        {% if assignment.requires_solution %}
+        {% set sent = files_by_problem.get(problem.id, 0) %}
+        {% set missing = (progress.participants | length) - sent %}
+        <td class="num">
+          {{ sent }} / {{ progress.participants | length }}
+          {% if missing > 0 %}<span class="badge bad" title="не прислали решение">{{ icon("alert") }} {{ missing }}</span>{% endif %}
+        </td>
+        {% endif %}
         <td class="small">
           {% set first = progress.first_solver(problem.id) %}
           {% if first %}<a class="badge first" href="/u/{{ first.id }}">{{ icon("flame") }}{{ first.display_name }}</a>

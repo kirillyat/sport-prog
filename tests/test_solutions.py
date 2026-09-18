@@ -250,3 +250,22 @@ async def test_matrix_shows_who_has_not_sent_a_file(session, client, world):
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
     assert "не сдал" not in page          # долг закрыт
     assert "1/1" in page                  # прислано столько же, сколько задач
+
+
+async def test_matrix_marks_the_problem_where_the_file_is_missing(session, client, world):
+    """Счётчик по студенту отвечает «кто», а клетка и столбец — «по какой задаче»."""
+    await _login(client, "Кирилл", teacher=True)
+    page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
+    assert "no-file" in page                  # уголок в клетке
+    assert "Сдали файл" in page               # столбец в таблице задач
+    assert "0 / 1" in page                    # прислал ноль из одного
+
+    await client.post("/logout")
+    await _login(client, "Аня")
+    await _send(client, world)
+    await client.post("/logout")
+
+    await _login(client, "Кирилл", teacher=True)
+    page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
+    assert "no-file" not in page
+    assert "1 / 1" in page
