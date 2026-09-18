@@ -29,6 +29,8 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name, get_lexer_for_filename
 from pygments.util import ClassNotFound
 
+from app.i18n import translate as _
+
 # Разметка MathML, которую пропускаем наружу. Список закрытый: latex2mathml
 # отдаёт содержимое \text{...} как есть, и злой ноутбук протащил бы туда
 # настоящий тег. Всё, чего здесь нет, выбрасывается.
@@ -210,7 +212,7 @@ def render_markdown(source: str) -> str:
         payload = base64.b64encode(svg.encode("utf-8")).decode("ascii")
         # Тот же приём, что и для вывода ячейки: внутри <img> svg не исполняет
         # скрипты и не ходит наружу за ресурсами.
-        image = f'<img class="nb-img" src="data:{SVG_MIME};base64,{payload}" alt="рисунок">'
+        image = f'<img class="nb-img" src="data:{SVG_MIME};base64,{payload}" alt="{_("рисунок")}">'
         rendered = rendered.replace(_SVG_MARK.format(index), image)
     return rendered
 
@@ -234,7 +236,7 @@ def _output(raw: dict) -> Output | None:
                 try:
                     base64.b64decode(payload, validate=True)
                 except (binascii.Error, ValueError):
-                    return Output("skipped", "картинка не читается")
+                    return Output("skipped", _("картинка не читается"))
                 return Output("image", src=f"data:{mime};base64,{payload}")
         if "text/latex" in data:
             tex = _text(data["text/latex"]).strip().strip("$").strip()
@@ -242,7 +244,8 @@ def _output(raw: dict) -> Output | None:
         if "text/plain" in data:
             return Output("text", _text(data["text/plain"])[:MAX_OUTPUT_CHARS])
         if data:
-            return Output("skipped", "вывод в формате " + ", ".join(sorted(data)))
+            kinds = ", ".join(sorted(data))
+            return Output("skipped", _("вывод в формате %(kinds)s") % {"kinds": kinds})
     return None
 
 

@@ -116,7 +116,7 @@
   <div class="heatmap-scroll">
     <div class="heatmap-months">
       {% for week in range(stats.heatmap.weeks | length) %}
-        <span class="hm-slot">{{ stats.heatmap.month_labels.get(week, "") }}</span>
+        <span class="hm-slot">{{ _(stats.heatmap.month_labels.get(week, "")) }}</span>
       {% endfor %}
     </div>
     <div class="heatmap-body">

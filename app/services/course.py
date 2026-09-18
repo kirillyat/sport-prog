@@ -15,14 +15,17 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.i18n import mark as N_
+from app.i18n import translate as _
+
 COURSE_ROOT = Path(__file__).resolve().parent.parent.parent / "course" / "algo-1"
 
 # Имена фиксированы в репозитории курса: нет файла — нет слота на странице.
 SLOTS = (
-    ("lecture", "конспект"),
-    ("seminar", "практика"),
-    ("hw-lecture", "ДЗ лекции"),
-    ("hw-seminar", "ДЗ семинара"),
+    ("lecture", N_("конспект")),
+    ("seminar", N_("практика")),
+    ("hw-lecture", N_("ДЗ лекции")),
+    ("hw-seminar", N_("ДЗ семинара")),
 )
 
 WEEK_RE = re.compile(r"^\d{2}$")
@@ -101,7 +104,7 @@ def _load(semester: str, number: str, path: Path) -> Week:
     return Week(
         semester=semester,
         number=number,
-        title=fields.get("title") or f"Неделя {number.lstrip('0')}",
+        title=fields.get("title") or _("Неделя %(number)s") % {"number": number.lstrip("0")},
         lecture_title=fields.get("lecture_title", ""),
         seminar_title=fields.get("seminar_title", ""),
         body=body,

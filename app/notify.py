@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import TelegramAPI
 from app.config import settings
+from app.i18n import translate as _
 from app.models import (
     Announcement,
     Assignment,
@@ -33,7 +34,7 @@ from app.models import (
     utcnow,
 )
 from app.services.progress import compute_progress, participants_for_assignment
-from app.templating import fmt_dt, plural_ru
+from app.templating import fmt_dt, plural
 
 logger = logging.getLogger(__name__)
 
@@ -221,16 +222,16 @@ def portal_url(path: str) -> str:
 def announcement_button(item: Announcement) -> tuple[str, str]:
     """У анонса своя ссылка (на контест), иначе ведём на портал."""
     if item.url:
-        return (item.url_label or "Перейти", item.url)
-    return ("Открыть на портале", portal_url("/announcements"))
+        return (item.url_label or _("Перейти"), item.url)
+    return (_("Открыть на портале"), portal_url("/announcements"))
 
 
 def assignment_button(item: Assignment) -> tuple[str, str]:
-    return ("Открыть задание", portal_url(f"/assignments/{item.id}"))
+    return (_("Открыть задание"), portal_url(f"/assignments/{item.id}"))
 
 
 def material_button(item: Material) -> tuple[str, str]:
-    return ("Открыть на портале", portal_url(f"/materials/{item.id}/view"))
+    return (_("Открыть на портале"), portal_url(f"/materials/{item.id}/view"))
 
 
 def announcement_text(item: Announcement) -> str:
@@ -249,22 +250,26 @@ def announcement_text(item: Announcement) -> str:
 def reminder_text(item: Announcement) -> str:
     minutes = max(1, round((item.starts_at - utcnow()).total_seconds() / 60))
     lines = [
-        f"⏰ Через {minutes} мин: <b>{_e(item.title)}</b>",
-        f"🕐 старт {fmt_dt(item.starts_at, '%H:%M')}",
+        "⏰ " + _("Через %(minutes)s мин: <b>%(title)s</b>")
+        % {"minutes": minutes, "title": _e(item.title)},
+        "🕐 " + _("старт %(time)s") % {"time": fmt_dt(item.starts_at, "%H:%M")},
     ]
     return "\n".join(lines)
 
 
 def assignment_text(item: Assignment, problems: int) -> str:
-    lines = [f"📝 Новое задание: <b>{_e(item.title)}</b>", f"Задач: {problems}"]
+    lines = [
+        "📝 " + _("Новое задание: <b>%(title)s</b>") % {"title": _e(item.title)},
+        _("Задач: %(count)s") % {"count": problems},
+    ]
     if item.deadline:
-        suffix = " (после срока не засчитывается)" if item.hard_deadline else ""
-        lines.append(f"Дедлайн: {fmt_dt(item.deadline)}{suffix}")
+        suffix = " " + _("(после срока не засчитывается)") if item.hard_deadline else ""
+        lines.append(_("Дедлайн: %(when)s") % {"when": fmt_dt(item.deadline)} + suffix)
     return "\n".join(lines)
 
 
 def material_text(item: Material) -> str:
-    lines = [f"📘 Материал: <b>{_e(item.title)}</b>"]
+    lines = ["📘 " + _("Материал: <b>%(title)s</b>") % {"title": _e(item.title)}]
     if item.description:
         lines.append(_e(item.description))
     return "\n".join(lines)
@@ -319,13 +324,17 @@ async def notify_assignment(
 def deadline_reminder_text(item: Assignment, left: int, total: int) -> str:
     hours = max(1, round((item.deadline - utcnow()).total_seconds() / 3600))
     lines = [
-        f"⏰ Через {hours} {plural_ru(hours, 'час', 'часа', 'часов')} дедлайн: "
-        f"<b>{_e(item.title)}</b>",
-        f"Осталось задач: {left} из {total}",
-        f"Срок: {fmt_dt(item.deadline)}",
+        "⏰ " + _("Через %(count)s %(unit)s дедлайн: <b>%(title)s</b>")
+        % {
+            "count": hours,
+            "unit": plural(hours, _("час|часа|часов")),
+            "title": _e(item.title),
+        },
+        _("Осталось задач: %(left)s из %(total)s") % {"left": left, "total": total},
+        _("Срок: %(when)s") % {"when": fmt_dt(item.deadline)},
     ]
     if item.hard_deadline:
-        lines.append("После срока решения не засчитываются.")
+        lines.append(_("После срока решения не засчитываются."))
     return "\n".join(lines)
 
 

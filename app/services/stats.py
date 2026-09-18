@@ -7,13 +7,15 @@ from datetime import UTC, date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import mark as N_
 from app.models import Platform, Problem, Submission, User
 
 HEATMAP_WEEKS = 18
 
+# Переводятся при выводе: календарь собирается вне запроса.
 MONTHS_SHORT = (
-    "янв", "фев", "мар", "апр", "май", "июн",
-    "июл", "авг", "сен", "окт", "ноя", "дек",
+    N_("янв"), N_("фев"), N_("мар"), N_("апр"), N_("май"), N_("июн"),
+    N_("июл"), N_("авг"), N_("сен"), N_("окт"), N_("ноя"), N_("дек"),
 )
 
 LEETCODE_ORDER = {"easy": 0, "medium": 1, "hard": 2}

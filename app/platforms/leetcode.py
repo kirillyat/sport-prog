@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import httpx
 
 from app.config import settings
+from app.i18n import translate as _
 from app.platforms.base import (
     PlatformError,
     RateLimiter,
@@ -104,26 +105,28 @@ class LeetCodeClient:
                         headers=self._headers,
                     )
                 except httpx.HTTPError as exc:
-                    last_error = PlatformError(f"LeetCode недоступен: {exc}")
+                    last_error = PlatformError(_("LeetCode недоступен: %(why)s") % {"why": exc})
                     response = None
 
             if response is not None:
                 if response.status_code in (429, 403) or response.status_code >= 500:
-                    last_error = PlatformError(f"LeetCode вернул {response.status_code}")
+                    last_error = PlatformError(
+                        _("LeetCode вернул %(code)s") % {"code": response.status_code}
+                    )
                 else:
                     try:
                         payload = response.json()
                     except ValueError as exc:
-                        raise PlatformError("LeetCode вернул не JSON") from exc
+                        raise PlatformError(_("LeetCode вернул не JSON")) from exc
                     if payload.get("errors"):
-                        message = payload["errors"][0].get("message", "ошибка GraphQL")
+                        message = payload["errors"][0].get("message", _("ошибка GraphQL"))
                         raise PlatformError(f"LeetCode: {message}")
                     return payload.get("data") or {}
 
             if attempt < retries:
                 await asyncio.sleep(2 ** attempt)
 
-        raise last_error or PlatformError("LeetCode: не удалось выполнить запрос")
+        raise last_error or PlatformError(_("LeetCode: не удалось выполнить запрос"))
 
     async def fetch_problems(self, page_size: int = 100) -> list[RemoteProblem]:
         out: list[RemoteProblem] = []

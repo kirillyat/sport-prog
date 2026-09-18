@@ -19,6 +19,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from app.i18n import translate as _
+
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
@@ -438,10 +440,10 @@ class Material(Base):
     @property
     def size_label(self) -> str:
         if self.size < 1024:
-            return f"{self.size} Б"
+            return _("%(size)s Б") % {"size": self.size}
         if self.size < 1024 * 1024:
-            return f"{self.size / 1024:.0f} КБ"
-        return f"{self.size / 1024 / 1024:.1f} МБ"
+            return _("%(size)s КБ") % {"size": f"{self.size / 1024:.0f}"}
+        return _("%(size)s МБ") % {"size": f"{self.size / 1024 / 1024:.1f}"}
 
 
 class SolutionUpload(Base):

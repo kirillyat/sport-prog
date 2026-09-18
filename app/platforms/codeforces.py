@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import httpx
 
 from app.config import settings
+from app.i18n import translate as _
 from app.platforms.base import (
     PlatformError,
     RateLimiter,
@@ -75,21 +76,21 @@ class CodeforcesClient:
             try:
                 response = await self._client.get(f"{API}/{method}", params=params)
             except httpx.HTTPError as exc:
-                raise PlatformError(f"Codeforces недоступен: {exc}") from exc
+                raise PlatformError(_("Codeforces недоступен: %(why)s") % {"why": exc}) from exc
 
         if response.status_code >= 500:
-            raise PlatformError(f"Codeforces вернул {response.status_code}")
+            raise PlatformError(_("Codeforces вернул %(code)s") % {"code": response.status_code})
 
         try:
             payload = response.json()
         except ValueError as exc:
-            raise PlatformError("Codeforces вернул не JSON") from exc
+            raise PlatformError(_("Codeforces вернул не JSON")) from exc
 
         if payload.get("status") != "OK":
             comment = payload.get("comment", "")
             if "not found" in comment.lower():
                 raise UserNotFound(comment)
-            raise PlatformError(f"Codeforces: {comment or 'неизвестная ошибка'}")
+            raise PlatformError("Codeforces: " + (comment or _("неизвестная ошибка")))
         return payload["result"]
 
     async def fetch_problems(self) -> list[RemoteProblem]:

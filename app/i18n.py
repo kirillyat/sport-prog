@@ -35,7 +35,9 @@ LANGUAGES: dict[str, str] = {
 LANGUAGE_COOKIE = "lang"
 LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 3600
 
-_current: ContextVar[str] = ContextVar("language", default=SOURCE_LANGUAGE)
+# Пусто — язык для этого запроса не выбирали. Так бывает у фоновых задач:
+# рассылка уведомлений живёт вне запроса и говорит на языке портала.
+_current: ContextVar[str] = ContextVar("language", default="")
 
 
 def _load() -> dict[str, dict[str, str]]:
@@ -79,7 +81,7 @@ def set_language(code: str) -> None:
 
 
 def current_language() -> str:
-    return _current.get()
+    return _current.get() or default_language()
 
 
 def mark(text: str) -> str:
@@ -95,7 +97,7 @@ def mark(text: str) -> str:
 
 def translate(text: str) -> str:
     """Перевод строки. Нет перевода — возвращаем исходник, а не пустоту."""
-    catalog = CATALOGS.get(_current.get())
+    catalog = CATALOGS.get(current_language())
     if not catalog:
         return text
     return catalog.get(text) or text

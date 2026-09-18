@@ -19,6 +19,7 @@ import httpx
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.config import settings
+from app.i18n import translate as _
 
 STATE_COOKIE = "sport_oidc"
 STATE_TTL = 600
@@ -54,7 +55,7 @@ async def discover(force: bool = False) -> Discovery:
             response.raise_for_status()
             data = response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        raise OIDCError(f"discovery недоступен: {exc}") from exc
+        raise OIDCError(_("discovery недоступен: %(why)s") % {"why": exc}) from exc
     try:
         _discovery = Discovery(
             issuer=data["issuer"],
@@ -63,7 +64,7 @@ async def discover(force: bool = False) -> Discovery:
             userinfo_endpoint=data.get("userinfo_endpoint"),
         )
     except KeyError as exc:
-        raise OIDCError(f"в discovery нет поля {exc}") from exc
+        raise OIDCError(_("в discovery нет поля %(field)s") % {"field": exc}) from exc
     return _discovery
 
 
@@ -119,15 +120,17 @@ async def exchange_code(disc: Discovery, code: str, code_verifier: str) -> dict:
         async with httpx.AsyncClient(timeout=_timeout()) as client:
             response = await client.post(disc.token_endpoint, data=data)
     except httpx.HTTPError as exc:
-        raise OIDCError(f"token endpoint недоступен: {exc}") from exc
+        raise OIDCError(_("token endpoint недоступен: %(why)s") % {"why": exc}) from exc
     if response.status_code >= 400:
-        raise OIDCError(f"провайдер отказал в обмене кода ({response.status_code})")
+        raise OIDCError(
+            _("провайдер отказал в обмене кода (%(code)s)") % {"code": response.status_code}
+        )
     try:
         tokens = response.json()
     except ValueError as exc:
-        raise OIDCError("token endpoint вернул не JSON") from exc
+        raise OIDCError(_("token endpoint вернул не JSON")) from exc
     if "id_token" not in tokens:
-        raise OIDCError("в ответе нет id_token — проверь scope openid")
+        raise OIDCError(_("в ответе нет id_token — проверь scope openid"))
     return tokens
 
 
@@ -138,7 +141,7 @@ def id_token_claims(id_token: str) -> dict:
         payload += "=" * (-len(payload) % 4)
         return json.loads(base64.urlsafe_b64decode(payload))
     except (IndexError, ValueError) as exc:
-        raise OIDCError("id_token не разбирается") from exc
+        raise OIDCError(_("id_token не разбирается")) from exc
 
 
 async def fetch_userinfo(disc: Discovery, access_token: str) -> dict:

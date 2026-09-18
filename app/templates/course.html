@@ -33,7 +33,7 @@
     {% if week.slots %}
     <div class="row push-bottom" style="gap:6px; flex-wrap:wrap">
       {% for slot in week.slots %}
-      <a class="btn ghost small" href="{{ week.url }}/{{ slot.key }}">{{ slot.label }}</a>
+      <a class="btn ghost small" href="{{ week.url }}/{{ slot.key }}">{{ _(slot.label) }}</a>
       {% endfor %}
     </div>
     {% endif %}

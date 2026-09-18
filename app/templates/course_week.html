@@ -17,7 +17,7 @@
 <div class="card">
   <div class="row" style="gap:8px; flex-wrap:wrap">
     {% for slot in week.slots %}
-    <a class="btn small" href="{{ week.url }}/{{ slot.key }}">{{ icon("book") }} {{ slot.label }}</a>
+    <a class="btn small" href="{{ week.url }}/{{ slot.key }}">{{ icon("book") }} {{ _(slot.label) }}</a>
     <a class="btn ghost small" href="{{ week.url }}/file/{{ slot.filename }}">{{ icon("download") }} .ipynb</a>
     {% endfor %}
   </div>

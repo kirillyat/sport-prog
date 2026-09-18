@@ -15,6 +15,8 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.db import SessionLocal
+from app.i18n import mark as N_
+from app.i18n import translate as _
 from app.models import LoginToken, utcnow
 from app.services.catalog import get_state, set_state
 
@@ -24,9 +26,9 @@ OFFSET_KEY = "telegram_update_offset"
 POLL_TIMEOUT = 25
 
 WELCOME = (
-    "Привет! Этот бот подтверждает вход в портал подготовки к олимпиадам.\n\n"
-    "Открой страницу входа на сайте и нажми кнопку «Войти через Telegram» — "
-    "оттуда ты попадёшь сюда с одноразовым кодом."
+    N_("Привет! Этот бот подтверждает вход в портал подготовки к олимпиадам.\n\n"
+       "Открой страницу входа на сайте и нажми кнопку «Войти через Telegram» — "
+       "оттуда ты попадёшь сюда с одноразовым кодом.")
 )
 
 
@@ -86,13 +88,13 @@ async def _handle_start(api: TelegramAPI, sender: dict, chat_id: int, code: str)
         token = await session.scalar(select(LoginToken).where(LoginToken.code == code))
         now = utcnow()
         if token is None:
-            await api.send_message(chat_id, "Код не найден. Открой страницу входа заново.")
+            await api.send_message(chat_id, _("Код не найден. Открой страницу входа заново."))
             return
         if token.consumed_at is not None:
-            await api.send_message(chat_id, "Этот код уже использован. Запроси новый.")
+            await api.send_message(chat_id, _("Этот код уже использован. Запроси новый."))
             return
         if token.expires_at < now:
-            await api.send_message(chat_id, "Код истёк. Открой страницу входа заново.")
+            await api.send_message(chat_id, _("Код истёк. Открой страницу входа заново."))
             return
 
         token.telegram_id = sender["id"]
@@ -103,9 +105,9 @@ async def _handle_start(api: TelegramAPI, sender: dict, chat_id: int, code: str)
 
     await api.send_message(
         chat_id,
-        "Вход подтверждён ✅ Возвращайся на вкладку с сайтом — она откроется сама.\n\n"
-        "Если ты <b>не</b> открывал страницу входа — значит, код прислал кто-то другой. "
-        "Напиши преподавателю.",
+        _("Вход подтверждён ✅ Возвращайся на вкладку с сайтом — она откроется сама.\n\n"
+          "Если ты <b>не</b> открывал страницу входа — значит, код прислал кто-то другой. "
+          "Напиши преподавателю."),
     )
 
 
@@ -122,18 +124,19 @@ async def _handle_update(api: TelegramAPI, update: dict) -> None:
         if len(parts) == 2 and parts[1].strip():
             await _handle_start(api, sender, chat_id, parts[1].strip())
         else:
-            await api.send_message(chat_id, WELCOME)
+            await api.send_message(chat_id, _(WELCOME))
         return
 
     if text.startswith("/help"):
-        await api.send_message(chat_id, WELCOME)
+        await api.send_message(chat_id, _(WELCOME))
         return
 
     if text.startswith("/id"):
-        lines = [f"Твой telegram id: <code>{sender['id']}</code>"]
+        lines = [_("Твой telegram id: <code>%(id)s</code>") % {"id": sender["id"]}]
         if (message.get("chat") or {}).get("type") != "private":
             lines.append(
-                f"Id этого чата: <code>{chat_id}</code> — впиши его в настройках группы на портале."
+                _("Id этого чата: <code>%(id)s</code> — впиши его в настройках группы на портале.")
+                % {"id": chat_id}
             )
         await api.send_message(chat_id, "\n".join(lines))
 

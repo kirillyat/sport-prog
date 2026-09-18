@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import translate as _
 from app.models import (
     Assignment,
     Group,
@@ -241,7 +242,7 @@ async def build_feed(
             FeedItem(
                 user=user,
                 platform=Platform(row.platform),
-                title=(problem.title if problem else row.title) or "задача",
+                title=(problem.title if problem else row.title) or _("задача"),
                 solved_at=row.solved_at,
                 problem=problem,
                 assignment=_match_assignment(index, row.user_id, row.problem_id, row.solved_at),
