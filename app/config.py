@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     judge0_token: str = ""
     judge0_language_id: int = 71  # Python 3 в стандартной сборке judge0
     judge0_timeout: float = 30.0
+    # Общий срок на прогон по всем тестам: дальше честнее сказать «не успели»,
+    # чем держать студента и соединение к судье.
+    judge0_total_timeout: float = 120.0
     # Сколько раз студент может сдать одну задачу контрольной.
     task_attempts: int = 5
     # Язык портала для тех, кто ничего не выбрал: ru, en или fr. Выбор человека

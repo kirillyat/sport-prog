@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ _("Мои оценки") }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<h1>{{ _("Мои оценки") }}</h1>
+<p class="sub">{{ _("Ведомость показывает только твою строку — чужих оценок здесь нет.") }}</p>
+
+{% if not rows %}
+<div class="card">{{ empty("edit", _("Оценок пока нет: преподаватель ещё не завёл ведомость.")) }}</div>
+{% endif %}
+
+{% for group, sheet in rows %}
+{% set total = sheet.total(user.id) %}
+<h2>{{ icon("users") }} {{ group.title }}</h2>
+<div class="card">
+  <div class="row">
+    <span class="badge">{{ _("баллов: %(points)s") % {"points": total.points | round(1)} }}</span>
+    <span class="badge">{{ _("зачтено: %(done)s из %(all)s") % {"done": total.passed, "all": total.gradable} }}</span>
+    {% if total.lessons %}
+    <span class="badge">{{ _("посещено: %(was)s из %(all)s") % {"was": total.present, "all": total.lessons} }}</span>
+    {% endif %}
+  </div>
+</div>
+
+{% if sheet.columns %}
+<div class="card table-wrap" style="padding:6px">
+  <table>
+    <thead>
+      <tr><th>{{ _("Работа") }}</th><th>{{ _("Оценка") }}</th><th>{{ _("Комментарий") }}</th></tr>
+    </thead>
+    <tbody>
+      {% for column in sheet.columns %}
+      {% set value = sheet.value(user.id, column.id) %}
+      <tr>
+        <td>
+          {{ column.title }}
+          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | day }}</span>{% endif %}
+        </td>
+        <td>
+          {% if column.kind == "attendance" %}
+            {% if value.attendance == "absent" %}<span class="badge err">{{ _("не был") }}</span>
+            {% elif value.attendance == "excused" %}<span class="badge">{{ _("уважительная") }}</span>
+            {% else %}<span class="badge ok">{{ icon("check") }} {{ _("был") }}</span>{% endif %}
+          {% elif column.kind == "assignment" %}
+            <span class="badge {{ 'ok' if value.passed }}">{{ value.solved }} / {{ value.total }}</span>
+          {% elif column.scale == "points" %}
+            {% if value.points is none %}<span class="muted">{{ _("ещё не оценено") }}</span>
+            {% else %}<span class="badge">{{ value.points | round(1) }} / {{ column.max_points | round(1) }}</span>{% endif %}
+          {% else %}
+            {% if value.passed is none %}<span class="muted">{{ _("ещё не оценено") }}</span>
+            {% elif value.passed %}<span class="badge ok">{{ icon("check") }} {{ _("зачёт") }}</span>
+            {% else %}<span class="badge err">{{ _("незачёт") }}</span>{% endif %}
+          {% endif %}
+        </td>
+        <td class="small muted">{{ value.comment }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

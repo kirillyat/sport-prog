@@ -113,6 +113,25 @@ class SolveStatus(enum.StrEnum):
     solved_before = "solved_before"      # решена до выдачи задания — не засчитываем
 
 
+class SheetKind(enum.StrEnum):
+    """Откуда в колонке ведомости берётся значение."""
+
+    assignment = "assignment"   # считается из задания портала
+    attendance = "attendance"   # отметка на занятии
+    manual = "manual"           # преподаватель ставит рукой
+
+
+class SheetScale(enum.StrEnum):
+    pass_fail = "pass_fail"
+    points = "points"
+
+
+class Attendance(enum.StrEnum):
+    present = "present"
+    absent = "absent"
+    excused = "excused"     # уважительная причина
+
+
 class ReviewStatus(enum.StrEnum):
     pending = "pending"     # прислано, ждёт преподавателя
     accepted = "accepted"
@@ -605,3 +624,57 @@ class SyncState(Base):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class SheetColumn(Base):
+    """Колонка ведомости группы: работа, за которую бывает оценка.
+
+    Колонки принадлежат группе, а не курсу: разные группы ведут разные
+    преподаватели и разным темпом. Чтобы не заводить одно и то же трижды,
+    структуру можно скопировать из другой группы.
+    """
+
+    __tablename__ = "sheet_columns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[SheetKind] = mapped_column(EnumStr(SheetKind), default=SheetKind.manual)
+    scale: Mapped[SheetScale] = mapped_column(EnumStr(SheetScale), default=SheetScale.pass_fail)
+    max_points: Mapped[float] = mapped_column(Float, default=1)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    # Для колонки-задания: откуда считать и сколько задач хватает на зачёт.
+    # Порог пуст — нужны все задачи задания.
+    assignment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE")
+    )
+    required_solved: Mapped[int | None] = mapped_column(Integer)
+    # Для посещаемости: дата занятия. Ведомость сортируется по ней и позиции.
+    held_on: Mapped[datetime | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class SheetMark(Base):
+    """Оценка студента в колонке. Строки нет — работа ещё не оценена.
+
+    Колонки-задания сюда не пишутся: их значение считается из посылок тем же
+    правилом, что табло и матрица. Две правды об одном и том же — верный
+    способ перестать верить обеим.
+    """
+
+    __tablename__ = "sheet_marks"
+    __table_args__ = (UniqueConstraint("column_id", "user_id", name="uq_sheet_mark"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    column_id: Mapped[int] = mapped_column(
+        ForeignKey("sheet_columns.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    points: Mapped[float | None] = mapped_column(Float)
+    passed: Mapped[bool | None] = mapped_column(Boolean)
+    attendance: Mapped[Attendance | None] = mapped_column(EnumStr(Attendance))
+    comment: Mapped[str | None] = mapped_column(String(500))
+    graded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    graded_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

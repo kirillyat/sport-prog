@@ -710,3 +710,23 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .math-block { display: block; overflow-x: auto; margin: 12px 0; text-align: center; }
 .math-block math { font-size: 1.15em; }
 .math-raw { font-family: var(--mono); font-size: 12px; color: var(--err); }
+
+
+/* Отметка посещаемости: крупные цели для пальца — её ставят на паре с телефона. */
+.attend-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.attend-row:last-of-type { border-bottom: 0; }
+.attend-name { font-weight: 600; }
+.attend-states { display: flex; gap: 6px; flex-wrap: wrap; }
+.attend-states .chip { cursor: pointer; }
+.attend-states .chip input { position: absolute; opacity: 0; pointer-events: none; }
+.attend-states .chip span {
+  display: inline-block; padding: 8px 14px; border: 2px solid var(--ink);
+  border-radius: 999px; font-size: .85rem; background: var(--paper);
+}
+.attend-states .chip input:checked + span { background: var(--ink); color: var(--paper); }
+.attend-states .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+input.narrow { max-width: 90px; }

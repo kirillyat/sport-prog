@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ _("Ведомость") }} — {{ group.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/teacher/groups/{{ group.id }}">{{ group.title }}</a></p>
+    <h1>{{ _("Ведомость") }}</h1>
+  </div>
+  <div class="row">
+    <a class="btn ghost small" href="/teacher/groups/{{ group.id }}/sheet/columns">
+      {{ icon("edit") }} {{ _("Колонки") }}
+    </a>
+    <a class="btn ghost small" href="/teacher/groups/{{ group.id }}/sheet.csv">
+      {{ icon("download") }} CSV
+    </a>
+  </div>
+</div>
+
+{% if not sheet.columns %}
+<div class="card">
+  {{ empty("edit", _("Колонок пока нет — заведи первую работу."),
+           "/teacher/groups/" ~ group.id ~ "/sheet/columns", _("Завести колонку")) }}
+</div>
+{% elif not sheet.students %}
+<div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
+{% else %}
+<div class="card table-wrap" style="padding:6px">
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>{{ _("Студент") }}</th>
+        {% for column in sheet.columns %}
+        <th>
+          {% if column.kind == "assignment" %}
+          <span title="{{ column.title }} — {{ _("считается из задания") }}">{{ column.title }}</span>
+          {% else %}
+          <a href="/teacher/sheet/{{ column.id }}" title="{{ _("проставить") }}">{{ column.title }}</a>
+          {% endif %}
+        </th>
+        {% endfor %}
+        <th>{{ _("Баллы") }}</th>
+        <th>{{ _("Зачтено") }}</th>
+        <th>{{ _("Посещено") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in sheet.students %}
+      {% set total = sheet.total(student.id) %}
+      <tr>
+        <td><a href="/u/{{ student.id }}">{{ student.display_name }}</a></td>
+        {% for column in sheet.columns %}
+        {% set value = sheet.value(student.id, column.id) %}
+        <td class="cell {{ 'counted' if value.counted }}"
+            {% if value.comment %}title="{{ value.comment }}"{% endif %}>
+          {% if column.kind == "attendance" %}
+            {% if value.attendance == "present" %}{{ icon("check") }}
+            {% elif value.attendance == "absent" %}{{ icon("close") }}
+            {% elif value.attendance == "excused" %}<span class="small">{{ _("ув.") }}</span>
+            {% else %}<span class="muted">—</span>{% endif %}
+          {% elif column.kind == "assignment" %}
+            <span class="small">{{ value.solved }} / {{ value.total }}</span>
+          {% elif column.scale == "points" %}
+            {% if value.points is none %}<span class="muted">—</span>
+            {% else %}<span class="small">{{ value.points | round(1) }}</span>{% endif %}
+          {% else %}
+            {% if value.passed is none %}<span class="muted">—</span>
+            {% elif value.passed %}{{ icon("check") }}
+            {% else %}{{ icon("close") }}{% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="num">{{ total.points | round(1) }}</td>
+        <td class="num">{{ total.passed }} / {{ total.gradable }}</td>
+        <td class="num">{{ total.present }} / {{ total.lessons }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="small muted">
+  {{ _("Колонка-задание считается сама — тем же правилом, что табло и матрица. Остальное ставится на странице колонки.") }}
+</p>
+{% endif %}
+{% endblock %}

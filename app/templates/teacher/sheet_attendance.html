@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ column.title }} — {{ group.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
+    </p>
+    <h1>{{ column.title }}</h1>
+    {% if column.held_on %}<p class="sub">{{ column.held_on | day }}</p>{% endif %}
+  </div>
+</div>
+
+{% if not students %}
+<div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
+{% else %}
+<form method="post" action="/teacher/sheet/{{ column.id }}">
+  <div class="card">
+    <p class="small muted" style="margin-top:0">
+      {{ _("Отмечать нужно только тех, кого не было: остальные считаются пришедшими.") }}
+    </p>
+    {% for student in students %}
+    {% set mark = marks.get(student.id) %}
+    {% set state = mark.attendance if mark else "present" %}
+    <div class="attend-row">
+      <span class="attend-name">{{ student.display_name }}</span>
+      <span class="attend-states">
+        <label class="chip">
+          <input type="radio" name="mark:{{ student.id }}" value="present"
+                 {{ 'checked' if state == "present" }}>
+          <span>{{ _("был") }}</span>
+        </label>
+        <label class="chip">
+          <input type="radio" name="mark:{{ student.id }}" value="absent"
+                 {{ 'checked' if state == "absent" }}>
+          <span>{{ _("не был") }}</span>
+        </label>
+        <label class="chip">
+          <input type="radio" name="mark:{{ student.id }}" value="excused"
+                 {{ 'checked' if state == "excused" }}>
+          <span>{{ _("уважительная") }}</span>
+        </label>
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="row">
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+    <a class="btn ghost" href="/teacher/groups/{{ group.id }}/sheet">{{ _("Отмена") }}</a>
+  </div>
+  <p class="small muted">
+    {{ _("Уважительная причина не считается пропуском, но и в число занятий не идёт.") }}
+  </p>
+</form>
+{% endif %}
+{% endblock %}

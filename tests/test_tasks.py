@@ -311,3 +311,55 @@ async def test_judge_is_configured_outside_the_tasks_page(session, client):
 
     own = await client.get("/teacher/judge")
     assert own.status_code == 200 and 'action="/teacher/judge"' in own.text
+
+
+async def test_the_database_is_released_while_the_judge_thinks(
+    session, client, task, monkeypatch
+):
+    """Судья отвечает секундами. Держать всё это время соединение к базе
+    нельзя: пятнадцати таких ожиданий хватало, чтобы у остальных перестали
+    открываться страницы."""
+    seen = {}
+
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        seen["в транзакции"] = session.in_transaction()
+        return judge.RunResult(
+            results=[judge.TestResult(position=0, is_open=True, passed=True, status="Accepted")]
+        )
+
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", fake_run)
+    await _login(client, "Аня")
+
+    await client.post(f"/tasks/{task.slug}/run", data={"code": "print(1)"})
+    assert seen["в транзакции"] is False
+
+
+async def test_one_run_at_a_time_per_student():
+    """Десять нажатий подряд заняли бы десять воркеров судьи на всю группу."""
+    from app.routers.tasks import _Busy, _one_at_a_time
+
+    async with _one_at_a_time(7):
+        with pytest.raises(_Busy):
+            async with _one_at_a_time(7):
+                pass
+        # Соседа это не касается.
+        async with _one_at_a_time(8):
+            pass
+
+    # После выхода очередь свободна.
+    async with _one_at_a_time(7):
+        pass
+
+
+async def test_a_huge_paste_is_refused_before_the_judge_sees_it(session, client, task):
+    """Мегабайт из буфера обмена уехал бы к судье столько раз, сколько тестов."""
+    from app.services import solutions
+
+    await _login(client, "Аня")
+    page = await client.post(
+        f"/tasks/{task.slug}/submit", data={"code": "x" * (solutions.MAX_CHARS + 1)}
+    )
+
+    assert "длиннее" in page.text
+    assert (await session.execute(select(Submission))).scalars().all() == []

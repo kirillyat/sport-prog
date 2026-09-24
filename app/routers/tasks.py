@@ -3,10 +3,18 @@
 Страница одна на задачу: условие, открытые тесты, редактор и три кнопки.
 Прогон открытых тестов ничего не стоит — он про «я правильно понял условие».
 Сдача тратит попытку и идёт по всем тестам, включая закрытые.
+
+Разговор с судьёй длится секунды, и всё это время портал не должен ничего
+держать. Отсюда два правила ниже: соединение к базе отпускается перед
+запросом к судье, а на человека приходится один прогон за раз. Без первого
+пятнадцати одновременных сдач хватало, чтобы у остальных перестали
+открываться страницы; без второго один студент занимал бы очередь судьи
+на всю группу.
 """
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
@@ -20,6 +28,56 @@ from app.services import judge, notebook, solutions, tasks
 from app.templating import templates
 
 router = APIRouter(tags=["tasks"])
+
+# Кто прямо сейчас ждёт судью. Портал живёт одним процессом, поэтому
+# обычного множества достаточно — ни Redis, ни блокировок в базе.
+_running: set[int] = set()
+
+
+class _Busy(Exception):
+    """У этого студента уже идёт прогон."""
+
+
+@asynccontextmanager
+async def _one_at_a_time(user_id: int):
+    if user_id in _running:
+        raise _Busy
+    _running.add(user_id)
+    try:
+        yield
+    finally:
+        _running.discard(user_id)
+
+
+async def _judged(session: SessionDep, cfg, code: str, tests: list, limits: tuple[int, int]):
+    """Прогон с отпущенным соединением к базе.
+
+    Сессия держит соединение, пока открыта транзакция, а судья отвечает
+    секундами. Пятнадцать таких ожиданий выбирали весь пул, и у остальных
+    переставали открываться страницы — поэтому тесты и лимиты забираем
+    заранее, а перед запросом транзакцию закрываем.
+
+    Именно коммитом, хотя писать нечего: откат обнуляет уже загруженные
+    строки, и первое же обращение к ним из шаблона полезло бы в базу
+    посреди отрисовки. Коммит при `expire_on_commit=False` их сохраняет.
+    """
+    await session.commit()
+    return await judge.run(cfg, code, tests, *limits)
+
+
+def _solution(code: str) -> tuple[str, str]:
+    """Нормализованный код и причина отказа, если он не годится.
+
+    Длину ограничиваем и здесь, а не только при отправке преподавателю:
+    иначе мегабайт из буфера обмена уедет к судье столько раз, сколько
+    в задаче тестов.
+    """
+    text = code.replace("\r\n", "\n").strip()
+    if not text:
+        return "", _("Пустое решение")
+    if len(text) > solutions.MAX_CHARS:
+        return text, _("Решение длиннее %(limit)s символов") % {"limit": solutions.MAX_CHARS}
+    return text, ""
 
 
 def _not_found() -> RedirectResponse:
@@ -98,15 +156,20 @@ async def run_open_tests(
         return _not_found()
     problem, task = found
 
-    text = code.replace("\r\n", "\n").strip()
-    if not text:
-        return await _page(request, session, user, problem, task, error=_("Пустое решение"))
+    text, error = _solution(code)
+    if error:
+        return await _page(request, session, user, problem, task, error=error)
 
-    open_tests = await tasks.tests_for(session, task, only_open=True)
+    cfg = await judge.config(session)
+    open_tests = judge.cases(await tasks.tests_for(session, task, only_open=True))
+    limits = (task.time_limit_ms, task.memory_limit_mb)
     try:
-        cfg = await judge.config(session)
-        result = await judge.run(
-            cfg, text, open_tests, task.time_limit_ms, task.memory_limit_mb
+        async with _one_at_a_time(user.id):
+            result = await _judged(session, cfg, text, open_tests, limits)
+    except _Busy:
+        return await _page(
+            request, session, user, problem, task, code=text,
+            error=_("Предыдущий прогон ещё идёт — подожди его конца"),
         )
     except judge.JudgeUnavailable as exc:
         await judge.note(session, str(exc))
@@ -128,9 +191,9 @@ async def submit(
         return _not_found()
     problem, task = found
 
-    text = code.replace("\r\n", "\n").strip()
-    if not text:
-        return await _page(request, session, user, problem, task, error=_("Пустое решение"))
+    text, error = _solution(code)
+    if error:
+        return await _page(request, session, user, problem, task, error=error)
 
     used = await tasks.attempts_used(session, user.id, problem.id)
     if used >= settings.task_attempts:
@@ -141,10 +204,15 @@ async def submit(
     verdict, accepted, result = _("Не проверено"), False, None
     cfg = await judge.config(session)
     if cfg.ready:
+        all_tests = judge.cases(await tasks.tests_for(session, task))
+        limits = (task.time_limit_ms, task.memory_limit_mb)
         try:
-            all_tests = await tasks.tests_for(session, task)
-            result = await judge.run(
-                cfg, text, all_tests, task.time_limit_ms, task.memory_limit_mb
+            async with _one_at_a_time(user.id):
+                result = await _judged(session, cfg, text, all_tests, limits)
+        except _Busy:
+            return await _page(
+                request, session, user, problem, task, code=text,
+                error=_("Предыдущий прогон ещё идёт — подожди его конца"),
             )
         except judge.JudgeUnavailable as exc:
             # Попытку не тратим: студент не виноват, что судья лёг.
@@ -196,14 +264,9 @@ async def send_to_teacher(
         return _not_found()
     problem, task = found
 
-    text = code.replace("\r\n", "\n").strip()
-    if not text:
-        return await _page(request, session, user, problem, task, error=_("Пустое решение"))
-    if len(text) > solutions.MAX_CHARS:
-        return await _page(
-            request, session, user, problem, task, code=text,
-            error=_("Решение длиннее %(limit)s символов") % {"limit": solutions.MAX_CHARS},
-        )
+    text, error = _solution(code)
+    if error:
+        return await _page(request, session, user, problem, task, code=text, error=error)
 
     assignment = await tasks.assignment_for(session, user.id, problem.id)
     if assignment is None:

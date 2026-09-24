@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ column.title }} — {{ group.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
+    </p>
+    <h1>{{ column.title }}</h1>
+  </div>
+  <span class="badge">
+    {% if column.scale == "points" %}{{ _("баллы, максимум %(max)s") % {"max": column.max_points | round(1)} }}
+    {% else %}{{ _("зачёт или незачёт") }}{% endif %}
+  </span>
+</div>
+
+{% if not students %}
+<div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
+{% else %}
+<form method="post" action="/teacher/sheet/{{ column.id }}">
+  <div class="card table-wrap" style="padding:6px">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ _("Студент") }}</th>
+          <th>{% if column.scale == "points" %}{{ _("Балл") }}{% else %}{{ _("Оценка") }}{% endif %}</th>
+          <th>{{ _("Комментарий") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        {% set mark = marks.get(student.id) %}
+        <tr>
+          <td>{{ student.display_name }}</td>
+          <td>
+            {% if column.scale == "points" %}
+            <input type="text" name="mark:{{ student.id }}" inputmode="decimal" class="narrow"
+                   value="{{ mark.points if mark and mark.points is not none else '' }}">
+            {% else %}
+            <select name="mark:{{ student.id }}">
+              <option value="" {{ 'selected' if not mark or mark.passed is none }}>{{ _("не смотрел") }}</option>
+              <option value="yes" {{ 'selected' if mark and mark.passed }}>{{ _("зачёт") }}</option>
+              <option value="no" {{ 'selected' if mark and mark.passed is not none and not mark.passed }}>{{ _("незачёт") }}</option>
+            </select>
+            {% endif %}
+          </td>
+          <td>
+            <input type="text" name="comment:{{ student.id }}" placeholder="{{ _("виден студенту") }}"
+                   value="{{ mark.comment or '' if mark else '' }}">
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="row">
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+    <a class="btn ghost" href="/teacher/groups/{{ group.id }}/sheet">{{ _("Отмена") }}</a>
+  </div>
+  <p class="small muted">
+    {{ _("«Не смотрел» и «незачёт» — разные вещи: первое значит, что работа ещё не проверена, второе — что проверена и не зачтена.") }}
+  </p>
+</form>
+{% endif %}
+{% endblock %}

@@ -16,12 +16,19 @@
 этом говорим, вместо того чтобы притворяться, будто проверили.
 
 Тесты гоняются подряд, по одному запросу на тест: наборы маленькие, а один
-общий запрос не дал бы понять, на каком тесте решение упало.
+общий запрос не дал бы понять, на каком тесте решение упало. Весь прогон
+уложен в общий срок: медленный судья не должен держать студента в ожидании
+бесконечно.
+
+Тесты сюда приезжают простыми `Case`, а не строками базы: разговор с судьёй
+длится секунды, и всё это время сессия базы должна быть отпущена.
 """
 
 from __future__ import annotations
 
 import logging
+import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -47,6 +54,23 @@ VERSION_KEY = "judge0_version"
 
 class JudgeUnavailable(RuntimeError):
     """Судья не настроен или не отвечает."""
+
+
+@dataclass(frozen=True, slots=True)
+class Case:
+    """Тест, отвязанный от базы: его можно держать, пока сессия закрыта."""
+
+    position: int
+    is_open: bool
+    stdin: str
+    expected: str
+
+
+def cases(tests: Iterable[TaskTest]) -> list[Case]:
+    return [
+        Case(position=t.position, is_open=t.is_open, stdin=t.stdin, expected=t.expected)
+        for t in tests
+    ]
 
 
 @dataclass(slots=True)
@@ -208,7 +232,7 @@ async def ping(cfg: Config) -> str:
 
 
 async def run(
-    cfg: Config, code: str, tests: list[TaskTest], time_limit_ms: int, memory_limit_mb: int
+    cfg: Config, code: str, tests: list[Case], time_limit_ms: int, memory_limit_mb: int
 ) -> RunResult:
     """Прогоняет код по тестам. Падение судьи — исключение, а не пустой результат."""
     if not cfg.ready:
@@ -217,16 +241,26 @@ async def run(
     base = cfg.url.rstrip("/")
     headers = _headers(cfg)
     results: list[TestResult] = []
+    deadline = time.monotonic() + settings.judge0_total_timeout
     try:
         async with httpx.AsyncClient(timeout=settings.judge0_timeout) as client:
             for test in tests:
+                if time.monotonic() > deadline:
+                    raise JudgeUnavailable(
+                        f"проверка не уложилась в {int(settings.judge0_total_timeout)} с"
+                    )
                 payload = {
                     "source_code": code,
                     "language_id": settings.judge0_language_id,
                     "stdin": test.stdin,
                     "expected_output": test.expected,
                     "cpu_time_limit": round(time_limit_ms / 1000, 2),
+                    # Процессорное время не ловит решение, которое спит или
+                    # ждёт ввода: оно не считается, а воркер судьи занят.
+                    "wall_time_limit": round(time_limit_ms / 1000 * 2 + 1, 2),
                     "memory_limit": memory_limit_mb * 1024,
+                    # Контрольная: решение не должно ходить в сеть.
+                    "enable_network": False,
                 }
                 response = await client.post(
                     f"{base}/submissions",
@@ -242,7 +276,7 @@ async def run(
     return RunResult(results=results)
 
 
-def _result(test: TaskTest, data: dict) -> TestResult:
+def _result(test: Case, data: dict) -> TestResult:
     status = data.get("status") or {}
     status_id = status.get("id")
     # Описание берём от судьи: «Wrong Answer», «Time Limit Exceeded» и прочие.

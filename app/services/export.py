@@ -100,6 +100,45 @@ def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> byte
     return to_csv(header, body)
 
 
+def sheet_csv(built) -> bytes:
+    """Ведомость группы. Итог тремя числами — так же, как на странице."""
+    header = [_("Студент")]
+    header += [column.title for column in built.columns]
+    header += [_("Баллы"), _("Зачтено"), _("Посещено")]
+
+    body: list[list[object]] = []
+    for student in built.students:
+        total = built.total(student.id)
+        line: list[object] = [student.display_name]
+        for column in built.columns:
+            line.append(_cell(built.value(student.id, column.id), column))
+        line += [
+            total.points,
+            f"{total.passed} / {total.gradable}",
+            f"{total.present} / {total.lessons}",
+        ]
+        body.append(line)
+    return to_csv(header, body)
+
+
+def _cell(value, column) -> str:
+    from app.models import Attendance, SheetKind, SheetScale
+
+    if column.kind == SheetKind.attendance:
+        return {
+            Attendance.present: _("был"),
+            Attendance.absent: _("не был"),
+            Attendance.excused: _("уважительная"),
+        }.get(value.attendance, "")
+    if column.kind == SheetKind.assignment:
+        return "" if value.total is None else f"{value.solved} / {value.total}"
+    if column.scale == SheetScale.points:
+        return "" if value.points is None else str(value.points)
+    if value.passed is None:
+        return ""
+    return _("зачёт") if value.passed else _("незачёт")
+
+
 def filename(prefix: str, moment: datetime) -> str:
     """Только латиница и цифры: имя файла едет в заголовок ответа."""
     return f"{prefix}-{moment:%Y-%m-%d}.csv"

@@ -50,6 +50,7 @@
     {{ navlink("/teacher/groups", "users", _("Группы")) }}
     {{ navlink("/teacher/assignments", "tasks", _("Задания")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
+    {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
     {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
@@ -57,6 +58,7 @@
     {{ navlink("/leaderboard", "trophy", _("Табло")) }}
   {% else %}
     {{ navlink("/", "tasks", _("Задания")) }}
+    {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
     {{ navlink("/announcements", "megaphone", _("Анонсы")) }}

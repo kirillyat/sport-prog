@@ -8,7 +8,12 @@
     <h1>{{ group.title }}</h1>
     <p class="sub">{{ _("Код для вступления:") }} <span class="badge mono">{{ group.join_code }}</span></p>
   </div>
-  <a class="btn ghost small" href="/feed?group_id={{ group.id }}">{{ icon("activity") }} {{ _("Лента группы") }}</a>
+  <div class="row">
+    <a class="btn ghost small" href="/teacher/groups/{{ group.id }}/sheet">
+      {{ icon("edit") }} {{ _("Ведомость") }}
+    </a>
+    <a class="btn ghost small" href="/feed?group_id={{ group.id }}">{{ icon("activity") }} {{ _("Лента группы") }}</a>
+  </div>
 </div>
 
 {% if settings.telegram_enabled %}

@@ -26,6 +26,7 @@ from app.routers import (
     ingest,
     leaderboard,
     materials,
+    sheet,
     solutions,
     student,
     tasks,
@@ -115,6 +116,7 @@ app.include_router(materials.router, dependencies=[Depends(section_required("mat
 app.include_router(course.router, dependencies=[Depends(section_required("course"))])
 app.include_router(solutions.router)
 app.include_router(tasks.router)
+app.include_router(sheet.router, dependencies=[Depends(section_required("grades"))])
 app.include_router(ingest.router)
 app.include_router(view.router)
 app.include_router(leaderboard.router)

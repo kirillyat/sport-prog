@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ _("Колонки ведомости") }} — {{ group.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      <a href="/teacher/groups/{{ group.id }}">{{ group.title }}</a> /
+      <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a>
+    </p>
+    <h1>{{ _("Колонки ведомости") }}</h1>
+  </div>
+</div>
+
+<div class="card">
+  <h3>{{ icon("plus") }} {{ _("Новая колонка") }}</h3>
+  <form method="post" action="/teacher/groups/{{ group.id }}/sheet/columns">
+    <div class="grid two">
+      <div class="field">
+        <label for="title">{{ _("Название") }}</label>
+        <input type="text" id="title" name="title" placeholder="{{ _("Семинар 3") }}" required>
+      </div>
+      <div class="field">
+        <label for="kind">{{ _("Вид") }}</label>
+        <select id="kind" name="kind">
+          <option value="manual">{{ _("Ручная оценка") }}</option>
+          <option value="attendance">{{ _("Посещаемость") }}</option>
+          <option value="assignment">{{ _("Задание портала") }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid two">
+      <div class="field">
+        <label for="scale">{{ _("Шкала") }}</label>
+        <select id="scale" name="scale">
+          <option value="pass_fail">{{ _("Зачёт или незачёт") }}</option>
+          <option value="points">{{ _("Баллы") }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="max_points">{{ _("Максимум баллов") }}</label>
+        <input type="text" id="max_points" name="max_points" value="1">
+      </div>
+    </div>
+    <div class="grid two">
+      <div class="field">
+        <label for="assignment_id">{{ _("Задание — для колонки-задания") }}</label>
+        <select id="assignment_id" name="assignment_id">
+          <option value="">{{ _("не выбрано") }}</option>
+          {% for item in assignments %}
+          <option value="{{ item.id }}">{{ item.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="required_solved">{{ _("Задач на зачёт (пусто — все)") }}</label>
+        <input type="text" id="required_solved" name="required_solved" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field">
+      <label for="held_on">{{ _("Дата занятия — для посещаемости") }}</label>
+      <input type="datetime-local" id="held_on" name="held_on">
+    </div>
+    <p class="small muted">
+      {{ _("Посещаемость всегда отметка, не балл: явка и работа весят по-разному, и складывать их портал не берётся.") }}
+    </p>
+    <button type="submit">{{ icon("plus") }} {{ _("Добавить") }}</button>
+  </form>
+</div>
+
+{% if columns %}
+<div class="card table-wrap" style="padding:6px">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>{{ _("Колонка") }}</th><th>{{ _("Вид") }}</th>
+        <th>{{ _("Шкала") }}</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for column in columns %}
+      <tr>
+        <td class="muted num">{{ loop.index }}</td>
+        <td>
+          {% if column.kind == "assignment" %}{{ column.title }}
+          {% else %}<a href="/teacher/sheet/{{ column.id }}">{{ column.title }}</a>{% endif %}
+          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | day }}</span>{% endif %}
+        </td>
+        <td class="small muted">
+          {% if column.kind == "assignment" %}{{ _("из задания") }}
+          {% elif column.kind == "attendance" %}{{ _("посещаемость") }}
+          {% else %}{{ _("рукой") }}{% endif %}
+        </td>
+        <td class="small muted">
+          {% if column.kind == "attendance" %}—
+          {% elif column.scale == "points" %}{{ _("баллы, максимум %(max)s") % {"max": column.max_points | round(1)} }}
+          {% else %}{{ _("зачёт") }}{% endif %}
+        </td>
+        <td>
+          <form method="post" action="/teacher/sheet/{{ column.id }}/delete"
+                onsubmit="return confirm('{{ _("Удалить колонку вместе с оценками?") }}')">
+            <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Удалить") }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">{{ empty("edit", _("Колонок пока нет — заведи первую в форме выше.")) }}</div>
+{% endif %}
+
+{% if others %}
+<h2>{{ icon("layers") }} {{ _("Взять структуру у другой группы") }}</h2>
+<div class="card">
+  <p class="small muted" style="margin-top:0">
+    {{ _("Переносятся только колонки, без оценок. Колонка-задание переносится без привязки: задание выдано другой группе.") }}
+  </p>
+  <form method="post" action="/teacher/groups/{{ group.id }}/sheet/copy" class="inline-form">
+    <div class="field" style="flex:1; min-width:220px">
+      <label for="source_id">{{ _("Откуда") }}</label>
+      <select id="source_id" name="source_id">
+        {% for item in others %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="ghost" type="submit">{{ icon("layers") }} {{ _("Скопировать") }}</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
