@@ -40,7 +40,18 @@
 {% endif %}
 
 <div class="card table-wrap" style="padding:6px">
-  <table class="matrix">
+  {# Ширину таблицы считаем сами: без неё браузер игнорирует жёсткую
+     раскладку и снова растягивает колонки под длину подписей.
+     190 на имя, по 78 на три итога, по 58 на клетку. #}
+  {% set marks = blocks | map(attribute="columns") | map("length") | sum %}
+  <table class="matrix sheet" style="width: {{ 190 + 78 * 3 + 58 * marks }}px">
+    {# Ширины колонок заданы явно: иначе колонку растягивает подпись занятия,
+       и клетки внутри блока разъезжаются относительно его шапки. #}
+    <colgroup>
+      <col class="col-name">
+      <col class="col-total"><col class="col-total"><col class="col-total">
+      {% for block in blocks %}{% for column in block.columns %}<col class="col-mark">{% endfor %}{% endfor %}
+    </colgroup>
     <thead>
       <tr>
         <th rowspan="2">{{ _("Студент") }}</th>
@@ -53,7 +64,7 @@
         <th colspan="{{ block.columns | length }}" class="block-head">
           {% if block.lesson %}
             <a href="/teacher/sheet/lessons/{{ block.lesson.id }}"
-               title="{{ _("заполнить занятие") }}">{{ block.lesson.title }}</a>
+               title="{{ block.lesson.title }} — {{ _("заполнить занятие") }}">{{ block.lesson.title }}</a>
             {% if block.lesson.held_on %}<br><span class="small muted">{{ block.lesson.held_on | d }}</span>{% endif %}
           {% else %}
             <span class="small muted">{{ _("отдельно") }}</span>

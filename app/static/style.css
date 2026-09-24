@@ -1049,6 +1049,23 @@ input.narrow { max-width: 90px; }
 
 /* Шапка ведомости в два этажа: сверху занятие, под ним его оценки. */
 .matrix th.block-head { border-bottom: 2px solid var(--ink); }
+/* Ведомость: ширины колонок заданы, а не выведены из текста. Иначе занятие
+   с длинным названием раздвигает свои клетки, и таблица идёт волнами. */
+.matrix.sheet { table-layout: fixed; }
+.matrix.sheet .col-name { width: 190px; }
+.matrix.sheet .col-total { width: 78px; }
+.matrix.sheet .col-mark { width: 58px; }
+.matrix.sheet th.block-head {
+  font-size: 11px; text-transform: none; letter-spacing: .02em; line-height: 1.25;
+}
+/* Узкий блок — это одна клетка в 46 пикселей, и «Неделя 3 · лекция» в ней
+   разворачивается на четыре строки. Оставляем две, остальное — в подсказке. */
+.matrix.sheet th.block-head a {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.matrix.sheet td:first-child { white-space: normal; overflow-wrap: anywhere; }
+
 /* Подпись колонки не должна растягивать саму колонку: клетка — это значок,
    а не слово. Полное название остаётся подсказкой. */
 .matrix th.col-head {
@@ -1064,8 +1081,8 @@ input.narrow { max-width: 90px; }
   border-right: 2px solid var(--line-soft);
 }
 .matrix th.totals:nth-child(2), .matrix td.totals:nth-child(2) { left: 190px; border-right: 0; }
-.matrix th.totals:nth-child(3), .matrix td.totals:nth-child(3) { left: 250px; border-right: 0; }
-.matrix th.totals:nth-child(4), .matrix td.totals:nth-child(4) { left: 320px; }
+.matrix th.totals:nth-child(3), .matrix td.totals:nth-child(3) { left: 268px; border-right: 0; }
+.matrix th.totals:nth-child(4), .matrix td.totals:nth-child(4) { left: 346px; }
 
 
 /* --- Оценки студента ---------------------------------------------------
