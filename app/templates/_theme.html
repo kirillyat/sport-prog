@@ -1,0 +1,21 @@
+{#
+  Выбор оформления. Тема живёт в браузере, а не на сервере: это личная
+  настройка одного человека за одним экраном, и переносить её между
+  устройствами незачем. Раскрывается через <details>, как и выбор языка;
+  скрипт нужен только чтобы применить и запомнить выбор.
+#}
+{% macro theme_pick(extra="") -%}
+<details class="lang theme {{ extra }}">
+  <summary title="{{ _("Оформление") }}">{{ icon("palette") }}</summary>
+  <div class="lang-menu theme-menu">
+    {% for group, items in themes %}
+    {% if group %}<p class="theme-group">{{ _(group) }}</p>{% endif %}
+    {% for key, label in items %}
+    <button type="button" data-theme-set="{{ key }}">
+      <span class="swatch sw-{{ key }}"></span>{{ _(label) }}
+    </button>
+    {% endfor %}
+    {% endfor %}
+  </div>
+</details>
+{%- endmacro %}

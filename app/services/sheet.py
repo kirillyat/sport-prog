@@ -76,10 +76,32 @@ class Value:
 @dataclass(slots=True)
 class Total:
     points: float = 0
+    # Сколько баллов вообще можно набрать: сумма максимумов всех балльных
+    # колонок, включая ещё не оценённые. Процент считается от курса целиком,
+    # иначе первая же пятёрка из пяти покажет сто процентов за весь семестр.
+    points_max: float = 0
     passed: int = 0
     gradable: int = 0
+    # Работы, которых преподаватель ещё не касался. Без этого «2 из 7»
+    # выглядит провалом там, где пять работ просто ждут проверки.
+    ungraded: int = 0
     present: int = 0
     lessons: int = 0
+
+    def _percent(self, part: float, whole: float) -> int | None:
+        return round(part / whole * 100) if whole else None
+
+    @property
+    def points_percent(self) -> int | None:
+        return self._percent(self.points, self.points_max)
+
+    @property
+    def passed_percent(self) -> int | None:
+        return self._percent(self.passed, self.gradable)
+
+    @property
+    def present_percent(self) -> int | None:
+        return self._percent(self.present, self.lessons)
 
 
 @dataclass(slots=True)
@@ -127,8 +149,11 @@ class Sheet:
                 continue
             if column.scale == SheetScale.points:
                 total.points += value.points or 0
+                total.points_max += column.max_points
                 continue
             total.gradable += 1
+            if value.empty:
+                total.ungraded += 1
             if value.counted:
                 total.passed += 1
         return total

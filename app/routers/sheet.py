@@ -166,6 +166,32 @@ async def add_lesson(
     return _redirect(back, message=_("Занятие добавлено"))
 
 
+@router.post("/teacher/sheet/lessons/{lesson_id}")
+async def edit_lesson(
+    session: SessionDep,
+    user: TeacherUser,
+    lesson_id: int,
+    title: str = Form(...),
+    held_on: str = Form(""),
+):
+    """Правка занятия: название и дата.
+
+    Дату обычно вписывают потом — семестр заводят вперёд, а расписание
+    уточняется. Пустое поле снимает дату, а не оставляет прежнюю.
+    """
+    lesson = await session.get(SheetLesson, lesson_id)
+    if lesson is None:
+        return _redirect("/teacher/groups", error=_("Занятие не найдено"))
+    back = f"/teacher/groups/{lesson.group_id}/sheet/columns"
+    if not title.strip():
+        return _redirect(back, error=_("Пустое название"))
+
+    lesson.title = title.strip()
+    lesson.held_on = parse_local_input(held_on) if held_on.strip() else None
+    await session.commit()
+    return _redirect(back, message=_("Занятие изменено"))
+
+
 @router.post("/teacher/sheet/lessons/{lesson_id}/delete")
 async def delete_lesson(session: SessionDep, user: TeacherUser, lesson_id: int):
     lesson = await session.get(SheetLesson, lesson_id)

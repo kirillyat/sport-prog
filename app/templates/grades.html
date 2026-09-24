@@ -12,13 +12,56 @@
 {% for group, sheet in rows %}
 {% set total = sheet.total(user.id) %}
 <h2>{{ icon("users") }} {{ group.title }}</h2>
-<div class="card">
-  <div class="row">
-    <span class="badge">{{ _("баллов: %(points)s") % {"points": total.points | round(1)} }}</span>
-    <span class="badge">{{ _("зачтено: %(done)s из %(all)s") % {"done": total.passed, "all": total.gradable} }}</span>
-    {% if total.lessons %}
-    <span class="badge">{{ _("посещено: %(was)s из %(all)s") % {"was": total.present, "all": total.lessons} }}</span>
+<div class="grid three stats">
+  {# Баллы. Процент от курса целиком, а не от уже оценённого: иначе первая
+     же пятёрка из пяти показывала бы сто процентов за весь семестр. #}
+  <div class="card stat">
+    <span class="stat-label">{{ _("Баллы") }}</span>
+    {% if total.points_percent is none %}
+    <span class="stat-value muted">—</span>
+    <span class="small muted">{{ _("балльных работ пока нет") }}</span>
+    {% else %}
+    <span class="stat-value">{{ total.points_percent }}<span class="stat-unit">%</span></span>
+    <span class="small muted">{{ total.points | round(1) }} {{ _("из") }} {{ total.points_max | round(1) }}</span>
+    <span class="bar"><span class="bar-fill" style="width: {{ total.points_percent }}%"></span></span>
     {% endif %}
+  </div>
+
+  <div class="card stat">
+    <span class="stat-label">{{ _("Зачтено") }}</span>
+    {% if total.passed_percent is none %}
+    <span class="stat-value muted">—</span>
+    <span class="small muted">{{ _("работ пока нет") }}</span>
+    {% else %}
+    <span class="stat-value">{{ total.passed }}<span class="stat-unit">/ {{ total.gradable }}</span></span>
+    <span class="small muted">
+      {{ total.passed_percent }}% {{ _("работ зачтено") }}{% if total.ungraded %},
+      {{ _("ждут проверки: %(count)s") % {"count": total.ungraded} }}{% endif %}
+    </span>
+    <span class="bar"><span class="bar-fill" style="width: {{ total.passed_percent }}%"></span></span>
+    {% endif %}
+  </div>
+
+  <div class="card stat">
+    <span class="stat-label">{{ _("Посещаемость") }}</span>
+    {% if total.present_percent is none %}
+    <span class="stat-value muted">—</span>
+    <span class="small muted">{{ _("занятия ещё не отмечали") }}</span>
+    {% else %}
+    <span class="stat-value">{{ total.present_percent }}<span class="stat-unit">%</span></span>
+    <span class="small muted">{{ _("был на %(was)s из %(all)s") % {"was": total.present, "all": total.lessons} }}</span>
+    {% endif %}
+    {# Точки по занятиям: видно не только сколько, но и где именно пропуск. #}
+    <span class="dots">
+      {% for block in sheet.blocks %}
+        {% for column in block.columns if column.kind == "attendance" %}
+        {% set value = sheet.value(user.id, column.id) %}
+        {% set where = block.lesson.title if block.lesson else column.title %}
+        <span class="dot {{ value.attendance or 'none' }}"
+              title="{{ where }} — {% if value.attendance == 'absent' %}{{ _("не был") }}{% elif value.attendance == 'excused' %}{{ _("уважительная") }}{% elif value.attendance == 'present' %}{{ _("был") }}{% else %}{{ _("не отмечено") }}{% endif %}"></span>
+        {% endfor %}
+      {% endfor %}
+    </span>
   </div>
 </div>
 

@@ -450,3 +450,134 @@ async def test_an_unmarked_lesson_is_not_a_miss(session, group):
 
     total = (await sheet.build(session, group)).total(аня.id)
     assert (total.present, total.lessons) == (1, 1)
+
+
+async def test_a_lesson_can_be_renamed_and_dated_afterwards(session, client, group):
+    """Семестр заводят вперёд, а расписание уточняется — дата вписывается потом."""
+    lesson = await sheet.add_lesson(session, group.id, "Семинар 1", parts=("attendance",))
+    await session.commit()
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/teacher/sheet/lessons/{lesson.id}",
+        data={"title": "Семинар 1 · два указателя", "held_on": "2026-09-24T10:30"},
+    )
+
+    assert "Занятие изменено" in page.text
+    await session.refresh(lesson)
+    assert lesson.title == "Семинар 1 · два указателя"
+    assert lesson.held_on is not None
+
+
+async def test_clearing_the_date_leaves_the_lesson_alone(session, client, group):
+    """Пустое поле снимает дату, а не молча оставляет прежнюю."""
+    from datetime import UTC, datetime
+
+    lesson = await sheet.add_lesson(
+        session, group.id, "Семинар 1", held_on=datetime(2026, 9, 24, tzinfo=UTC),
+        parts=("attendance",),
+    )
+    await session.commit()
+
+    await _login(client, "Кирилл", teacher=True)
+    await client.post(
+        f"/teacher/sheet/lessons/{lesson.id}", data={"title": "Семинар 1", "held_on": ""}
+    )
+
+    await session.refresh(lesson)
+    assert lesson.held_on is None
+    assert (await sheet.columns_of(session, group.id)) != []
+
+
+async def test_editing_does_not_touch_the_grades(session, client, group):
+    lesson = await sheet.add_lesson(session, group.id, "Семинар 1", parts=("attendance",))
+    await session.commit()
+    column = (await sheet.columns_of(session, group.id))[0]
+    аня, _ = await _students(session, group)
+    await sheet.put(session, column, аня.id, attendance=Attendance.present)
+    await session.commit()
+
+    await _login(client, "Кирилл", teacher=True)
+    await client.post(
+        f"/teacher/sheet/lessons/{lesson.id}", data={"title": "Семинар первый", "held_on": ""}
+    )
+
+    built = await sheet.build(session, group)
+    assert built.value(аня.id, column.id).attendance == Attendance.present
+
+
+async def test_percent_is_counted_from_the_whole_course(session, group):
+    """Иначе первая же пятёрка из пяти покажет сто процентов за весь семестр."""
+    первая = SheetColumn(
+        group_id=group.id, title="Контрольная 1", kind=SheetKind.manual,
+        scale=SheetScale.points, max_points=10,
+    )
+    вторая = SheetColumn(
+        group_id=group.id, title="Контрольная 2", kind=SheetKind.manual,
+        scale=SheetScale.points, max_points=10,
+    )
+    session.add_all([первая, вторая])
+    await session.commit()
+    аня, _ = await _students(session, group)
+
+    await sheet.put(session, первая, аня.id, points=10)
+    await session.commit()
+
+    total = (await sheet.build(session, group)).total(аня.id)
+    assert (total.points, total.points_max, total.points_percent) == (10, 20, 50)
+
+
+async def test_percent_is_absent_rather_than_zero_when_there_is_nothing_to_count(
+    session, group
+):
+    """Ноль процентов и «нечего считать» — разные вещи, и на экране тоже."""
+    аня, _ = await _students(session, group)
+    total = (await sheet.build(session, group)).total(аня.id)
+
+    assert total.points_percent is None
+    assert total.passed_percent is None
+    assert total.present_percent is None
+
+
+async def test_the_student_screen_shows_percents_and_a_dot_per_lesson(session, client, group):
+    session.add(FeatureFlag(key="grades", for_students=True, for_teachers=True))
+    await sheet.add_lesson(session, group.id, "Семинар 1", parts=("attendance",))
+    await sheet.add_lesson(session, group.id, "Семинар 2", parts=("attendance",))
+    exam = SheetColumn(
+        group_id=group.id, title="Контрольная", kind=SheetKind.manual,
+        scale=SheetScale.points, max_points=10,
+    )
+    session.add(exam)
+    await session.commit()
+    аня, _ = await _students(session, group)
+    первое, второе = [
+        c for c in await sheet.columns_of(session, group.id) if c.kind == SheetKind.attendance
+    ]
+    await sheet.put(session, первое, аня.id, attendance=Attendance.present)
+    await sheet.put(session, второе, аня.id, attendance=Attendance.absent)
+    await sheet.put(session, exam, аня.id, points=7)
+    await session.commit()
+
+    await client.post("/login/dev", data={"name": "Аня"})
+    page = await client.get("/grades")
+
+    assert page.status_code == 200
+    assert "70" in page.text and "50" in page.text          # баллы и посещаемость в процентах
+    assert page.text.count('class="dot present"') == 1
+    assert page.text.count('class="dot absent"') == 1
+
+
+async def test_untouched_works_are_counted_apart_from_failed_ones(session, group):
+    """«2 из 7» выглядит провалом, если пять работ просто ждут проверки."""
+    сдана = SheetColumn(group_id=group.id, title="Домашка 1", kind=SheetKind.manual)
+    ждёт = SheetColumn(group_id=group.id, title="Домашка 2", kind=SheetKind.manual)
+    не_зачтена = SheetColumn(group_id=group.id, title="Домашка 3", kind=SheetKind.manual)
+    session.add_all([сдана, ждёт, не_зачтена])
+    await session.commit()
+    аня, _ = await _students(session, group)
+    await sheet.put(session, сдана, аня.id, passed=True)
+    await sheet.put(session, не_зачтена, аня.id, passed=False)
+    await session.commit()
+
+    total = (await sheet.build(session, group)).total(аня.id)
+    assert (total.passed, total.gradable, total.ungraded) == (1, 3, 1)

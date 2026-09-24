@@ -10,8 +10,13 @@
     (function () {
       try {
         var t = localStorage.getItem("sport-theme");
-        // По умолчанию — светлая тема, поэтому без выбора атрибут не ставим.
-        if (t === "light" || t === "dark" || t === "auto") document.documentElement.dataset.theme = t;
+        // Прежние значения переключателя «светлая/тёмная».
+        if (t === "auto") t = window.matchMedia
+          && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
+        t = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" }[t] || t;
+        // По умолчанию — «Янтарь», поэтому без выбора атрибут не ставим.
+        if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta"].indexOf(t) >= 0)
+          document.documentElement.dataset.theme = t;
       } catch (e) {}
     })();
   </script>
@@ -26,6 +31,7 @@
 </head>
 <body class="{{ 'with-rail' if user }}">
 {% from "_lang.html" import lang_switch %}
+{% from "_theme.html" import theme_pick %}
 {% include "_icons.html" %}
 
 {% set path = request.url.path if request else "" %}
@@ -102,10 +108,7 @@
       </button>
     </form>
     {% endif %}
-    <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
-              title="{{ _("Тема: светлая") }}">
-        {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}
-      </button>
+    {{ theme_pick() }}
     {{ lang_switch(path) }}
     <form method="post" action="/logout">
       <button class="rail-btn" type="submit" title="{{ _("Выйти") }}">{{ icon("logout") }}</button>
@@ -131,10 +134,7 @@
   </a>
   <span class="mobile-tools">
     {{ lang_switch(path, "up") }}
-    <button class="rail-btn" type="button" data-theme-toggle data-theme-state="light"
-            title="{{ _("Тема: светлая") }}">
-      {{ icon("sun", "t-light") }}{{ icon("moon", "t-dark") }}{{ icon("auto", "t-auto") }}
-    </button>
+    {{ theme_pick("up") }}
   </span>
   </div>
   {% endif %}

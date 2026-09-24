@@ -255,6 +255,31 @@ templates.env.filters["plural"] = plural
 templates.env.filters["gravatar"] = gravatar_url
 # Макрос иконок доступен во всех шаблонах без ручного import — спрайт
 # при этом выводится один раз через {% include "_icons.html" %} в base.html.
+# Цветовые темы: ключ совпадает с data-theme в style.css. Названы по краске,
+# а не по устройству («светлая», «тёмная»): выбирают ведь не яркость экрана,
+# а сочетание. Порядок — порядок в меню.
+THEMES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    (N_("Светлые"), (
+        ("amber", N_("Янтарь")),
+        ("parchment", N_("Пергамент")),
+        ("mandarin", N_("Мандарин")),
+        ("lime", N_("Лайм")),
+        ("finland", N_("Финляндия")),
+        ("japan", N_("Япония")),
+    )),
+    (N_("Тёмные"), (
+        ("coal", N_("Уголь")),
+        ("sweden", N_("Швеция")),
+        ("brazil", N_("Бразилия")),
+        ("oxford", N_("Оксфорд")),
+        ("neon", N_("Неон")),
+        ("ice", N_("Лёд")),
+        ("magenta", N_("Магента")),
+    )),
+)
+
+THEME_KEYS: tuple[str, ...] = tuple(key for _group, items in THEMES for key, _label in items)
+
 templates.env.globals["icon"] = templates.env.get_template("_icons.html").module.icon
 templates.env.globals["avatar"] = templates.env.get_template("_ui.html").module.avatar
 templates.env.globals["problem_link"] = templates.env.get_template("_ui.html").module.problem_link
@@ -269,9 +294,6 @@ templates.env.globals["course_available"] = course.is_available()
 def js_strings() -> dict[str, str]:
     """Переводы для скриптов: инлайнового JS не держим, поэтому отдаём данными."""
     return {
-        "theme.light": _("Тема: светлая"),
-        "theme.dark": _("Тема: тёмная"),
-        "theme.auto": _("Тема: как в системе"),
         "countdown.before_start": _("до старта"),
         "countdown.before_end": _("до конца"),
         "countdown.live": _("идёт сейчас"),
@@ -284,6 +306,7 @@ def js_strings() -> dict[str, str]:
 templates.env.globals["_"] = _
 templates.env.globals["js_strings"] = js_strings
 templates.env.globals["languages"] = LANGUAGES
+templates.env.globals["themes"] = THEMES
 templates.env.globals["language"] = current_language
 templates.env.globals["settings"] = settings
 templates.env.globals["SolveStatus"] = SolveStatus

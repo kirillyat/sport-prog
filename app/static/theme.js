@@ -1,57 +1,64 @@
-/* Переключатель темы: светлая → тёмная → как в системе.
+/* Оформление: выбор одной из цветовых тем.
    Выбор хранится в localStorage и применяется к <html data-theme>.
    Начальное значение ставит инлайновый скрипт в <head>, чтобы не мигало. */
 (function () {
   "use strict";
 
   var KEY = "sport-theme";
-  // Порядок обхода; первый — значение по умолчанию.
-  var ORDER = ["light", "dark", "auto"];
-  var t = window.portalStrings || function (key, fallback) { return fallback; };
-  var LABELS = {
-    auto: t("theme.auto", "Тема: как в системе"),
-    light: t("theme.light", "Тема: светлая"),
-    dark: t("theme.dark", "Тема: тёмная"),
-  };
+  // Порядок неважен — важно, что список тот же, что в CSS и в меню.
+  var THEMES = ["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta"];
+  // Старые значения переключателя «светлая/тёмная»: у людей они уже
+  // сохранены, и терять их выбор из-за переименования незачем.
+  var LEGACY = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" };
 
   function read() {
     try {
       var value = localStorage.getItem(KEY);
-      return ORDER.indexOf(value) >= 0 ? value : "light";
+      value = LEGACY[value] || value;
+      // «Как в системе» больше нет: у кого она была, один раз получает тему
+      // по светлоте своей системы, дальше выбор его.
+      if (value === "auto") {
+        value = window.matchMedia
+          && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
+      }
+      return THEMES.indexOf(value) >= 0 ? value : "amber";
     } catch (e) {
-      return "light";
+      return "amber";
     }
   }
 
   function apply(value) {
-    var root = document.documentElement;
-    // Атрибут ставим всегда, включая "auto": без него CSS даёт светлую тему.
-    root.setAttribute("data-theme", value);
+    document.documentElement.setAttribute("data-theme", value);
 
-    var buttons = document.querySelectorAll("[data-theme-toggle]");
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].setAttribute("data-theme-state", value);
-      buttons[i].title = LABELS[value];
-      buttons[i].setAttribute("aria-label", LABELS[value]);
+    var options = document.querySelectorAll("[data-theme-set]");
+    for (var i = 0; i < options.length; i++) {
+      var current = options[i].getAttribute("data-theme-set") === value;
+      options[i].classList.toggle("current", current);
+      if (current) {
+        options[i].setAttribute("aria-current", "true");
+      } else {
+        options[i].removeAttribute("aria-current");
+      }
     }
   }
 
-  function cycle() {
-    var next = ORDER[(ORDER.indexOf(read()) + 1) % ORDER.length];
+  function choose(value) {
     try {
-      localStorage.setItem(KEY, next);
+      localStorage.setItem(KEY, value);
     } catch (e) {
       /* приватный режим — тема продержится до перезагрузки */
     }
-    apply(next);
+    apply(value);
   }
 
   apply(read());
   document.addEventListener("click", function (event) {
-    var button = event.target.closest("[data-theme-toggle]");
-    if (button) {
-      event.preventDefault();
-      cycle();
-    }
+    var option = event.target.closest("[data-theme-set]");
+    if (!option) return;
+    event.preventDefault();
+    choose(option.getAttribute("data-theme-set"));
+    // Закрываем меню: выбор сделан, держать его раскрытым незачем.
+    var menu = option.closest("details");
+    if (menu) menu.open = false;
   });
 })();

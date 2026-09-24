@@ -117,5 +117,5 @@ async def test_scripts_get_translated_strings(session, client):
     await _login(client)
     await client.post("/view/lang", data={"lang": "en"})
     response = await client.get("/")
-    assert '"theme.dark": "Theme: dark"' in response.text
+    assert '"countdown.live": "live now"' in response.text
     assert '"countdown.days": "day|days"' in response.text

@@ -24,73 +24,72 @@
 @font-face { font-family: "JetBrains Mono"; font-weight: 700; font-display: swap;
   src: local("JetBrains Mono Bold"), url("fonts/JetBrainsMono-Bold.woff2") format("woff2"); }
 
-:root {
+/* ============================================================
+   Цветовые темы. Тема — это пара «поле и краска» плюс акцент: портал
+   нарисован как плакат, и палитра у него тоже плакатная, в два цвета.
+   Каждая тема — один блок переменных и ничего больше: то, что зависело
+   от светлоты (фон полей, какой логотип показывать), вынесено в такие же
+   переменные, иначе новая тема требовала бы правок в трёх местах.
+
+   У каждой пары проверен контраст: текст, приглушённый текст и ссылки
+   не ниже 4.5:1 к своему фону. Красиво — это ещё и читаемо.
+   ============================================================ */
+/* Жёлтое поле и чёрная краска — как на афише. */
+:root, :root[data-theme="amber"] {
   color-scheme: light;
   --bg: #f4c430;
   --panel: #f4c430;
   --panel-2: #f8d24f;
-
   --ink: #111111;
   --text: #111111;
   --text-2: #3b3312;
-  --muted: #6e6030;
+  --muted: #5b4f25;
   --line: #111111;
-  --line-soft: rgba(17, 17, 17, .28);
-
-  --inv-bg: #111111;     /* инвертированный блок */
+  --line-soft: rgba(0, 0, 0, .26);
+  --inv-bg: #111111;
   --inv-text: #f4c430;
-
-  --accent: #1d4ed8;     /* только ссылки */
-  --err: #c1121f;        /* только ошибки, просрочка, live */
+  --accent: #1a45bd;
+  --err: #c1121f;
   --err-text: #ffffff;
-  /* Подсветка кода: словарь такой же скупой, как и весь портал —
-     структура начертанием, литералы цветом ссылки, комментарии тише. */
   --code-key: #111111;
-  --code-str: #1d4ed8;
-  --code-com: #6e6030;
+  --code-str: #1a45bd;
+  --code-com: #5b4f25;
   --code-num: #7a4b00;
-
-  --rule: 3px;
-  --display: "Unbounded", "Arial Black", Impact, sans-serif;
-  --sans: "Golos Text", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --mono: "JetBrains Mono", Menlo, Consolas, monospace;
-  --rail: 88px;
+  --field-bg: #ffffff;
+  --field-text: #111111;
+  --placeholder: #7d7043;
+  --light-logo: block;
+  --dark-logo: none;
 }
-
-
-/* ============================================================
-   Тёмная тема. По умолчанию портал светлый — жёлтое поле; тёмная включается
-   кнопкой (data-theme="dark") или выбором «как в системе» (data-theme="auto").
-   Два одинаковых набора правил, менять их нужно вместе.
-   ============================================================ */
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="auto"] {
-    color-scheme: dark;
-    --bg: #0f0e0a;
-    --panel: #0f0e0a;
-    --panel-2: #1a1810;
-    --ink: #f4c430;
-    --text: #f4e9c2;
-    --text-2: #dcc985;
-    --muted: #a8975a;
-    --line: #f4c430;
-    --line-soft: rgba(244, 196, 48, .3);
-    --inv-bg: #f4c430;
-    --inv-text: #111111;
-    --accent: #9dbcff;
-    --err: #ff5a5a;
-    --err-text: #111111;
-    --code-key: #f4c430;
-    --code-str: #9dbcff;
-    --code-com: #a8975a;
-    --code-num: #e8b96a;
-  }
-  :root[data-theme="auto"] .only-light { display: none; }
-  :root[data-theme="auto"] .only-dark { display: block; }
-  :root[data-theme="auto"] input[type=text], :root[data-theme="auto"] input[type=email], :root[data-theme="auto"] input[type=file], :root[data-theme="auto"] input[type=number], :root[data-theme="auto"] input[type=datetime-local], :root[data-theme="auto"] select, :root[data-theme="auto"] textarea { background: #1a1810; color: var(--text); }
+/* Тёплый лист, если жёлтое поле слишком громкое. */
+:root[data-theme="parchment"] {
+  color-scheme: light;
+  --bg: #faf6ec;
+  --panel: #fffdf7;
+  --panel-2: #f2ecdd;
+  --ink: #14110c;
+  --text: #14110c;
+  --text-2: #43392a;
+  --muted: #6b6152;
+  --line: #14110c;
+  --line-soft: rgba(0, 0, 0, .26);
+  --inv-bg: #14110c;
+  --inv-text: #fffdf7;
+  --accent: #1b52c0;
+  --err: #b3261e;
+  --err-text: #ffffff;
+  --code-key: #14110c;
+  --code-str: #1b52c0;
+  --code-com: #6b6152;
+  --code-num: #8a4b00;
+  --field-bg: #ffffff;
+  --field-text: #14110c;
+  --placeholder: #8b8170;
+  --light-logo: block;
+  --dark-logo: none;
 }
-
-:root[data-theme="dark"] {
+/* То же жёлтое по чёрному, только наоборот. */
+:root[data-theme="coal"] {
   color-scheme: dark;
   --bg: #0f0e0a;
   --panel: #0f0e0a;
@@ -100,9 +99,9 @@
   --text-2: #dcc985;
   --muted: #a8975a;
   --line: #f4c430;
-  --line-soft: rgba(244, 196, 48, .3);
+  --line-soft: rgba(255, 255, 255, .28);
   --inv-bg: #f4c430;
-  --inv-text: #111111;
+  --inv-text: #0f0e0a;
   --accent: #9dbcff;
   --err: #ff5a5a;
   --err-text: #111111;
@@ -110,10 +109,300 @@
   --code-str: #9dbcff;
   --code-com: #a8975a;
   --code-num: #e8b96a;
+  --field-bg: #1a1810;
+  --field-text: #f4e9c2;
+  --placeholder: #8c7f4e;
+  --light-logo: none;
+  --dark-logo: block;
 }
-:root[data-theme="dark"] .only-light { display: none; }
-:root[data-theme="dark"] .only-dark { display: block; }
-:root[data-theme="dark"] input[type=text], :root[data-theme="dark"] input[type=email], :root[data-theme="dark"] input[type=file], :root[data-theme="dark"] input[type=number], :root[data-theme="dark"] input[type=datetime-local], :root[data-theme="dark"] select, :root[data-theme="dark"] textarea { background: #1a1810; color: var(--text); }
+/* Синее поле и жёлтая краска — сочетание шведского флага. */
+:root[data-theme="sweden"] {
+  color-scheme: dark;
+  --bg: #062f5c;
+  --panel: #062f5c;
+  --panel-2: #0b3f74;
+  --ink: #fecc00;
+  --text: #ffe89a;
+  --text-2: #f3d98a;
+  --muted: #c9b06a;
+  --line: #fecc00;
+  --line-soft: rgba(255, 255, 255, .28);
+  --inv-bg: #fecc00;
+  --inv-text: #062f5c;
+  --accent: #9dd0ff;
+  --err: #ff7b6b;
+  --err-text: #062f5c;
+  --code-key: #fecc00;
+  --code-str: #9dd0ff;
+  --code-com: #c9b06a;
+  --code-num: #ffe08a;
+  --field-bg: #0b3f74;
+  --field-text: #ffe89a;
+  --placeholder: #9d8a55;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Зелёное поле и жёлтая краска — сочетание бразильского флага. */
+:root[data-theme="brazil"] {
+  color-scheme: dark;
+  --bg: #063d20;
+  --panel: #063d20;
+  --panel-2: #0b5330;
+  --ink: #fedd00;
+  --text: #ffeb8f;
+  --text-2: #f0dc8a;
+  --muted: #c2ad63;
+  --line: #fedd00;
+  --line-soft: rgba(255, 255, 255, .28);
+  --inv-bg: #fedd00;
+  --inv-text: #063d20;
+  --accent: #8fd3ff;
+  --err: #ff7b6b;
+  --err-text: #063d20;
+  --code-key: #fedd00;
+  --code-str: #8fd3ff;
+  --code-com: #c2ad63;
+  --code-num: #ffe08a;
+  --field-bg: #0b5330;
+  --field-text: #ffeb8f;
+  --placeholder: #97874e;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Белое поле и алая краска — сочетание японского флага. Текст почти чёрный:
+   алым набраны рамки, заголовочные плашки и знаки, а не строки подряд. */
+:root[data-theme="japan"] {
+  color-scheme: light;
+  --bg: #faf7f6;
+  --panel: #fffdfc;
+  --panel-2: #f3e7e6;
+  --ink: #b3001f;
+  --text: #1f1412;
+  --text-2: #4a3634;
+  --muted: #6e5b58;
+  --line: #b3001f;
+  --line-soft: rgba(179, 0, 31, .26);
+  --inv-bg: #b3001f;
+  --inv-text: #fffdfc;
+  --accent: #1b52c0;
+  --err: #8a0016;
+  --err-text: #ffffff;
+  --code-key: #b3001f;
+  --code-str: #1b52c0;
+  --code-com: #6e5b58;
+  --code-num: #7a4b00;
+  --field-bg: #ffffff;
+  --field-text: #1f1412;
+  --placeholder: #9c8582;
+  --light-logo: block;
+  --dark-logo: none;
+}
+
+/* Тёмно-синее поле и кремовая краска с золотой ссылкой. */
+:root[data-theme="oxford"] {
+  color-scheme: dark;
+  --bg: #0a1a3f;
+  --panel: #0a1a3f;
+  --panel-2: #132754;
+  --ink: #f3ead8;
+  --text: #f3ead8;
+  --text-2: #ddd2bc;
+  --muted: #b0a78f;
+  --line: #f3ead8;
+  --line-soft: rgba(243, 234, 216, .28);
+  --inv-bg: #f3ead8;
+  --inv-text: #0a1a3f;
+  --accent: #ffcf6b;
+  --err: #ff7b6b;
+  --err-text: #0a1a3f;
+  --code-key: #f3ead8;
+  --code-str: #ffcf6b;
+  --code-com: #b0a78f;
+  --code-num: #9ad7ff;
+  --field-bg: #132754;
+  --field-text: #f3ead8;
+  --placeholder: #8d8674;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Мандариновое поле и чёрная краска. */
+:root[data-theme="mandarin"] {
+  color-scheme: light;
+  --bg: #fb8b24;
+  --panel: #fb8b24;
+  --panel-2: #fd9e47;
+  --ink: #111111;
+  --text: #111111;
+  --text-2: #3a2207;
+  --muted: #4a2a06;
+  --line: #111111;
+  --line-soft: rgba(0, 0, 0, .26);
+  --inv-bg: #111111;
+  --inv-text: #fb8b24;
+  --accent: #0b2f8f;
+  --err: #8c1007;
+  --err-text: #ffffff;
+  --code-key: #111111;
+  --code-str: #0b2f8f;
+  --code-com: #4a2a06;
+  --code-num: #5a2d00;
+  --field-bg: #ffffff;
+  --field-text: #111111;
+  --placeholder: #8a5f30;
+  --light-logo: block;
+  --dark-logo: none;
+}
+
+/* Кислотный лайм и чёрная краска — самая громкая пара набора. */
+:root[data-theme="lime"] {
+  color-scheme: light;
+  --bg: #d7f205;
+  --panel: #d7f205;
+  --panel-2: #e2f747;
+  --ink: #111111;
+  --text: #111111;
+  --text-2: #333c05;
+  --muted: #3f4a06;
+  --line: #111111;
+  --line-soft: rgba(0, 0, 0, .26);
+  --inv-bg: #111111;
+  --inv-text: #d7f205;
+  --accent: #0f3aa0;
+  --err: #a00d16;
+  --err-text: #ffffff;
+  --code-key: #111111;
+  --code-str: #0f3aa0;
+  --code-com: #3f4a06;
+  --code-num: #5a4a00;
+  --field-bg: #ffffff;
+  --field-text: #111111;
+  --placeholder: #6a7a20;
+  --light-logo: block;
+  --dark-logo: none;
+}
+
+/* Белое поле и синяя краска — сочетание финского флага. */
+:root[data-theme="finland"] {
+  color-scheme: light;
+  --bg: #f6f9fc;
+  --panel: #ffffff;
+  --panel-2: #e6eef7;
+  --ink: #002f6c;
+  --text: #0d1b2a;
+  --text-2: #33465c;
+  --muted: #3d566e;
+  --line: #002f6c;
+  --line-soft: rgba(0, 47, 108, .26);
+  --inv-bg: #002f6c;
+  --inv-text: #ffffff;
+  --accent: #0b5fbd;
+  --err: #b3261e;
+  --err-text: #ffffff;
+  --code-key: #002f6c;
+  --code-str: #0b5fbd;
+  --code-com: #3d566e;
+  --code-num: #7a4b00;
+  --field-bg: #ffffff;
+  --field-text: #0d1b2a;
+  --placeholder: #7d8fa3;
+  --light-logo: block;
+  --dark-logo: none;
+}
+
+/* Чёрное поле и кислотная зелень. */
+:root[data-theme="neon"] {
+  color-scheme: dark;
+  --bg: #0b0e07;
+  --panel: #0b0e07;
+  --panel-2: #151a0d;
+  --ink: #c8ff2e;
+  --text: #d9ecb0;
+  --text-2: #c2d99a;
+  --muted: #8fa85f;
+  --line: #c8ff2e;
+  --line-soft: rgba(255, 255, 255, .28);
+  --inv-bg: #c8ff2e;
+  --inv-text: #0b0e07;
+  --accent: #7fd7ff;
+  --err: #ff6b6b;
+  --err-text: #0b0e07;
+  --code-key: #c8ff2e;
+  --code-str: #7fd7ff;
+  --code-com: #8fa85f;
+  --code-num: #ffd166;
+  --field-bg: #151a0d;
+  --field-text: #d9ecb0;
+  --placeholder: #6f8a44;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Тёмная вода и ледяная бирюза. */
+:root[data-theme="ice"] {
+  color-scheme: dark;
+  --bg: #051923;
+  --panel: #051923;
+  --panel-2: #0b2836;
+  --ink: #6fe3ff;
+  --text: #d7f2fb;
+  --text-2: #b3e0ef;
+  --muted: #6d97a8;
+  --line: #6fe3ff;
+  --line-soft: rgba(255, 255, 255, .28);
+  --inv-bg: #6fe3ff;
+  --inv-text: #051923;
+  --accent: #ffd166;
+  --err: #ff7b6b;
+  --err-text: #051923;
+  --code-key: #6fe3ff;
+  --code-str: #ffd166;
+  --code-com: #6d97a8;
+  --code-num: #a8e0c0;
+  --field-bg: #0b2836;
+  --field-text: #d7f2fb;
+  --placeholder: #5c7f8d;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Почти чёрная слива и горячая фуксия. */
+:root[data-theme="magenta"] {
+  color-scheme: dark;
+  --bg: #16041a;
+  --panel: #16041a;
+  --panel-2: #260a2c;
+  --ink: #ff59d6;
+  --text: #f6dff0;
+  --text-2: #e4c2dc;
+  --muted: #a87099;
+  --line: #ff59d6;
+  --line-soft: rgba(255, 255, 255, .28);
+  --inv-bg: #ff59d6;
+  --inv-text: #16041a;
+  --accent: #8fe3ff;
+  --err: #ff7b6b;
+  --err-text: #16041a;
+  --code-key: #ff59d6;
+  --code-str: #8fe3ff;
+  --code-com: #a87099;
+  --code-num: #ffd166;
+  --field-bg: #260a2c;
+  --field-text: #f6dff0;
+  --placeholder: #8a5c7f;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+:root {
+  --rule: 3px;
+  --display: "Unbounded", "Arial Black", Impact, sans-serif;
+  --sans: "Golos Text", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "JetBrains Mono", Menlo, Consolas, monospace;
+  --rail: 88px;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -172,11 +461,8 @@ body.with-rail { padding-left: var(--rail); }
 .brand-mark.auth-mark { width: 182px; height: 130px; color: var(--ink); }
 
 /* Переключатель темы: показываем иконку текущего состояния. */
-[data-theme-toggle] .icon { display: none; }
-[data-theme-toggle][data-theme-state="auto"] .t-auto,
-[data-theme-toggle][data-theme-state="light"] .t-light,
-[data-theme-toggle][data-theme-state="dark"] .t-dark { display: block; }
-.only-dark { display: none; }
+.only-light { display: var(--light-logo); }
+.only-dark { display: var(--dark-logo); }
 
 .rail .nav { display: flex; flex-direction: column; }
 .nav a, .tabbar a {
@@ -225,6 +511,36 @@ body.with-rail { padding-left: var(--rail); }
 .lang-menu button:hover { background: var(--ink); color: var(--bg); transform: none; }
 .lang-menu button.current { font-weight: 800; }
 .lang-menu button.current::after { content: " ✓"; }
+/* Выбор оформления: то же меню, что у языка, плюс образец цвета.
+   Образец рисуется своими значениями, а не переменными темы: иначе все
+   шесть квадратиков были бы одного цвета — текущего. */
+.theme > summary { display: flex; align-items: center; justify-content: center; }
+.theme-menu { max-height: min(70vh, 460px); overflow: auto; }
+.theme-menu button { display: flex; align-items: center; gap: 10px; }
+.theme-group {
+  margin: 0; padding: 8px 12px 2px;
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  font-weight: 800; color: var(--muted);
+}
+.theme-menu .swatch {
+  width: 18px; height: 18px; flex: none;
+  border: 2px solid currentColor;
+  background: linear-gradient(135deg, var(--sw-a) 0 50%, var(--sw-b) 50% 100%);
+}
+.sw-amber       { --sw-a: #f4c430; --sw-b: #111111; }
+.sw-parchment   { --sw-a: #fffdf7; --sw-b: #14110c; }
+.sw-coal        { --sw-a: #0f0e0a; --sw-b: #f4c430; }
+.sw-sweden      { --sw-a: #062f5c; --sw-b: #fecc00; }
+.sw-brazil      { --sw-a: #063d20; --sw-b: #fedd00; }
+.sw-japan       { --sw-a: #fffdfc; --sw-b: #b3001f; }
+.sw-oxford      { --sw-a: #0a1a3f; --sw-b: #f3ead8; }
+.sw-mandarin    { --sw-a: #fb8b24; --sw-b: #111111; }
+.sw-lime        { --sw-a: #d7f205; --sw-b: #111111; }
+.sw-finland     { --sw-a: #ffffff; --sw-b: #002f6c; }
+.sw-neon        { --sw-a: #0b0e07; --sw-b: #c8ff2e; }
+.sw-ice         { --sw-a: #051923; --sw-b: #6fe3ff; }
+.sw-magenta     { --sw-a: #16041a; --sw-b: #ff59d6; }
+
 /* На странице входа рейки нет — переключатель стоит сам по себе. */
 .lang.auth { display: inline-block; margin: 0 0 24px; }
 .lang.auth > summary { display: inline-block; }
@@ -353,11 +669,11 @@ tbody tr:last-child td { border-bottom: none; }
    ============================================================ */
 input[type=text], input[type=email], input[type=number], input[type=file], input[type=datetime-local], select, textarea {
   width: 100%; padding: 10px 12px;
-  border: var(--rule) solid var(--ink); background: #fff; color: #111;
+  border: var(--rule) solid var(--ink); background: var(--field-bg); color: var(--field-text);
   font: inherit; border-radius: 0;
 }
 input:focus, select:focus, textarea:focus { outline: none; box-shadow: 4px 4px 0 var(--ink); }
-input::placeholder, textarea::placeholder { color: #9a8f6a; }
+input::placeholder, textarea::placeholder { color: var(--placeholder); }
 textarea { min-height: 130px; resize: vertical; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
 label { display: block; font-size: 10px; color: var(--text); margin-bottom: 6px; }
 label.check { display: inline-flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 14px; cursor: pointer; }
@@ -725,11 +1041,38 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .attend-states .chip input { position: absolute; opacity: 0; pointer-events: none; }
 .attend-states .chip span {
   display: inline-block; padding: 8px 14px; border: 2px solid var(--ink);
-  border-radius: 999px; font-size: .85rem; background: var(--paper);
+  border-radius: 999px; font-size: .85rem; background: var(--panel);
 }
-.attend-states .chip input:checked + span { background: var(--ink); color: var(--paper); }
+.attend-states .chip input:checked + span { background: var(--ink); color: var(--panel); }
 .attend-states .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 input.narrow { max-width: 90px; }
 
 /* Шапка ведомости в два этажа: сверху занятие, под ним его оценки. */
 .matrix th.block-head { border-bottom: 2px solid var(--ink); }
+
+
+/* --- Оценки студента ---------------------------------------------------
+   Три числа вместо одного: баллы, зачёты и посещаемость складываются
+   по-разному в каждом курсе, поэтому портал показывает их рядом, а не
+   сводит в одну цифру. */
+.stats .stat { display: flex; flex-direction: column; gap: 4px; }
+.stat-label {
+  font-size: .75rem; letter-spacing: .08em; text-transform: uppercase;
+  font-weight: 800; color: var(--muted);
+}
+.stat-value { font-size: 2.4rem; line-height: 1.05; font-weight: 800; }
+.stat-unit { font-size: 1rem; font-weight: 700; color: var(--muted); margin-left: 4px; }
+.stat .bar {
+  display: block; height: 10px; margin-top: 6px;
+  border: 2px solid var(--ink); background: var(--panel);
+}
+.stat .bar-fill { display: block; height: 100%; background: var(--ink); }
+
+/* Точка на занятие: видно не только сколько пропусков, но и где. */
+.dots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.dot { width: 14px; height: 14px; border: 2px solid var(--ink); background: var(--panel); }
+.dot.present { background: var(--ink); }
+.dot.absent { background: var(--err); border-color: var(--err); }
+.dot.excused { background: repeating-linear-gradient(
+    45deg, var(--ink), var(--ink) 2px, var(--panel) 2px, var(--panel) 5px); }
+.dot.none { border-color: var(--line-soft); }

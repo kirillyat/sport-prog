@@ -127,6 +127,22 @@
     </form>
     {% endif %}
   </div>
+
+  {% if block.lesson %}
+  <form method="post" action="/teacher/sheet/lessons/{{ block.lesson.id }}" class="inline-form">
+    <div class="field" style="flex:1; min-width:200px">
+      <label for="title-{{ block.lesson.id }}">{{ _("Название") }}</label>
+      <input type="text" id="title-{{ block.lesson.id }}" name="title"
+             value="{{ block.lesson.title }}" required>
+    </div>
+    <div class="field" style="min-width:200px">
+      <label for="held-{{ block.lesson.id }}">{{ _("Дата занятия") }}</label>
+      <input type="datetime-local" id="held-{{ block.lesson.id }}" name="held_on"
+             value="{{ block.lesson.held_on | dtinput }}">
+    </div>
+    <button class="ghost" type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+  </form>
+  {% endif %}
   <table>
     <tbody>
       {% for column in block.columns %}
