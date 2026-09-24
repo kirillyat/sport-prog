@@ -293,3 +293,44 @@ async def test_csv_carries_the_same_numbers_as_the_page(session, group):
     text = export.sheet_csv(await sheet.build(session, group)).decode("utf-8-sig")
     assert "Контрольная" in text
     assert "7" in text and "Аня" in text
+
+
+async def test_every_sheet_page_renders_with_a_dated_lesson(session, client, group):
+    """Страницы должны отрисовываться с заполненной колонкой, а не только с пустой.
+
+    Дата занятия ломала три страницы разом: шаблон звал фильтр, которого нет,
+    а проверки до этого заводили колонки без даты и ошибки не видели.
+    """
+    from datetime import UTC, datetime
+
+    session.add(FeatureFlag(key="grades", for_students=True, for_teachers=True))
+    lesson = SheetColumn(
+        group_id=group.id, title="Семинар 1", kind=SheetKind.attendance,
+        held_on=datetime(2026, 9, 24, 10, 30, tzinfo=UTC),
+    )
+    exam = SheetColumn(
+        group_id=group.id, title="Контрольная", kind=SheetKind.manual,
+        scale=SheetScale.points, max_points=10,
+    )
+    session.add_all([lesson, exam])
+    await session.commit()
+    аня, _ = await _students(session, group)
+    await sheet.put(session, lesson, аня.id, attendance=Attendance.excused)
+    await sheet.put(session, exam, аня.id, points=7, comment="хорошо")
+    await session.commit()
+
+    await _login(client, "Кирилл", teacher=True)
+    for path in (
+        f"/teacher/groups/{group.id}/sheet",
+        f"/teacher/groups/{group.id}/sheet/columns",
+        f"/teacher/groups/{group.id}/sheet.csv",
+        f"/teacher/sheet/{lesson.id}",
+        f"/teacher/sheet/{exam.id}",
+    ):
+        assert (await client.get(path)).status_code == 200, path
+
+    await client.post("/logout")
+    await _login(client, "Аня")
+    page = await client.get("/grades")
+    assert page.status_code == 200
+    assert "24.09.2026" in page.text

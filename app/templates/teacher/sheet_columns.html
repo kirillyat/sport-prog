@@ -84,7 +84,7 @@
         <td>
           {% if column.kind == "assignment" %}{{ column.title }}
           {% else %}<a href="/teacher/sheet/{{ column.id }}">{{ column.title }}</a>{% endif %}
-          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | day }}</span>{% endif %}
+          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | d }}</span>{% endif %}
         </td>
         <td class="small muted">
           {% if column.kind == "assignment" %}{{ _("из задания") }}

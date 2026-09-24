@@ -34,7 +34,7 @@
       <tr>
         <td>
           {{ column.title }}
-          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | day }}</span>{% endif %}
+          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | d }}</span>{% endif %}
         </td>
         <td>
           {% if column.kind == "attendance" %}

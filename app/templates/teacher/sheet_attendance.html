@@ -8,7 +8,7 @@
       <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
     </p>
     <h1>{{ column.title }}</h1>
-    {% if column.held_on %}<p class="sub">{{ column.held_on | day }}</p>{% endif %}
+    {% if column.held_on %}<p class="sub">{{ column.held_on | d }}</p>{% endif %}
   </div>
 </div>
 
