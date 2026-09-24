@@ -27,18 +27,21 @@ def test_cookie_wins_over_browser():
 
 def test_browser_hint_used_on_first_visit():
     assert pick_language(None, "en-GB,en;q=0.9") == "en"
-    assert pick_language(None, "de-DE,de;q=0.9,fr;q=0.5") == "fr"
+    assert pick_language(None, "de-AT,de;q=0.9") == "de"
+    assert pick_language(None, "es-MX,es;q=0.9") == "es"
+    # Итальянского портал не знает — берём следующий по списку браузера.
+    assert pick_language(None, "it-IT,it;q=0.9,fr;q=0.5") == "fr"
 
 
 def test_unknown_language_falls_back_to_russian():
-    assert pick_language("kz", "de-DE") == SOURCE_LANGUAGE
+    assert pick_language("kz", "it-IT") == SOURCE_LANGUAGE
     assert pick_language(None, None) == SOURCE_LANGUAGE
 
 
 def test_portal_default_closes_the_chain(monkeypatch):
     """Вуз может поставить свой язык по умолчанию — но выбор человека главнее."""
     monkeypatch.setattr(settings, "default_language", "fr")
-    assert pick_language(None, "de-DE") == "fr"
+    assert pick_language(None, "it-IT") == "fr"
     assert pick_language("en", "de-DE") == "en"
     assert pick_language(None, "ru-RU,ru") == "ru"
 

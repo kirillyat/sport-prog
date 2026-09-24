@@ -15,7 +15,7 @@
 <div class="card">
   <h3>{{ icon("plus") }} {{ _("Новое занятие") }}</h3>
   <p class="small muted" style="margin-top:0">
-    {{ _("За один семинар оценок обычно несколько. Заводятся они разом — лишнее снимается галочкой.") }}
+    {{ _("Оценки за занятие заводятся разом — лишнее снимается галочкой.") }}
   </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/sheet/lessons">
     <div class="grid two">
@@ -46,7 +46,7 @@
 <div class="card">
   <h3>{{ icon("plus") }} {{ _("Отдельная колонка") }}</h3>
   <p class="small muted" style="margin-top:0">
-    {{ _("Для того, что к семинару не привязано: контрольная, проект, экзамен. Или чтобы добавить оценку к уже заведённому занятию.") }}
+    {{ _("Контрольная, проект, экзамен — или ещё одна оценка к занятию.") }}
   </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/sheet/columns">
     <div class="grid two">
@@ -101,7 +101,7 @@
       </select>
     </div>
     <p class="small muted">
-      {{ _("Посещаемость всегда отметка, не балл: явка и работа весят по-разному, и складывать их портал не берётся.") }}
+      {{ _("Посещаемость отмечается, а не оценивается баллами.") }}
     </p>
     <button type="submit">{{ icon("plus") }} {{ _("Добавить") }}</button>
   </form>
@@ -181,7 +181,7 @@
 <h2>{{ icon("layers") }} {{ _("Взять структуру у другой группы") }}</h2>
 <div class="card">
   <p class="small muted" style="margin-top:0">
-    {{ _("Переносятся только колонки, без оценок. Колонка-задание переносится без привязки: задание выдано другой группе.") }}
+    {{ _("Переносятся колонки без оценок. Привязка к заданию не переносится.") }}
   </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/sheet/copy" class="inline-form">
     <div class="field" style="flex:1; min-width:220px">

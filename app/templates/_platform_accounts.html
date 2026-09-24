@@ -28,7 +28,7 @@
         </p>
         {% if platform.value == "leetcode" %}
         <p class="small muted" style="margin-top:0">
-          {{ _("LeetCode отдаёт публично последние 20 решений. Синк — каждые %(minutes)s мин, этого хватает.") % {"minutes": settings.sync_interval_seconds // 60} }}
+          {{ _("LeetCode отдаёт последние 20 решений. Синхронизация — каждые %(minutes)s мин.") % {"minutes": settings.sync_interval_seconds // 60} }}
         </p>
         {% endif %}
         {% if account.last_sync_error %}

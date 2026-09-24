@@ -30,6 +30,8 @@ LANGUAGES: dict[str, str] = {
     "ru": "Русский",
     "en": "English",
     "fr": "Français",
+    "es": "Español",
+    "de": "Deutsch",
 }
 
 LANGUAGE_COOKIE = "lang"
