@@ -75,7 +75,7 @@ async def sync_leetcode_catalog(session: AsyncSession) -> int:
 
 async def sync_catalog(session: AsyncSession, platform: Platform | None = None) -> dict[str, int]:
     result: dict[str, int] = {}
-    targets = [platform] if platform else list(Platform)
+    targets = [platform] if platform else Platform.external()
     for target in targets:
         try:
             if target == Platform.codeforces:

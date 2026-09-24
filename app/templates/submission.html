@@ -13,8 +13,9 @@
     </p>
   </div>
   {% if problem %}
-  <a class="btn ghost small" href="{{ problem.url }}" target="_blank" rel="noopener">
-    {{ icon("external") }} {{ _("Задача") }}
+  <a class="btn ghost small" href="{{ problem.url }}"
+     {{ 'target="_blank" rel="noopener"' | safe if problem.platform.is_external }}>
+    {{ icon("external") if problem.platform.is_external else icon("code") }} {{ _("Задача") }}
   </a>
   {% endif %}
 </div>

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ problem.title }} — {{ settings.app_name }}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="/static/vendor/codemirror.min.css?v={{ asset_version }}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      {% if assignment %}<a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> / {% endif %}
+      {{ _("задача") }}
+    </p>
+    <h1>{{ problem.title }}</h1>
+  </div>
+  <span class="badge {{ 'bad' if attempts_left == 0 else '' }}">
+    {{ _("попыток осталось: %(left)s из %(total)s") % {"left": attempts_left, "total": attempts_total} }}
+  </span>
+</div>
+
+<div class="grid two" style="align-items:start">
+  <div>
+    <div class="card nb-md">{{ statement | safe }}</div>
+
+    {% if open_tests %}
+    <h2>{{ icon("check") }} {{ _("Открытые тесты") }}</h2>
+    <div class="card">
+      <p class="small muted" style="margin-top:0">
+        {{ _("По ним можно прогнать решение сколько угодно раз — попытки это не тратит. При сдаче добавляются закрытые тесты.") }}
+      </p>
+      {% for test in open_tests %}
+      <div class="test-pair">
+        <div>
+          <span class="lbl">{{ _("Ввод") }}</span>
+          <pre class="nb-raw">{{ test.stdin }}</pre>
+        </div>
+        <div>
+          <span class="lbl">{{ _("Ожидается") }}</span>
+          <pre class="nb-raw">{{ test.expected }}</pre>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2>{{ icon("code") }} {{ _("Решение") }}</h2>
+    <div class="card">
+      {% if not judge_ready %}
+      <p class="small muted" style="margin-top:0">
+        {{ icon("alert") }}
+        {{ _("Сервер проверки сейчас не поднят: код примем и сохраним, но вердикта не будет.") }}
+      </p>
+      {% endif %}
+
+      <textarea id="code" name="code" class="code-input">{{ code }}</textarea>
+
+      <div class="row" style="gap:8px; margin-top:12px">
+        <form method="post" action="/tasks/{{ problem.slug }}/run" data-editor-form="run">
+          <input type="hidden" name="code" value="">
+          <button class="ghost" type="submit" {{ 'disabled' if not judge_ready }}>
+            {{ icon("refresh") }} {{ _("Прогнать открытые тесты") }}
+          </button>
+        </form>
+        <form method="post" action="/tasks/{{ problem.slug }}/submit" data-editor-form="submit">
+          <input type="hidden" name="code" value="">
+          <button type="submit" {{ 'disabled' if attempts_left == 0 }}>
+            {{ icon("send") }} {{ _("Сдать") }}
+          </button>
+        </form>
+        <form method="post" action="/tasks/{{ problem.slug }}/to-teacher" data-editor-form="teacher">
+          <input type="hidden" name="code" value="">
+          <button class="ghost" type="submit">{{ icon("shield") }} {{ _("Преподавателю") }}</button>
+        </form>
+      </div>
+    </div>
+
+    {% if run %}
+    <h2>{{ icon("activity") }} {{ _("Результат прогона") }}</h2>
+    <div class="card">
+      {% for result in run.results %}
+      <div class="run-line {{ 'ok' if result.passed else 'bad' }}">
+        <span class="badge {{ 'ok' if result.passed else 'err' }}">
+          {{ icon("check") if result.passed else icon("close") }}
+          {{ _("тест %(n)s") % {"n": result.position + 1} }}
+        </span>
+        <span class="small">{{ result.status }}</span>
+        {% if result.time_ms %}<span class="small muted">{{ result.time_ms }} {{ _("мс") }}</span>{% endif %}
+      </div>
+      {% if not result.passed and result.is_open and result.stdout %}
+      <pre class="nb-raw small">{{ _("вывод:") }} {{ result.stdout }}</pre>
+      {% endif %}
+      {% if result.stderr %}<pre class="nb-raw small">{{ result.stderr }}</pre>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if history %}
+    <h2>{{ icon("clock") }} {{ _("Мои сдачи") }}</h2>
+    <div class="card table-wrap" style="padding:6px">
+      <table>
+        <thead><tr><th>#</th><th>{{ _("Когда") }}</th><th>{{ _("Вердикт") }}</th></tr></thead>
+        <tbody>
+          {% for item in history %}
+          <tr>
+            <td class="muted num">{{ history | length - loop.index0 }}</td>
+            <td class="small muted">{{ item.submitted_at | ago }}</td>
+            <td>
+              {% if item.is_accepted %}
+              <span class="badge ok">{{ icon("check") }} {{ item.verdict }}</span>
+              {% else %}
+              <span class="badge">{{ item.verdict }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/vendor/codemirror.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/python.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/closebrackets.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/matchbrackets.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/active-line.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/editor.js?v={{ asset_version }}" defer></script>
+{% endblock %}

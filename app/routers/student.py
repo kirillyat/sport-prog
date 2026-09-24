@@ -60,7 +60,7 @@ async def dashboard(request: Request, session: SessionDep, user: CurrentUser):
 
     missing_accounts = [
         p
-        for p in Platform
+        for p in Platform.external()
         if (account := user.account_for(p)) is None or not account.is_verified
     ]
 
@@ -189,7 +189,7 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
             "place_of": len(board),
             "place_group": place_group,
             "accounts": accounts,
-            "platforms": list(Platform),
+            "platforms": Platform.external(),
             "where_to_put": verification.WHERE_TO_PUT,
             "score": score,
             "assignment_cards": assignment_cards,

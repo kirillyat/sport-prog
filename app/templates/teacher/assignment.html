@@ -62,7 +62,7 @@
       <tr>
         <th>{{ _("Студент") }}</th>
         {% for problem in progress.problems %}
-        <th><a href="{{ problem.url }}" target="_blank" rel="noopener"
+        <th><a href="{{ problem.url }}" {{ 'target="_blank" rel="noopener"' | safe if problem.platform.is_external }}
                title="{{ problem.title }}">{{ loop.index }}</a></th>
         {% endfor %}
         <th>{{ _("Итого") }}</th>
@@ -145,7 +145,7 @@
       {% set solved = progress.problem_solved_count(problem.id) %}
       <tr>
         <td class="muted num">{{ loop.index }}</td>
-        <td><a href="{{ problem.url }}" target="_blank" rel="noopener">{{ problem.title }} {{ icon("external") }}</a></td>
+        <td>{{ problem_link(problem) }}</td>
         <td class="small muted">{{ problem.platform.title }} · {{ problem.label }}</td>
         <td>{% if problem.difficulty %}<span class="badge {{ problem.difficulty | lower }}">{{ problem.difficulty }}</span>
             {% elif problem.rating %}<span class="badge rating">{{ problem.rating }}</span>{% else %}—{% endif %}</td>

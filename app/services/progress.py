@@ -204,6 +204,12 @@ async def compute_progress(
         for user_id, problem_id, status in (await session.execute(stmt)).all():
             reviews[(user_id, problem_id)] = status
 
+    # Код своей задачи приезжает вместе со сдачей и уже лежит на портале —
+    # требовать его ещё раз отдельной отправкой значит требовать того же
+    # дважды. Галочка «код обязателен» касается только внешних площадок,
+    # где посылку видно, а исходник — нет.
+    external = {p.id for p in problems if p.platform.is_external}
+
     for (user_id, problem_id), (first_ever, first_after) in times.items():
         status, solved_at = _status(
             first_ever,
@@ -216,7 +222,7 @@ async def compute_progress(
             solved_at=solved_at,
             first_ever_at=first_ever,
             review=reviews.get((user_id, problem_id)),
-            needs_code=assignment.requires_solution,
+            needs_code=assignment.requires_solution and problem_id in external,
         )
     return progress
 

@@ -46,7 +46,7 @@
       {% set cell = progress.cell(user.id, problem.id) %}
       <tr>
         <td class="muted num">{{ loop.index }}</td>
-        <td><a href="{{ problem.url }}" target="_blank" rel="noopener">{{ problem.title }} {{ icon("external") }}</a></td>
+        <td>{{ problem_link(problem) }}</td>
         <td class="small muted">{{ problem.platform.title }} · {{ problem.label }}</td>
         <td>
           {% if problem.difficulty %}<span class="badge {{ problem.difficulty | lower }}">{{ problem.difficulty }}</span>

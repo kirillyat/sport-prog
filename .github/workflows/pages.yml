@@ -38,11 +38,12 @@ jobs:
           mkdir -p site-src
           cp README.md site-src/index.md
           cp DEPLOY.md site-src/deploy.md
+          cp EXAM.md site-src/exam.md
           cp CONTRIBUTING.md site-src/contributing.md
           cp README.en.md site-src/english.md
           # Ссылки между файлами репозитория ведут на .md в корне —
           # на сайте те же файлы лежат под другими именами.
-          sed -i 's|(DEPLOY\.md)|(deploy.md)|g; s|(CONTRIBUTING\.md)|(contributing.md)|g; s|(README\.en\.md)|(english.md)|g' site-src/*.md
+          sed -i 's|(DEPLOY\.md)|(deploy.md)|g; s|(EXAM\.md)|(exam.md)|g; s|(CONTRIBUTING\.md)|(contributing.md)|g; s|(README\.en\.md)|(english.md)|g' site-src/*.md
           sed -i 's|(README\.md)|(index.md)|g' site-src/*.md
           # Ссылки на исходники на сайте вести некуда — отправляем их в репозиторий.
           blob="https://github.com/${GITHUB_REPOSITORY}/blob/main"

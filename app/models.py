@@ -87,10 +87,23 @@ class Role(enum.StrEnum):
 class Platform(enum.StrEnum):
     leetcode = "leetcode"
     codeforces = "codeforces"
+    # Свои задачи: условие и тесты лежат на портале, решение проверяет judge0.
+    # Это площадка без аккаунтов и без синхронизации — отсюда `external`.
+    local = "local"
 
     @property
     def title(self) -> str:
-        return {"leetcode": "LeetCode", "codeforces": "Codeforces"}[self.value]
+        return {"leetcode": "LeetCode", "codeforces": "Codeforces", "local": "Портал"}[self.value]
+
+    @property
+    def is_external(self) -> bool:
+        """Есть ли у площадки свой сайт, аккаунт и синхронизация посылок."""
+        return self is not Platform.local
+
+    @classmethod
+    def external(cls) -> list[Platform]:
+        """Площадки, к которым студент привязывает аккаунт."""
+        return [p for p in cls if p.is_external]
 
 
 class SolveStatus(enum.StrEnum):
@@ -395,6 +408,51 @@ class Announcement(Base):
         return "live"
 
 
+class Task(Base):
+    """Своя задача: условие и тесты живут на портале.
+
+    Отдельная таблица, а не поля в `problems`: у задач с площадок ничего
+    этого нет, и класть туда пустые колонки ради одной площадки не стоит.
+    Сама задача при этом остаётся обычным `Problem` с площадкой `local` —
+    поэтому задания, матрица, табло и выгрузка работают без единой правки.
+    """
+
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    problem_id: Mapped[int] = mapped_column(
+        ForeignKey("problems.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    statement: Mapped[str] = mapped_column(Text, default="")
+    # Лимиты передаются в judge0 при запуске.
+    time_limit_ms: Mapped[int] = mapped_column(Integer, default=2000)
+    memory_limit_mb: Mapped[int] = mapped_column(Integer, default=256)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+    problem: Mapped[Problem] = relationship(lazy="selectin")
+
+
+class TaskTest(Base):
+    """Тест к своей задаче.
+
+    Открытые показываются в условии и гоняются по кнопке — по ним студент
+    понимает, что вообще требуется. Закрытые не покидают портал: их видит
+    только проверка, иначе решение подгоняется под ответы.
+    """
+
+    __tablename__ = "task_tests"
+    __table_args__ = (UniqueConstraint("task_id", "position", name="uq_task_test_position"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    is_open: Mapped[bool] = mapped_column(Boolean, default=False)
+    stdin: Mapped[str] = mapped_column(Text, default="")
+    expected: Mapped[str] = mapped_column(Text, default="")
+
+
 class Submission(Base):
     __tablename__ = "submissions"
     __table_args__ = (
@@ -404,7 +462,8 @@ class Submission(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    platform_account_id: Mapped[int] = mapped_column(
+    # У своей задачи аккаунта площадки нет: решение приходит прямо на портал.
+    platform_account_id: Mapped[int | None] = mapped_column(
         ForeignKey("platform_accounts.id", ondelete="CASCADE")
     )
     platform: Mapped[Platform] = mapped_column(EnumStr(Platform))

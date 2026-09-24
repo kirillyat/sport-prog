@@ -51,6 +51,7 @@ markdown_extensions:
 
 nav:
   - Портал: index.md
+  - Контрольная: exam.md
   - Развёртывание: deploy.md
   - Участие: contributing.md
   - In English: english.md

@@ -28,6 +28,7 @@ from app.routers import (
     materials,
     solutions,
     student,
+    tasks,
     teacher,
     view,
 )
@@ -113,6 +114,7 @@ app.include_router(feed.router)
 app.include_router(materials.router, dependencies=[Depends(section_required("materials"))])
 app.include_router(course.router, dependencies=[Depends(section_required("course"))])
 app.include_router(solutions.router)
+app.include_router(tasks.router)
 app.include_router(ingest.router)
 app.include_router(view.router)
 app.include_router(leaderboard.router)

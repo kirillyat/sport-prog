@@ -257,6 +257,7 @@ templates.env.filters["gravatar"] = gravatar_url
 # при этом выводится один раз через {% include "_icons.html" %} в base.html.
 templates.env.globals["icon"] = templates.env.get_template("_icons.html").module.icon
 templates.env.globals["avatar"] = templates.env.get_template("_ui.html").module.avatar
+templates.env.globals["problem_link"] = templates.env.get_template("_ui.html").module.problem_link
 templates.env.globals["group_by_day"] = group_by_day
 templates.env.globals["asset_version"] = asset_version()
 templates.env.globals["brand_logo"] = _find_asset(LOGO_NAMES)

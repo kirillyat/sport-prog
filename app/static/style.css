@@ -445,6 +445,19 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 
 /* Поле для кода: моноширинный текст и высота в экран — решение вставляют
    целиком, а не дописывают по строчке. */
+/* ---------- страница задачи ---------- */
+.test-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.test-pair:last-child { border-bottom: none; }
+.test-pair pre { margin: 4px 0 0; }
+.run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+/* Редактор: рамка как у остальных полей, высота в экран. */
+.CodeMirror { border: var(--rule) solid var(--ink); height: 420px; font-family: var(--mono); font-size: 13px; background: var(--panel); color: var(--text); }
+.CodeMirror-gutters { background: var(--panel-2); border-right: 1px solid var(--line-soft); }
+.CodeMirror-linenumber { color: var(--muted); }
+.CodeMirror-cursor { border-left: 2px solid var(--ink); }
+.CodeMirror-activeline-background { background: var(--panel-2); }
+.CodeMirror-selected { background: var(--line-soft); }
+
 .code-input {
   font-family: var(--mono); font-size: 13px; line-height: 1.5;
   min-height: 320px; white-space: pre; overflow-wrap: normal; overflow-x: auto;

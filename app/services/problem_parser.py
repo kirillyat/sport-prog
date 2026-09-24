@@ -53,6 +53,11 @@ def _classify(line: str) -> _Ref | None:
         return _Ref(Platform.codeforces, f"{match.group(1)}{match.group(2).upper()}", line)
 
     lowered = line.lower()
+    # Свои задачи пишутся с приставкой: голый слаг неотличим от LeetCode,
+    # а угадывать, какую из двух задач имели в виду, — плохая идея.
+    for prefix in ("task:", "local:"):
+        if lowered.startswith(prefix):
+            return _Ref(Platform.local, line[len(prefix) :].strip().lower(), line)
     for prefix, platform in (("lc:", Platform.leetcode), ("cf:", Platform.codeforces)):
         if lowered.startswith(prefix):
             rest = line[len(prefix) :].strip()
@@ -78,6 +83,7 @@ async def parse_problem_list(session: AsyncSession, text: str) -> ParseResult:
 
     cf_keys = {r.key for r in refs if r.platform == Platform.codeforces}
     lc_keys = {r.key for r in refs if r.platform == Platform.leetcode}
+    local_keys = {r.key for r in refs if r.platform == Platform.local}
 
     found: dict[tuple[Platform, str], Problem] = {}
     if cf_keys:
@@ -95,6 +101,12 @@ async def parse_problem_list(session: AsyncSession, text: str) -> ParseResult:
         )
         for problem in rows.scalars():
             found[(Platform.leetcode, problem.slug)] = problem
+    if local_keys:
+        rows = await session.execute(
+            select(Problem).where(Problem.platform == Platform.local, Problem.slug.in_(local_keys))
+        )
+        for problem in rows.scalars():
+            found[(Platform.local, problem.slug)] = problem
 
     seen: set[int] = set()
     for ref in refs:
@@ -103,6 +115,8 @@ async def parse_problem_list(session: AsyncSession, text: str) -> ParseResult:
             problem = found.get((Platform.codeforces, ref.key.upper()))
         elif ref.platform == Platform.leetcode:
             problem = found.get((Platform.leetcode, ref.key))
+        elif ref.platform == Platform.local:
+            problem = found.get((Platform.local, ref.key))
         if problem is None:
             result.unresolved.append(ref.raw)
         elif problem.id not in seen:

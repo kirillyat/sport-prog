@@ -5,12 +5,13 @@ import string
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Form, Request
+from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import notify
+from app.config import settings
 from app.deps import OptionalInt, SessionDep, TeacherUser
 from app.i18n import translate as _
 from app.models import (
@@ -32,8 +33,9 @@ from app.models import (
     utcnow,
 )
 from app.routers.leaderboard import PERIODS
-from app.services import export, features, solutions
-from app.services.catalog import get_state, problem_count, sync_catalog
+from app.services import export, features, judge, solutions
+from app.services import tasks as tasks_service
+from app.services.catalog import get_state, problem_count, set_state, sync_catalog
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.problem_parser import parse_problem_list, search_problems
@@ -101,7 +103,7 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
         "assignments": await session.scalar(select(func.count()).select_from(Assignment)),
         "submissions": await session.scalar(select(func.count()).select_from(Submission)),
     }
-    catalog = {p.title: await problem_count(session, p) for p in Platform}
+    catalog = {p.title: await problem_count(session, p) for p in Platform.external()}
 
     # Закреплённые группы — первыми, остальные следом: панель должна открываться
     # на том, с чем работаешь сегодня, а не на полном списке потоков.
@@ -174,6 +176,123 @@ async def overview(request: Request, session: SessionDep, user: TeacherUser):
             "catalog_synced_at": _parse_iso(await get_state(session, "catalog_synced_at")),
             **_flash(request),
         },
+    )
+
+
+@router.get("/tasks")
+async def own_tasks(request: Request, session: SessionDep, user: TeacherUser):
+    """Свои задачи: список и загрузка набора архивом."""
+    from app.models import Platform, Task
+
+    rows = await _all(
+        session,
+        select(Problem).where(Problem.platform == Platform.local).order_by(Problem.title),
+    )
+    counts = {}
+    for problem in rows:
+        task = await session.scalar(select(Task).where(Task.problem_id == problem.id))
+        if task is None:
+            continue
+        tests = await tasks_service.tests_for(session, task)
+        counts[problem.id] = (len(tests), sum(1 for t in tests if t.is_open))
+    judge_config = await judge.config(session)
+    return templates.TemplateResponse(
+        request,
+        "teacher/tasks.html",
+        {
+            "user": user,
+            "problems": rows,
+            "counts": counts,
+            "judge_url": judge_config.url,
+            "judge_has_token": bool(judge_config.token),
+            **_flash(request),
+        },
+    )
+
+
+@router.post("/tasks")
+async def upload_tasks(
+    session: SessionDep, user: TeacherUser, file: UploadFile = File(...)
+):
+    """Загрузка набора задач архивом. Задача с тем же именем папки обновляется."""
+    if file.size and file.size > tasks_service.MAX_BYTES:
+        return _redirect(
+            "/teacher/tasks",
+            error=_("Архив больше %(mb)s МБ") % {"mb": tasks_service.MAX_BYTES // 1024 // 1024},
+        )
+    data = await file.read()
+    try:
+        parsed = tasks_service.parse_archive(data)
+    except tasks_service.ArchiveError as exc:
+        return _redirect("/teacher/tasks", error=_("Архив не разобрать: %(why)s") % {"why": exc})
+
+    saved = await tasks_service.save(session, parsed, user.id)
+    return _redirect(
+        "/teacher/tasks", message=_("Загружено задач: %(count)s") % {"count": len(saved)}
+    )
+
+
+@router.post("/judge")
+async def judge_connect(
+    session: SessionDep, user: TeacherUser, url: str = Form(""), token: str = Form("")
+):
+    """Подключить тестирующую систему. Адрес пишем в базу — судью поднимают
+    перед контрольной и гасят после, портал ради этого не перезапускают.
+
+    Адрес задаёт преподаватель, и портал будет ходить по нему сам: это доверие
+    к роли, а не к вводу, поэтому форма открыта только преподавателю.
+    """
+    if not url.strip():
+        return _redirect("/teacher/tasks", error=_("Адрес пустой"))
+
+    config = await judge.connect(session, url, token)
+    try:
+        version = await judge.ping(config)
+    except judge.JudgeUnavailable as exc:
+        # Адрес всё равно сохранён: судья может ещё подниматься, а вводить
+        # его заново, когда он ответит, — лишняя работа.
+        return _redirect(
+            "/teacher/tasks",
+            error=_("Адрес сохранён, но судья не отвечает: %(why)s") % {"why": exc},
+        )
+    return _redirect(
+        "/teacher/tasks", message=_("Судья подключён, версия %(version)s") % {"version": version}
+    )
+
+
+@router.post("/judge/check")
+async def judge_check(session: SessionDep, user: TeacherUser):
+    try:
+        version = await judge.ping(await judge.config(session))
+    except judge.JudgeUnavailable as exc:
+        return _redirect("/teacher/tasks", error=_("Судья не отвечает: %(why)s") % {"why": exc})
+    return _redirect(
+        "/teacher/tasks", message=_("Судья отвечает, версия %(version)s") % {"version": version}
+    )
+
+
+@router.post("/judge/off")
+async def judge_off(session: SessionDep, user: TeacherUser):
+    """Отключить судью: решения снова принимаются как код, без вердикта."""
+    await judge.disconnect(session)
+    return _redirect("/teacher/tasks", message=_("Судья отключён"))
+
+
+@router.post("/course-refresh")
+async def course_refresh(session: SessionDep, user: TeacherUser):
+    """Забрать материалы курса прямо сейчас, не дожидаясь планировщика."""
+    from app.scheduler import COURSE_KEY
+    from app.services import course
+
+    if not settings.course_source_url:
+        return _redirect("/teacher", error=_("Источник материалов не настроен"))
+    try:
+        files = await course.refresh()
+    except course.CourseSourceError as exc:
+        return _redirect("/teacher", error=_("Материалы не обновились: %(why)s") % {"why": exc})
+    await set_state(session, COURSE_KEY, utcnow().isoformat())
+    return _redirect(
+        "/teacher", message=_("Материалы обновлены, файлов: %(count)s") % {"count": files}
     )
 
 
@@ -642,7 +761,7 @@ async def problems_search(
             "user": user,
             "q": q,
             "platform": platform,
-            "platforms": list(Platform),
+            "platforms": Platform.external(),
             "results": results,
         },
     )

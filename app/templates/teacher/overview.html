@@ -92,6 +92,8 @@
     <p class="small muted" style="margin:0">{{ _("Код вступления и состав") }}</p></a>
   <a class="card" href="/teacher/sets"><h3>{{ icon("layers") }} {{ _("Списки задач") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Подборка задач из ссылок") }}</p></a>
+  <a class="card" href="/teacher/tasks"><h3>{{ icon("code") }} {{ _("Свои задачи") }}</h3>
+    <p class="small muted" style="margin:0">{{ _("Условие и тесты на портале — для контрольной") }}</p></a>
   <a class="card" href="/teacher/assignments"><h3>{{ icon("tasks") }} {{ _("Задания") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Выдать список группе и следить за матрицей решений") }}</p></a>
   <a class="card" href="/teacher/announcements"><h3>{{ icon("megaphone") }} {{ _("Объявления") }}</h3>
@@ -118,6 +120,10 @@
       <button class="ghost small" type="submit">{{ icon("database") }} {{ _("Обновить каталог") }}</button></form>
     <form method="post" action="/teacher/sync-now">
       <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Синхронизировать посылки") }}</button></form>
+    {% if settings.course_source_url %}
+    <form method="post" action="/teacher/course-refresh">
+      <button class="ghost small" type="submit">{{ icon("book") }} {{ _("Обновить материалы курса") }}</button></form>
+    {% endif %}
     <a class="btn ghost small" href="/teacher/problems">{{ icon("search") }} {{ _("Поиск по каталогу") }}</a>
     <a class="btn ghost small" href="/teacher/problems/unlinked">{{ icon("alert") }} {{ _("Задачи вне каталога") }}</a>
   </div>

@@ -39,7 +39,7 @@ async def accounts_page(request: Request, user: CurrentUser):
         {
             "user": user,
             "confirmed": is_confirmed(user),
-            "platforms": list(Platform),
+            "platforms": Platform.external(),
             "where_to_put": verification.WHERE_TO_PUT,
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),

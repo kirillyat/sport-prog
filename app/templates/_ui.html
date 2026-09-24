@@ -23,3 +23,16 @@
   {%- endif -%}
   {{ person.display_name | initials }}</span>
 {%- endmacro %}
+
+{#
+  Ссылка на задачу. Внешняя площадка открывается в новой вкладке со значком
+  «наружу», своя задача портала — здесь же: новая вкладка и значок обещали бы
+  уход на чужой сайт, которого нет.
+#}
+{% macro problem_link(problem, label=None) -%}
+  {%- if problem.platform.is_external -%}
+  <a href="{{ problem.url }}" target="_blank" rel="noopener">{{ label or problem.title }} {{ icon("external") }}</a>
+  {%- else -%}
+  <a href="{{ problem.url }}">{{ label or problem.title }} {{ icon("code") }}</a>
+  {%- endif -%}
+{%- endmacro %}

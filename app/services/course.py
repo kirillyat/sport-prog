@@ -1,24 +1,46 @@
-"""Курс «Алгоритмы и структуры данных» на портале.
+"""Курс на портале: недели, конспекты, практики.
 
-Материалы курса живут в отдельном репозитории преподавателей и приезжают к нам
-скриптом `scripts/sync_course.py` — в папку `course/`. Поэтому здесь ни таблиц,
-ни загрузок через интерфейс: читаем с диска то, что уже лежит рядом с кодом.
+Материалы живут в отдельном репозитории преподавателей. Портал забирает их
+сам — архивом по HTTP, раз в несколько часов (`refresh`), — и кладёт в том
+данных. Поэтому здесь ни таблиц, ни загрузок через интерфейс: читаем с диска
+то, что уже приехало.
 
-Раскладка повторяет источник: `course/<курс>/sem<N>/<неделя>/`, в папке недели
+Почему в том, а не рядом с кодом: материалы правятся чаще, чем портал, и
+пересобирать образ ради новой недели незачем. Заодно чужая авторская работа
+не попадает в исходники.
+
+Раскладка повторяет источник: `<корень>/sem<N>/<неделя>/`, в папке недели
 обязательный `card.md` с полями в YAML, опциональные ноутбуки фиксированных
 имён и любые файлы-приложения.
 """
 
 from __future__ import annotations
 
+import io
+import logging
 import re
+import shutil
+import tarfile
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import httpx
+
+from app.config import settings
 from app.i18n import mark as N_
 from app.i18n import translate as _
 
-COURSE_ROOT = Path(__file__).resolve().parent.parent.parent / "course" / "algo-1"
+logger = logging.getLogger(__name__)
+
+# Копия в репозитории — для локальной разработки и для стенда, который ещё
+# не настроил источник. Том данных главнее: туда приезжают свежие материалы.
+REPO_COPY = Path(__file__).resolve().parent.parent.parent / "course" / "algo-1"
+
+
+def course_root() -> Path:
+    volume = settings.data_dir / "course"
+    return volume if (volume / "pages").is_dir() or (volume / "sem1").is_dir() else REPO_COPY
 
 # Имена фиксированы в репозитории курса: нет файла — нет слота на странице.
 SLOTS = (
@@ -84,7 +106,7 @@ def _week_dir(semester: str, number: str) -> Path | None:
     """Путь к папке недели. Номера проверяем регуляркой, а не склейкой строк."""
     if not SEMESTER_RE.match(semester) or not WEEK_RE.match(number):
         return None
-    path = COURSE_ROOT / f"sem{semester}" / number
+    path = course_root() / f"sem{semester}" / number
     return path if (path / "card.md").is_file() else None
 
 
@@ -114,7 +136,7 @@ def _load(semester: str, number: str, path: Path) -> Week:
 
 
 def weeks(semester: str = "1") -> list[Week]:
-    root = COURSE_ROOT / f"sem{semester}"
+    root = course_root() / f"sem{semester}"
     if not root.is_dir():
         return []
     found = []
@@ -142,13 +164,84 @@ def page(name: str) -> tuple[str, str] | None:
     """Статическая страница курса: «О курсе», «Авторы». Отдаём заголовок и текст."""
     if name not in {"about", "authors"}:
         return None
-    path = COURSE_ROOT / "pages" / f"{name}.md"
+    path = course_root() / "pages" / f"{name}.md"
     if not path.is_file():
         return None
     fields, body = _parse_front_matter(path.read_text(encoding="utf-8"))
     return fields.get("title", name), body
 
 
+class CourseSourceError(RuntimeError):
+    """Источник материалов недоступен или отдал не то."""
+
+
+def _strip_top_level(names: list[str]) -> str:
+    """Общий верхний каталог архива, если он один.
+
+    Gitea и GitHub кладут содержимое репозитория в папку вида `algo-1/`.
+    Нам нужно то, что внутри, иначе недели окажутся уровнем ниже.
+    """
+    tops = {name.split("/", 1)[0] for name in names if name and not name.startswith("/")}
+    return tops.pop() + "/" if len(tops) == 1 else ""
+
+
+def unpack(archive: bytes, target: Path) -> int:
+    """Распаковывает архив курса в каталог, подменяя его целиком.
+
+    Подмена атомарная: сначала собираем рядом, потом переименовываем. Иначе
+    студент, открывший страницу в момент обновления, увидит полкурса.
+
+    Возвращает число распакованных файлов.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(dir=target.parent, prefix=".course-new-"))
+    previous = target.with_name(target.name + ".old")
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
+            names = tar.getnames()
+            prefix = _strip_top_level(names)
+            # filter="data" отсекает ссылки наружу, абсолютные пути и «..» —
+            # архив приезжает по сети, доверять ему нечего.
+            tar.extractall(staging, filter="data")
+
+        root = staging / prefix if prefix else staging
+        if not root.is_dir():
+            raise CourseSourceError("в архиве нет ожидаемого каталога")
+
+        if target.exists():
+            target.rename(previous)
+        root.rename(target)
+        return sum(1 for _ in target.rglob("*") if _.is_file())
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(previous, ignore_errors=True)
+
+
+async def download(url: str, token: str = "") -> bytes:
+    """Скачивает архив курса. Токен нужен приватному репозиторию."""
+    headers = {"Authorization": f"token {token}"} if token else {}
+    try:
+        async with httpx.AsyncClient(timeout=settings.course_timeout, follow_redirects=True) as c:
+            response = await c.get(url, headers=headers)
+    except httpx.HTTPError as exc:
+        raise CourseSourceError(f"источник недоступен: {exc}") from exc
+    if response.status_code != 200:
+        # 404 у Gitea означает и «нет репозитория», и «нет доступа»: приватный
+        # репозиторий не признаётся в своём существовании.
+        raise CourseSourceError(f"источник ответил {response.status_code}")
+    return response.content
+
+
+async def refresh() -> int:
+    """Забирает материалы из источника в том данных. Возвращает число файлов."""
+    if not settings.course_source_url:
+        return 0
+    archive = await download(settings.course_source_url, settings.course_token)
+    files = unpack(archive, settings.data_dir / "course")
+    logger.info("материалы курса обновлены: файлов %s", files)
+    return files
+
+
 def is_available() -> bool:
     """Без выгруженного курса пункт меню не показываем."""
-    return COURSE_ROOT.is_dir()
+    return course_root().is_dir()

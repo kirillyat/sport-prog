@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ _("Свои задачи") }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<h1>{{ _("Свои задачи") }}</h1>
+<p class="sub">{{ _("Задачи с условием и тестами на портале — для контрольной, когда задачи с площадок не подходят.") }}</p>
+
+<div class="card">
+  <h3>{{ icon("plus") }} {{ _("Загрузить набор") }}</h3>
+  <p class="small muted" style="margin-top:0">
+    {{ _("Zip с папкой на задачу. Внутри — условие и тесты:") }}
+  </p>
+  <pre class="nb-raw small">контрольная.zip
+  two-sum/
+    statement.md          {{ _("условие, сверху title и лимиты") }}
+    tests/open/01.in      {{ _("открытый тест: виден студенту") }}
+    tests/open/01.out
+    tests/closed/01.in    {{ _("закрытый: только для сдачи") }}
+    tests/closed/01.out</pre>
+  <p class="small muted">
+    {{ _("Задача с тем же именем папки обновляется вместе с тестами — набор это снимок, а не добавка.") }}
+  </p>
+  <form method="post" action="/teacher/tasks" enctype="multipart/form-data" class="inline-form">
+    <div class="field" style="flex:1; min-width:220px">
+      <label for="file">{{ _("Архив") }}</label>
+      <input type="file" id="file" name="file" accept=".zip" required>
+    </div>
+    <button type="submit">{{ icon("send") }} {{ _("Загрузить") }}</button>
+  </form>
+</div>
+
+<h2>{{ icon("shield") }} {{ _("Тестирующая система") }}</h2>
+<div class="card">
+  {% if judge_url %}
+  <p class="row" style="margin-top:0">
+    <span class="badge ok">{{ icon("check") }} {{ _("подключена") }}</span>
+    <span class="badge mono">{{ judge_url }}</span>
+    {% if judge_has_token %}<span class="badge">{{ _("токен задан") }}</span>{% endif %}
+  </p>
+  <p class="small muted">
+    {{ _("Пока судья подключён, «Прогнать» и «Сдать» дают настоящий вердикт. Отключишь — решения принимаются как код, без проверки.") }}
+  </p>
+  <div class="row">
+    <form method="post" action="/teacher/judge/check">
+      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
+    </form>
+    <form method="post" action="/teacher/judge/off">
+      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Отключить") }}</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="row" style="margin-top:0">
+    <span class="badge">{{ _("не подключена") }}</span>
+  </p>
+  <p class="small muted">
+    {{ _("Судья нужен только на время контрольной. Подними сервер judge0, впиши его адрес — портал начнёт проверять решения сразу, перезапуск не нужен.") }}
+  </p>
+  {% endif %}
+
+  <form method="post" action="/teacher/judge" class="inline-form">
+    <div class="field" style="flex:1; min-width:240px">
+      <label for="url">{{ _("Адрес judge0") }}</label>
+      <input type="url" id="url" name="url" placeholder="http://10.0.0.7:2358" value="{{ judge_url }}" required>
+    </div>
+    <div class="field" style="min-width:180px">
+      <label for="token">{{ _("Токен (если включён)") }}</label>
+      <input type="password" id="token" name="token" autocomplete="off">
+    </div>
+    <button type="submit">{{ icon("link") }} {{ _("Подключить") }}</button>
+  </form>
+  <p class="small muted">
+    {{ _("Адрес хранится в базе портала и переживает перезапуск. Связь проверяется сразу после сохранения.") }}
+  </p>
+</div>
+
+{% if problems %}
+<div class="card table-wrap" style="padding:6px">
+  <table>
+    <thead><tr><th>{{ _("Задача") }}</th><th>{{ _("Слаг") }}</th><th>{{ _("Тестов") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for problem in problems %}
+      <tr>
+        <td><a href="/tasks/{{ problem.slug }}">{{ problem.title }}</a></td>
+        <td><span class="badge mono">{{ problem.slug }}</span></td>
+        <td class="small muted">
+          {% set pair = counts.get(problem.id) %}
+          {% if pair %}{{ _("%(all)s, из них открытых %(open)s") % {"all": pair[0], "open": pair[1]} }}{% endif %}
+        </td>
+        <td class="small muted">{{ _("для списка:") }} <span class="badge mono">task:{{ problem.slug }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="small muted">
+  {{ _("Чтобы выдать набор контрольной — собери из этих слагов список задач и выдай его группе заданием.") }}
+</p>
+{% else %}
+<div class="card">{{ empty("layers", _("Пока пусто — загрузи первый набор в форме выше.")) }}</div>
+{% endif %}
+{% endblock %}
