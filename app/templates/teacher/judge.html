@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Тестирующая система") }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<h1>{{ _("Тестирующая система") }}</h1>
+<p class="sub">{{ _("Сервер judge0, который проверяет решения своих задач. Нужен только на время контрольной.") }}</p>
+
+<div class="card">
+  {% if not judge.ready %}
+  <p class="row" style="margin-top:0">
+    <span class="badge">{{ icon("close") }} {{ _("не подключена") }}</span>
+  </p>
+  <p class="small muted">
+    {{ _("Решения принимаются как код и сохраняются, но вердикта портал не ставит — и честно пишет об этом на странице задачи.") }}
+  </p>
+  {% elif health.ok %}
+  <p class="row" style="margin-top:0">
+    <span class="badge ok">{{ icon("check") }} {{ _("отвечает") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+    {% if health.version %}<span class="badge">judge0 {{ health.version }}</span>{% endif %}
+    {% if judge.token %}<span class="badge">{{ _("токен задан") }}</span>{% endif %}
+  </p>
+  <p class="small muted">{{ _("Проверено") }} {{ health.checked_at | ago }}.</p>
+  {% elif health.known %}
+  <p class="row" style="margin-top:0">
+    <span class="badge err">{{ icon("alert") }} {{ _("не отвечает") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+  </p>
+  <p class="small muted">
+    {{ _("Последний раз пробовали") }} {{ health.checked_at | ago }}: {{ health.detail }}.
+    {{ _("Адрес остаётся заданным: если судья ещё поднимается, портал заметит это сам при первом же прогоне.") }}
+  </p>
+  {% else %}
+  <p class="row" style="margin-top:0">
+    <span class="badge">{{ icon("clock") }} {{ _("подключена, связь не проверена") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+  </p>
+  {% endif %}
+
+  {% if judge.ready %}
+  <div class="row">
+    <form method="post" action="/teacher/judge/check">
+      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
+    </form>
+    <form method="post" action="/teacher/judge/off">
+      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Отключить") }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<h2>{{ icon("link") }} {{ _("Подключение") }}</h2>
+<div class="card">
+  <form method="post" action="/teacher/judge" class="inline-form">
+    <div class="field" style="flex:1; min-width:240px">
+      <label for="url">{{ _("Адрес judge0") }}</label>
+      <input type="url" id="url" name="url" placeholder="http://10.0.0.7:2358" value="{{ judge.url }}" required>
+    </div>
+    <div class="field" style="min-width:180px">
+      <label for="token">{{ _("Токен (если включён)") }}</label>
+      <input type="password" id="token" name="token" autocomplete="off">
+    </div>
+    <button type="submit">{{ icon("link") }} {{ _("Подключить") }}</button>
+  </form>
+  <p class="small muted">
+    {{ _("Адрес хранится в базе портала: перезапускать его ради подключения не нужно. Связь проверяется сразу после сохранения.") }}
+    {% if from_env %}
+    {{ _("В окружении задан свой адрес — он используется, пока здесь не задан другой, и отключается той же кнопкой.") }}
+    {% endif %}
+  </p>
+</div>
+
+<h2>{{ icon("alert") }} {{ _("Что будет без проверки") }}</h2>
+<div class="card">
+  <table>
+    <thead><tr><th></th><th>{{ _("Судья отвечает") }}</th><th>{{ _("Судьи нет") }}</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>{{ _("Прогнать открытые тесты") }}</td>
+        <td class="small">{{ _("вердикт по каждому тесту") }}</td>
+        <td class="small muted">{{ _("кнопка недоступна") }}</td>
+      </tr>
+      <tr>
+        <td>{{ _("Сдать") }}</td>
+        <td class="small">{{ _("вердикт, попытка тратится") }}</td>
+        <td class="small muted">{{ _("код сохраняется, вердикт «Не проверено»") }}</td>
+      </tr>
+      <tr>
+        <td>{{ _("Отправить преподавателю") }}</td>
+        <td class="small">{{ _("работает") }}</td>
+        <td class="small">{{ _("работает") }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small muted">
+    {{ _("Если судья замолчал посреди сдачи, попытка не тратится: студент в этом не виноват.") }}
+  </p>
+</div>
+{% endblock %}

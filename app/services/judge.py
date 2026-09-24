@@ -6,9 +6,14 @@
 перезапускаться. `JUDGE0_URL` из окружения остаётся запасным вариантом для
 стенда, где судья стоит постоянно.
 
-Адреса нет — запуск недоступен: портал по-прежнему принимает код, но
-вердикта не ставит и честно об этом говорит, вместо того чтобы притворяться,
-будто проверил.
+Настроенность и доступность — разные вещи, и портал их не путает. Адрес
+задан или снят преподавателем вручную; отвечает судья или нет — выясняется
+на ходу и записывается рядом. Погашенная посреди контрольной виртуалка не
+требует ничего отключать: портал сам скажет, что проверки нет, и сам заметит,
+когда она вернётся.
+
+Проверки нет — код всё равно принимаем, но вердикта не ставим и честно об
+этом говорим, вместо того чтобы притворяться, будто проверили.
 
 Тесты гоняются подряд, по одному запросу на тест: наборы маленькие, а один
 общий запрос не дал бы понять, на каком тесте решение упало.
@@ -18,12 +23,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import TaskTest
+from app.models import TaskTest, utcnow
 from app.services.catalog import get_state, set_state
 
 logger = logging.getLogger(__name__)
@@ -33,6 +39,10 @@ ACCEPTED = 3
 
 URL_KEY = "judge0_url"
 TOKEN_KEY = "judge0_token"
+# Чем судья ответил в последний раз: пусто — ответил, текст — причина отказа.
+STATUS_KEY = "judge0_status"
+CHECKED_KEY = "judge0_checked_at"
+VERSION_KEY = "judge0_version"
 
 
 class JudgeUnavailable(RuntimeError):
@@ -97,6 +107,8 @@ async def config(session: AsyncSession) -> Config:
 async def connect(session: AsyncSession, url: str, token: str = "") -> Config:
     await set_state(session, URL_KEY, url.strip())
     await set_state(session, TOKEN_KEY, token.strip())
+    # Прошлые отказы к новому адресу отношения не имеют.
+    await _forget_health(session)
     return await config(session)
 
 
@@ -105,6 +117,73 @@ async def disconnect(session: AsyncSession) -> None:
     адрес из окружения, а преподаватель просил судью выключить."""
     await set_state(session, URL_KEY, "")
     await set_state(session, TOKEN_KEY, "")
+    await _forget_health(session)
+
+
+@dataclass(frozen=True, slots=True)
+class Health:
+    """Что известно о доступности судьи. Отдельно от настройки: адрес может
+    быть задан, а виртуалка — уже погашена."""
+
+    checked_at: datetime | None = None
+    detail: str = ""
+    version: str = ""
+
+    @property
+    def known(self) -> bool:
+        return self.checked_at is not None
+
+    @property
+    def ok(self) -> bool:
+        return self.known and not self.detail
+
+
+async def _forget_health(session: AsyncSession) -> None:
+    for key in (STATUS_KEY, CHECKED_KEY, VERSION_KEY):
+        await set_state(session, key, None)
+
+
+async def note(session: AsyncSession, detail: str = "", version: str = "") -> None:
+    """Запомнить, чем кончился разговор с судьёй. Пустая причина — ответил.
+
+    Пишется после каждого прогона, поэтому погасшая посреди контрольной
+    виртуалка видна преподавателю без отдельной проверки, а вернувшаяся
+    отмечается сама — первым же удавшимся прогоном.
+    """
+    await set_state(session, STATUS_KEY, detail)
+    await set_state(session, CHECKED_KEY, utcnow().isoformat())
+    if version:
+        await set_state(session, VERSION_KEY, version)
+
+
+async def health(session: AsyncSession) -> Health:
+    raw = await get_state(session, CHECKED_KEY)
+    if not raw:
+        return Health()
+    try:
+        checked_at = datetime.fromisoformat(raw)
+    except ValueError:
+        return Health()
+    return Health(
+        checked_at=checked_at,
+        detail=await get_state(session, STATUS_KEY) or "",
+        version=await get_state(session, VERSION_KEY) or "",
+    )
+
+
+async def check(session: AsyncSession) -> tuple[Config, Health]:
+    """Позвонить судье и записать, что вышло."""
+    cfg = await config(session)
+    if not cfg.ready:
+        await _forget_health(session)
+        return cfg, Health()
+    try:
+        version = await ping(cfg)
+    except JudgeUnavailable as exc:
+        await note(session, str(exc))
+    else:
+        await note(session, version=version)
+    return cfg, await health(session)
 
 
 def _headers(cfg: Config) -> dict[str, str]:

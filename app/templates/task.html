@@ -51,6 +51,11 @@
         {{ icon("alert") }}
         {{ _("Сервер проверки сейчас не поднят: код примем и сохраним, но вердикта не будет.") }}
       </p>
+      {% elif judge_down %}
+      <p class="small muted" style="margin-top:0">
+        {{ icon("alert") }}
+        {{ _("Сервер проверки не отвечает. Попробуй прогнать тесты — если он вернулся, портал это заметит.") }}
+      </p>
       {% endif %}
 
       <textarea id="code" name="code" class="code-input">{{ code }}</textarea>

@@ -272,3 +272,42 @@ async def test_own_task_does_not_ask_for_the_code_twice(session, client, task):
 
     progress = await compute_progress(session, assignment)
     assert progress.cell(student.id, task.id).code_missing is False
+
+
+async def test_a_judge_that_went_down_is_visible_without_a_separate_check(
+    session, client, task, monkeypatch
+):
+    """Виртуалку гасят посреди контрольной — портал узнаёт об этом сам, прогоном."""
+    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        raise judge.JudgeUnavailable("судья недоступен: connect timeout")
+
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", fallen)
+    await _login(client, "Аня")
+
+    page = await client.post(f"/tasks/{task.slug}/run", data={"code": "print(1)"})
+    assert "недоступна" in page.text
+
+    state = await judge.health(session)
+    assert state.known and not state.ok and "timeout" in state.detail
+
+    # Вернувшийся судья отмечается сам — первым же удавшимся прогоном.
+    async def alive(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        return judge.RunResult(
+            results=[judge.TestResult(position=0, is_open=True, passed=True, status="Accepted")]
+        )
+
+    monkeypatch.setattr(judge, "run", alive)
+    await client.post(f"/tasks/{task.slug}/run", data={"code": "print(1)"})
+    assert (await judge.health(session)).ok is True
+
+
+async def test_judge_is_configured_outside_the_tasks_page(session, client):
+    """Задачи заводят заранее, судью подключают в день контрольной — это разные места."""
+    await _login(client, "Кирилл", teacher=True)
+
+    tasks_page = await client.get("/teacher/tasks")
+    assert 'action="/teacher/judge"' not in tasks_page.text
+
+    own = await client.get("/teacher/judge")
+    assert own.status_code == 200 and 'action="/teacher/judge"' in own.text

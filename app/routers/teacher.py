@@ -195,7 +195,6 @@ async def own_tasks(request: Request, session: SessionDep, user: TeacherUser):
             continue
         tests = await tasks_service.tests_for(session, task)
         counts[problem.id] = (len(tests), sum(1 for t in tests if t.is_open))
-    judge_config = await judge.config(session)
     return templates.TemplateResponse(
         request,
         "teacher/tasks.html",
@@ -203,8 +202,8 @@ async def own_tasks(request: Request, session: SessionDep, user: TeacherUser):
             "user": user,
             "problems": rows,
             "counts": counts,
-            "judge_url": judge_config.url,
-            "judge_has_token": bool(judge_config.token),
+            "judge": await judge.config(session),
+            "health": await judge.health(session),
             **_flash(request),
         },
     )
@@ -232,6 +231,26 @@ async def upload_tasks(
     )
 
 
+@router.get("/judge")
+async def judge_page(request: Request, session: SessionDep, user: TeacherUser):
+    """Тестирующая система: отдельный раздел, а не часть страницы задач.
+
+    Задачи заводят заранее и один раз, судью подключают в день контрольной
+    и гасят после неё — это разная работа в разное время.
+    """
+    return templates.TemplateResponse(
+        request,
+        "teacher/judge.html",
+        {
+            "user": user,
+            "judge": await judge.config(session),
+            "health": await judge.health(session),
+            "from_env": bool(settings.judge0_url.strip()),
+            **_flash(request),
+        },
+    )
+
+
 @router.post("/judge")
 async def judge_connect(
     session: SessionDep, user: TeacherUser, url: str = Form(""), token: str = Form("")
@@ -243,31 +262,35 @@ async def judge_connect(
     к роли, а не к вводу, поэтому форма открыта только преподавателю.
     """
     if not url.strip():
-        return _redirect("/teacher/tasks", error=_("Адрес пустой"))
+        return _redirect("/teacher/judge", error=_("Адрес пустой"))
 
-    config = await judge.connect(session, url, token)
-    try:
-        version = await judge.ping(config)
-    except judge.JudgeUnavailable as exc:
+    await judge.connect(session, url, token)
+    health = (await judge.check(session))[1]
+    if not health.ok:
         # Адрес всё равно сохранён: судья может ещё подниматься, а вводить
         # его заново, когда он ответит, — лишняя работа.
         return _redirect(
-            "/teacher/tasks",
-            error=_("Адрес сохранён, но судья не отвечает: %(why)s") % {"why": exc},
+            "/teacher/judge",
+            error=_("Адрес сохранён, но судья не отвечает: %(why)s") % {"why": health.detail},
         )
     return _redirect(
-        "/teacher/tasks", message=_("Судья подключён, версия %(version)s") % {"version": version}
+        "/teacher/judge",
+        message=_("Судья подключён, версия %(version)s") % {"version": health.version},
     )
 
 
 @router.post("/judge/check")
 async def judge_check(session: SessionDep, user: TeacherUser):
-    try:
-        version = await judge.ping(await judge.config(session))
-    except judge.JudgeUnavailable as exc:
-        return _redirect("/teacher/tasks", error=_("Судья не отвечает: %(why)s") % {"why": exc})
+    config, health = await judge.check(session)
+    if not config.ready:
+        return _redirect("/teacher/judge", error=_("Судья не подключён"))
+    if not health.ok:
+        return _redirect(
+            "/teacher/judge", error=_("Судья не отвечает: %(why)s") % {"why": health.detail}
+        )
     return _redirect(
-        "/teacher/tasks", message=_("Судья отвечает, версия %(version)s") % {"version": version}
+        "/teacher/judge",
+        message=_("Судья отвечает, версия %(version)s") % {"version": health.version},
     )
 
 
@@ -275,7 +298,7 @@ async def judge_check(session: SessionDep, user: TeacherUser):
 async def judge_off(session: SessionDep, user: TeacherUser):
     """Отключить судью: решения снова принимаются как код, без вердикта."""
     await judge.disconnect(session)
-    return _redirect("/teacher/tasks", message=_("Судья отключён"))
+    return _redirect("/teacher/judge", message=_("Судья отключён"))
 
 
 @router.post("/course-refresh")

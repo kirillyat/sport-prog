@@ -29,49 +29,18 @@
   </form>
 </div>
 
-<h2>{{ icon("shield") }} {{ _("Тестирующая система") }}</h2>
-<div class="card">
-  {% if judge_url %}
-  <p class="row" style="margin-top:0">
-    <span class="badge ok">{{ icon("check") }} {{ _("подключена") }}</span>
-    <span class="badge mono">{{ judge_url }}</span>
-    {% if judge_has_token %}<span class="badge">{{ _("токен задан") }}</span>{% endif %}
-  </p>
-  <p class="small muted">
-    {{ _("Пока судья подключён, «Прогнать» и «Сдать» дают настоящий вердикт. Отключишь — решения принимаются как код, без проверки.") }}
-  </p>
-  <div class="row">
-    <form method="post" action="/teacher/judge/check">
-      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
-    </form>
-    <form method="post" action="/teacher/judge/off">
-      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Отключить") }}</button>
-    </form>
-  </div>
+<p class="row">
+  {% if not judge.ready %}
+  <span class="badge">{{ _("проверка решений не подключена") }}</span>
+  {% elif health.ok %}
+  <span class="badge ok">{{ icon("check") }} {{ _("проверка решений работает") }}</span>
+  {% elif health.known %}
+  <span class="badge err">{{ icon("alert") }} {{ _("судья не отвечает") }}</span>
   {% else %}
-  <p class="row" style="margin-top:0">
-    <span class="badge">{{ _("не подключена") }}</span>
-  </p>
-  <p class="small muted">
-    {{ _("Судья нужен только на время контрольной. Подними сервер judge0, впиши его адрес — портал начнёт проверять решения сразу, перезапуск не нужен.") }}
-  </p>
+  <span class="badge">{{ _("судья подключён, связь не проверена") }}</span>
   {% endif %}
-
-  <form method="post" action="/teacher/judge" class="inline-form">
-    <div class="field" style="flex:1; min-width:240px">
-      <label for="url">{{ _("Адрес judge0") }}</label>
-      <input type="url" id="url" name="url" placeholder="http://10.0.0.7:2358" value="{{ judge_url }}" required>
-    </div>
-    <div class="field" style="min-width:180px">
-      <label for="token">{{ _("Токен (если включён)") }}</label>
-      <input type="password" id="token" name="token" autocomplete="off">
-    </div>
-    <button type="submit">{{ icon("link") }} {{ _("Подключить") }}</button>
-  </form>
-  <p class="small muted">
-    {{ _("Адрес хранится в базе портала и переживает перезапуск. Связь проверяется сразу после сохранения.") }}
-  </p>
-</div>
+  <a class="btn ghost small" href="/teacher/judge">{{ icon("shield") }} {{ _("Тестирующая система") }}</a>
+</p>
 
 {% if problems %}
 <div class="card table-wrap" style="padding:6px">

@@ -66,7 +66,10 @@ async def _page(
             "attempts_left": max(0, settings.task_attempts - used),
             "attempts_total": settings.task_attempts,
             "history": history,
-            "judge_ready": (await judge.config(session)).ready,
+            # Подключён и отвечает — разные вещи: виртуалку могли погасить
+        # посреди контрольной, и студенту честнее сказать об этом сразу.
+        "judge_ready": (await judge.config(session)).ready,
+        "judge_down": not (await judge.health(session)).ok,
             # В редакторе — последнее присланное: начинать с чистого листа
             # после отказа хуже всего.
             "code": code or (history[0].code if history else "") or "",
@@ -106,10 +109,12 @@ async def run_open_tests(
             cfg, text, open_tests, task.time_limit_ms, task.memory_limit_mb
         )
     except judge.JudgeUnavailable as exc:
+        await judge.note(session, str(exc))
         return await _page(
             request, session, user, problem, task, code=text,
             error=_("Проверка недоступна: %(why)s") % {"why": exc},
         )
+    await judge.note(session)
     return await _page(request, session, user, problem, task, code=text, run=result)
 
 
@@ -143,10 +148,12 @@ async def submit(
             )
         except judge.JudgeUnavailable as exc:
             # Попытку не тратим: студент не виноват, что судья лёг.
+            await judge.note(session, str(exc))
             return await _page(
                 request, session, user, problem, task, code=text,
                 error=_("Проверка недоступна: %(why)s") % {"why": exc},
             )
+        await judge.note(session)
         verdict, accepted = result.summary, result.passed
 
     attempt = used + 1
