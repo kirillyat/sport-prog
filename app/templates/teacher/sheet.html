@@ -17,7 +17,7 @@
   </div>
 </div>
 
-{% if not sheet.columns %}
+{% if not sheet.blocks %}
 <div class="card">
   {{ empty("edit", _("Занятий пока нет — заведи первое."),
            "/teacher/groups/" ~ group.id ~ "/sheet/columns", _("Завести занятие")) }}
@@ -25,12 +25,31 @@
 {% elif not sheet.students %}
 <div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
 {% else %}
+
+{# Семестр целиком в экран не помещается, а нужен обычно последний месяц.
+   Поэтому по умолчанию показываем хвост, а весь список — по ссылке. #}
+{% if hidden %}
+<p class="small muted">
+  {{ _("Видны последние занятия: %(shown)s из %(all)s.") % {"shown": blocks | length, "all": sheet.blocks | length} }}
+  <a href="/teacher/groups/{{ group.id }}/sheet?all=1">{{ _("Показать весь семестр") }}</a>
+</p>
+{% elif sheet.blocks | length > tail %}
+<p class="small muted">
+  <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("Показать только последние занятия") }}</a>
+</p>
+{% endif %}
+
 <div class="card table-wrap" style="padding:6px">
   <table class="matrix">
     <thead>
       <tr>
         <th rowspan="2">{{ _("Студент") }}</th>
-        {% for block in sheet.blocks %}
+        {# Итоги слева, рядом с именем: к ним возвращаются чаще, чем к любой
+           отдельной клетке, а справа они уезжали за край экрана. #}
+        <th rowspan="2" class="totals">{{ _("Баллы") }}</th>
+        <th rowspan="2" class="totals">{{ _("Зачтено") }}</th>
+        <th rowspan="2" class="totals">{{ _("Посещено") }}</th>
+        {% for block in blocks %}
         <th colspan="{{ block.columns | length }}" class="block-head">
           {% if block.lesson %}
             <a href="/teacher/sheet/lessons/{{ block.lesson.id }}"
@@ -41,20 +60,14 @@
           {% endif %}
         </th>
         {% endfor %}
-        <th rowspan="2">{{ _("Баллы") }}</th>
-        <th rowspan="2">{{ _("Зачтено") }}</th>
-        <th rowspan="2">{{ _("Посещено") }}</th>
       </tr>
       <tr>
-        {% for column in sheet.columns %}
-        <th class="small">
-          {% if column.kind == "assignment" %}
-          <span title="{{ column.title }} — {{ _("считается из задания") }}">{{ column.title }}</span>
-          {% else %}
-          <a href="/teacher/sheet/{{ column.id }}" title="{{ _("проставить") }}">{{ column.title }}</a>
-          {% endif %}
+        {% for block in blocks %}{% for column in block.columns %}
+        <th class="small col-head" title="{{ column.title }}">
+          {% if column.kind == "assignment" %}{{ column.title }}
+          {% else %}<a href="/teacher/sheet/{{ column.id }}">{{ column.title }}</a>{% endif %}
         </th>
-        {% endfor %}
+        {% endfor %}{% endfor %}
       </tr>
     </thead>
     <tbody>
@@ -62,30 +75,32 @@
       {% set total = sheet.total(student.id) %}
       <tr>
         <td><a href="/u/{{ student.id }}">{{ student.display_name }}</a></td>
-        {% for column in sheet.columns %}
+        <td class="num totals">{{ total.points | round(1) }}</td>
+        <td class="num totals">{{ total.passed }} / {{ total.gradable }}</td>
+        <td class="num totals">{{ total.present }} / {{ total.lessons }}</td>
+        {% for block in blocks %}{% for column in block.columns %}
         {% set value = sheet.value(student.id, column.id) %}
-        <td class="cell {{ 'counted' if value.counted }}"
-            {% if value.comment %}title="{{ value.comment }}"{% endif %}>
-          {% if column.kind == "attendance" %}
+        <td>
+          <span class="cell {{ 'counted' if value.counted }}"
+                {% if value.comment %}title="{{ value.comment }}"{% endif %}>
+          {%- if column.kind == "attendance" -%}
             {% if value.attendance == "present" %}{{ icon("check") }}
             {% elif value.attendance == "absent" %}{{ icon("close") }}
             {% elif value.attendance == "excused" %}<span class="small">{{ _("ув.") }}</span>
             {% else %}<span class="muted">—</span>{% endif %}
-          {% elif column.kind == "assignment" %}
+          {%- elif column.kind == "assignment" -%}
             <span class="small">{{ value.solved }} / {{ value.total }}</span>
-          {% elif column.scale == "points" %}
+          {%- elif column.scale == "points" -%}
             {% if value.points is none %}<span class="muted">—</span>
             {% else %}<span class="small">{{ value.points | round(1) }}</span>{% endif %}
-          {% else %}
+          {%- else -%}
             {% if value.passed is none %}<span class="muted">—</span>
             {% elif value.passed %}{{ icon("check") }}
             {% else %}{{ icon("close") }}{% endif %}
-          {% endif %}
+          {%- endif -%}
+          </span>
         </td>
-        {% endfor %}
-        <td class="num">{{ total.points | round(1) }}</td>
-        <td class="num">{{ total.passed }} / {{ total.gradable }}</td>
-        <td class="num">{{ total.present }} / {{ total.lessons }}</td>
+        {% endfor %}{% endfor %}
       </tr>
       {% endfor %}
     </tbody>

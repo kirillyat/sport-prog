@@ -61,18 +61,31 @@ def _number(raw: str) -> float | None:
 # ------------------------------------------------------------- преподаватель
 
 
+# Сколько занятий показывать без спроса. Семестр целиком не помещается
+# в экран, а нужен обычно последний месяц.
+SHEET_TAIL = 5
+
+
 @router.get("/teacher/groups/{group_id}/sheet")
-async def group_sheet(request: Request, session: SessionDep, user: TeacherUser, group_id: int):
+async def group_sheet(
+    request: Request, session: SessionDep, user: TeacherUser, group_id: int, all: str = ""
+):
     group = await session.get(Group, group_id)
     if group is None:
         return _redirect("/teacher/groups", error=_("Группа не найдена"))
+    built = await sheet.build(session, group)
+    whole = bool(all.strip())
+    blocks = built.blocks if whole else built.blocks[-SHEET_TAIL:]
     return templates.TemplateResponse(
         request,
         "teacher/sheet.html",
         {
             "user": user,
             "group": group,
-            "sheet": await sheet.build(session, group),
+            "sheet": built,
+            "blocks": blocks,
+            "hidden": len(blocks) < len(built.blocks),
+            "tail": SHEET_TAIL,
             **_flash(request),
         },
     )

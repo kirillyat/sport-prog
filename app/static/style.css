@@ -1049,6 +1049,23 @@ input.narrow { max-width: 90px; }
 
 /* Шапка ведомости в два этажа: сверху занятие, под ним его оценки. */
 .matrix th.block-head { border-bottom: 2px solid var(--ink); }
+/* Подпись колонки не должна растягивать саму колонку: клетка — это значок,
+   а не слово. Полное название остаётся подсказкой. */
+.matrix th.col-head {
+  max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* Капс с разрядкой удлиняет слово на треть — в подписи над клеткой
+     шириной в значок это лишнее. */
+  text-transform: none; letter-spacing: 0; font-size: 11px;
+}
+/* Итоги стоят слева и не уезжают при прокрутке вправо — к ним возвращаются
+   чаще, чем к любой отдельной клетке. */
+.matrix th.totals, .matrix td.totals {
+  position: sticky; background: var(--panel); white-space: nowrap;
+  border-right: 2px solid var(--line-soft);
+}
+.matrix th.totals:nth-child(2), .matrix td.totals:nth-child(2) { left: 190px; border-right: 0; }
+.matrix th.totals:nth-child(3), .matrix td.totals:nth-child(3) { left: 250px; border-right: 0; }
+.matrix th.totals:nth-child(4), .matrix td.totals:nth-child(4) { left: 320px; }
 
 
 /* --- Оценки студента ---------------------------------------------------

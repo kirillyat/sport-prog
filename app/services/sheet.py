@@ -46,7 +46,7 @@ from app.services.progress import compute_progress
 # в нём не заводится — а значит, и в знаменатель посещаемости не попадёт.
 PARTS: tuple[tuple[str, str, SheetKind, SheetScale], ...] = (
     ("attendance", N_("посещение"), SheetKind.attendance, SheetScale.pass_fail),
-    ("classwork", N_("работа на семинаре"), SheetKind.manual, SheetScale.pass_fail),
+    ("classwork", N_("работа"), SheetKind.manual, SheetScale.pass_fail),
     ("homework", N_("домашка"), SheetKind.manual, SheetScale.pass_fail),
     ("exam", N_("контрольная"), SheetKind.manual, SheetScale.points),
 )

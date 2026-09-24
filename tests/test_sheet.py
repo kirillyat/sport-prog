@@ -344,7 +344,7 @@ async def test_a_lesson_gets_all_its_grades_at_once(session, group):
     await session.commit()
 
     columns = [c for c in await sheet.columns_of(session, group.id) if c.lesson_id == lesson.id]
-    assert [c.title for c in columns] == ["посещение", "работа на семинаре", "домашка"]
+    assert [c.title for c in columns] == ["посещение", "работа", "домашка"]
     assert [c.kind for c in columns] == [
         SheetKind.attendance, SheetKind.manual, SheetKind.manual
     ]
@@ -596,7 +596,7 @@ async def test_a_whole_lesson_is_filled_in_one_save(session, client, group):
         data={
             f"mark:{columns['посещение'].id}:{аня.id}": "present",
             f"mark:{columns['посещение'].id}:{борис.id}": "absent",
-            f"mark:{columns['работа на семинаре'].id}:{аня.id}": "yes",
+            f"mark:{columns['работа'].id}:{аня.id}": "yes",
             f"mark:{columns['домашка'].id}:{аня.id}": "no",
         },
     )
@@ -605,7 +605,7 @@ async def test_a_whole_lesson_is_filled_in_one_save(session, client, group):
     built = await sheet.build(session, group)
     assert built.value(аня.id, columns["посещение"].id).attendance == Attendance.present
     assert built.value(борис.id, columns["посещение"].id).attendance == Attendance.absent
-    assert built.value(аня.id, columns["работа на семинаре"].id).passed is True
+    assert built.value(аня.id, columns["работа"].id).passed is True
     assert built.value(аня.id, columns["домашка"].id).passed is False
 
 
@@ -647,4 +647,4 @@ async def test_the_lesson_page_shows_every_grade_of_the_lesson(session, client, 
     # Посещение — переключателями, домашка — колонкой таблицы.
     assert f'name="mark:{columns["посещение"].id}' in page.text
     assert f'name="mark:{columns["домашка"].id}' in page.text
-    assert "работа на семинаре" not in page.text
+    assert "работа" not in page.text
