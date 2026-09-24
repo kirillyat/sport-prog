@@ -19,8 +19,8 @@
 
 {% if not sheet.columns %}
 <div class="card">
-  {{ empty("edit", _("Колонок пока нет — заведи первую работу."),
-           "/teacher/groups/" ~ group.id ~ "/sheet/columns", _("Завести колонку")) }}
+  {{ empty("edit", _("Занятий пока нет — заведи первое."),
+           "/teacher/groups/" ~ group.id ~ "/sheet/columns", _("Завести занятие")) }}
 </div>
 {% elif not sheet.students %}
 <div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
@@ -29,9 +29,24 @@
   <table class="matrix">
     <thead>
       <tr>
-        <th>{{ _("Студент") }}</th>
+        <th rowspan="2">{{ _("Студент") }}</th>
+        {% for block in sheet.blocks %}
+        <th colspan="{{ block.columns | length }}" class="block-head">
+          {% if block.lesson %}
+            {{ block.lesson.title }}
+            {% if block.lesson.held_on %}<br><span class="small muted">{{ block.lesson.held_on | d }}</span>{% endif %}
+          {% else %}
+            <span class="small muted">{{ _("отдельно") }}</span>
+          {% endif %}
+        </th>
+        {% endfor %}
+        <th rowspan="2">{{ _("Баллы") }}</th>
+        <th rowspan="2">{{ _("Зачтено") }}</th>
+        <th rowspan="2">{{ _("Посещено") }}</th>
+      </tr>
+      <tr>
         {% for column in sheet.columns %}
-        <th>
+        <th class="small">
           {% if column.kind == "assignment" %}
           <span title="{{ column.title }} — {{ _("считается из задания") }}">{{ column.title }}</span>
           {% else %}
@@ -39,9 +54,6 @@
           {% endif %}
         </th>
         {% endfor %}
-        <th>{{ _("Баллы") }}</th>
-        <th>{{ _("Зачтено") }}</th>
-        <th>{{ _("Посещено") }}</th>
       </tr>
     </thead>
     <tbody>
@@ -79,7 +91,7 @@
   </table>
 </div>
 <p class="small muted">
-  {{ _("Колонка-задание считается сама — тем же правилом, что табло и матрица. Остальное ставится на странице колонки.") }}
+  {{ _("За одно занятие оценок несколько: посещение, работа на семинаре, домашка. Колонка-задание считается сама — тем же правилом, что табло и матрица.") }}
 </p>
 {% endif %}
 {% endblock %}

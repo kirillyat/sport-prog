@@ -626,8 +626,32 @@ class SyncState(Base):
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
 
+class SheetLesson(Base):
+    """Занятие: семинар или лекция, за которые бывает несколько оценок сразу.
+
+    Одно занятие — это посещение, работа на семинаре и домашка, а не одна
+    отметка. Поэтому дата живёт здесь: она свойство занятия, а не каждой
+    из его оценок.
+    """
+
+    __tablename__ = "sheet_lessons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(120))
+    held_on: Mapped[datetime | None] = mapped_column()
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
 class SheetColumn(Base):
     """Колонка ведомости группы: работа, за которую бывает оценка.
+
+    Колонка либо принадлежит занятию (посещение, работа, домашка), либо стоит
+    сама по себе — так живут контрольная и проектная работа, которые к одному
+    семинару не привязаны.
 
     Колонки принадлежат группе, а не курсу: разные группы ведут разные
     преподаватели и разным темпом. Чтобы не заводить одно и то же трижды,
@@ -651,8 +675,10 @@ class SheetColumn(Base):
         ForeignKey("assignments.id", ondelete="CASCADE")
     )
     required_solved: Mapped[int | None] = mapped_column(Integer)
-    # Для посещаемости: дата занятия. Ведомость сортируется по ней и позиции.
-    held_on: Mapped[datetime | None] = mapped_column()
+    # Занятие, к которому относится колонка. Пусто — работа сама по себе.
+    lesson_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sheet_lessons.id", ondelete="CASCADE"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

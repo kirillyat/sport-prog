@@ -7,8 +7,8 @@
     <p class="eyebrow">
       <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
     </p>
-    <h1>{{ column.title }}</h1>
-    {% if column.held_on %}<p class="sub">{{ column.held_on | d }}</p>{% endif %}
+    <h1>{% if lesson %}{{ lesson.title }}{% else %}{{ column.title }}{% endif %}</h1>
+    {% if lesson and lesson.held_on %}<p class="sub">{{ lesson.held_on | d }}</p>{% endif %}
   </div>
 </div>
 

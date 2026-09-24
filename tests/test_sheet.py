@@ -304,16 +304,18 @@ async def test_every_sheet_page_renders_with_a_dated_lesson(session, client, gro
     from datetime import UTC, datetime
 
     session.add(FeatureFlag(key="grades", for_students=True, for_teachers=True))
-    lesson = SheetColumn(
-        group_id=group.id, title="Семинар 1", kind=SheetKind.attendance,
+    seminar = await sheet.add_lesson(
+        session, group.id, "Семинар 1",
         held_on=datetime(2026, 9, 24, 10, 30, tzinfo=UTC),
     )
     exam = SheetColumn(
         group_id=group.id, title="Контрольная", kind=SheetKind.manual,
         scale=SheetScale.points, max_points=10,
     )
-    session.add_all([lesson, exam])
+    session.add(exam)
     await session.commit()
+    columns = [c for c in await sheet.columns_of(session, group.id) if c.lesson_id == seminar.id]
+    lesson = next(c for c in columns if c.kind == SheetKind.attendance)
     аня, _ = await _students(session, group)
     await sheet.put(session, lesson, аня.id, attendance=Attendance.excused)
     await sheet.put(session, exam, аня.id, points=7, comment="хорошо")
@@ -334,3 +336,117 @@ async def test_every_sheet_page_renders_with_a_dated_lesson(session, client, gro
     page = await client.get("/grades")
     assert page.status_code == 200
     assert "24.09.2026" in page.text
+
+
+async def test_a_lesson_gets_all_its_grades_at_once(session, group):
+    """За семинар оценок несколько — заводить их по одной было бы сорок пять форм."""
+    lesson = await sheet.add_lesson(session, group.id, "Семинар 1")
+    await session.commit()
+
+    columns = [c for c in await sheet.columns_of(session, group.id) if c.lesson_id == lesson.id]
+    assert [c.title for c in columns] == ["посещение", "работа на семинаре", "домашка"]
+    assert [c.kind for c in columns] == [
+        SheetKind.attendance, SheetKind.manual, SheetKind.manual
+    ]
+
+
+async def test_a_lesson_can_be_trimmed_to_what_actually_happened(session, group):
+    """Лекция без домашки — обычное дело, лишнюю колонку навязывать незачем."""
+    lesson = await sheet.add_lesson(session, group.id, "Лекция 2", parts=("attendance",))
+    await session.commit()
+
+    columns = [c for c in await sheet.columns_of(session, group.id) if c.lesson_id == lesson.id]
+    assert [c.title for c in columns] == ["посещение"]
+
+
+async def test_the_sheet_keeps_lessons_together_and_standalone_columns_last(session, group):
+    """Колонки идут занятиями, а контрольная и проект — в конце, отдельным блоком."""
+    await sheet.add_lesson(session, group.id, "Семинар 1", parts=("attendance", "homework"))
+    session.add(
+        SheetColumn(group_id=group.id, title="Контрольная", kind=SheetKind.manual)
+    )
+    await session.commit()
+    await sheet.add_lesson(session, group.id, "Семинар 2", parts=("attendance",))
+    await session.commit()
+
+    built = await sheet.build(session, group)
+    assert [block.title for block in built.blocks] == ["Семинар 1", "Семинар 2", ""]
+    assert [len(block.columns) for block in built.blocks] == [2, 1, 1]
+    assert built.blocks[-1].lesson is None
+
+
+async def test_deleting_a_lesson_takes_its_columns_and_marks(session, group):
+    lesson = await sheet.add_lesson(session, group.id, "Семинар 1")
+    await session.commit()
+    column = [c for c in await sheet.columns_of(session, group.id) if c.lesson_id == lesson.id][0]
+    аня, _ = await _students(session, group)
+    await sheet.put(session, column, аня.id, attendance=Attendance.absent)
+    await session.commit()
+
+    await sheet.remove_lesson(session, lesson)
+    await session.commit()
+
+    assert await sheet.columns_of(session, group.id) == []
+    assert (await session.execute(select(SheetMark))).scalars().all() == []
+
+
+async def test_copying_carries_lessons_but_not_their_dates(session, group):
+    """У другой группы тот же семинар в другой день — чужую дату не переносим."""
+    from datetime import UTC, datetime
+
+    other = Group(title="ИИ-102", join_code="ai102")
+    session.add(other)
+    await sheet.add_lesson(
+        session, group.id, "Семинар 1", held_on=datetime(2026, 9, 24, 10, 30, tzinfo=UTC)
+    )
+    await session.commit()
+
+    await sheet.copy_columns(session, group.id, other.id)
+    await session.commit()
+
+    lessons = await sheet.lessons_of(session, other.id)
+    assert [lesson.title for lesson in lessons] == ["Семинар 1"]
+    assert lessons[0].held_on is None
+    copied = await sheet.columns_of(session, other.id)
+    assert len(copied) == 3 and all(c.lesson_id == lessons[0].id for c in copied)
+
+
+async def test_a_lesson_is_created_from_the_page_with_chosen_parts(session, client, group):
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/teacher/groups/{group.id}/sheet/lessons",
+        data={"title": "Семинар 4", "part:attendance": "on", "part:homework": "on"},
+    )
+
+    assert "Занятие добавлено" in page.text
+    columns = await sheet.columns_of(session, group.id)
+    assert [c.title for c in columns] == ["посещение", "домашка"]
+
+
+async def test_a_lesson_without_any_grade_is_refused(session, client, group):
+    """Занятие без единой оценки — пустая шапка в ведомости и ничего больше."""
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/teacher/groups/{group.id}/sheet/lessons", data={"title": "Семинар 5"}
+    )
+
+    assert "хотя бы одну" in page.text
+    assert await sheet.lessons_of(session, group.id) == []
+
+
+async def test_an_unmarked_lesson_is_not_a_miss(session, group):
+    """Семестр заводят вперёд: «посещено 0 из 15» в сентябре — неправда."""
+    await sheet.add_lesson(session, group.id, "Семинар 1", parts=("attendance",))
+    await sheet.add_lesson(session, group.id, "Семинар 2", parts=("attendance",))
+    await session.commit()
+    аня, _ = await _students(session, group)
+
+    total = (await sheet.build(session, group)).total(аня.id)
+    assert (total.present, total.lessons) == (0, 0)
+
+    первый = (await sheet.columns_of(session, group.id))[0]
+    await sheet.put(session, первый, аня.id, attendance=Attendance.present)
+    await session.commit()
+
+    total = (await sheet.build(session, group)).total(аня.id)
+    assert (total.present, total.lessons) == (1, 1)

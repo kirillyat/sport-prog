@@ -13,7 +13,41 @@
 </div>
 
 <div class="card">
-  <h3>{{ icon("plus") }} {{ _("Новая колонка") }}</h3>
+  <h3>{{ icon("plus") }} {{ _("Новое занятие") }}</h3>
+  <p class="small muted" style="margin-top:0">
+    {{ _("За один семинар оценок обычно несколько. Заводятся они разом — лишнее снимается галочкой.") }}
+  </p>
+  <form method="post" action="/teacher/groups/{{ group.id }}/sheet/lessons">
+    <div class="grid two">
+      <div class="field">
+        <label for="lesson_title">{{ _("Название") }}</label>
+        <input type="text" id="lesson_title" name="title" placeholder="{{ _("Семинар 3") }}" required>
+      </div>
+      <div class="field">
+        <label for="lesson_held_on">{{ _("Дата занятия") }}</label>
+        <input type="datetime-local" id="lesson_held_on" name="held_on">
+      </div>
+    </div>
+    <div class="field">
+      <label>{{ _("Оценки за занятие") }}</label>
+      <div class="row">
+        {% for key, label, kind in parts %}
+        <label class="chip">
+          <input type="checkbox" name="part:{{ key }}" checked>
+          <span>{{ _(label) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit">{{ icon("plus") }} {{ _("Завести занятие") }}</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>{{ icon("plus") }} {{ _("Отдельная колонка") }}</h3>
+  <p class="small muted" style="margin-top:0">
+    {{ _("Для того, что к семинару не привязано: контрольная, проект, экзамен. Или чтобы добавить оценку к уже заведённому занятию.") }}
+  </p>
   <form method="post" action="/teacher/groups/{{ group.id }}/sheet/columns">
     <div class="grid two">
       <div class="field">
@@ -58,8 +92,13 @@
       </div>
     </div>
     <div class="field">
-      <label for="held_on">{{ _("Дата занятия — для посещаемости") }}</label>
-      <input type="datetime-local" id="held_on" name="held_on">
+      <label for="lesson_id">{{ _("Занятие (пусто — колонка сама по себе)") }}</label>
+      <select id="lesson_id" name="lesson_id">
+        <option value="">{{ _("сама по себе") }}</option>
+        {% for lesson in lessons %}
+        <option value="{{ lesson.id }}">{{ lesson.title }}</option>
+        {% endfor %}
+      </select>
     </div>
     <p class="small muted">
       {{ _("Посещаемость всегда отметка, не балл: явка и работа весят по-разному, и складывать их портал не берётся.") }}
@@ -68,23 +107,33 @@
   </form>
 </div>
 
-{% if columns %}
-<div class="card table-wrap" style="padding:6px">
+{% if blocks %}
+{% for block in blocks %}
+<div class="card">
+  <div class="page-head" style="margin:0">
+    <div>
+      <h3 style="margin:0">
+        {% if block.lesson %}{{ block.lesson.title }}
+        {% else %}{{ _("Отдельные колонки") }}{% endif %}
+      </h3>
+      {% if block.lesson and block.lesson.held_on %}
+      <p class="small muted" style="margin:0">{{ block.lesson.held_on | d }}</p>
+      {% endif %}
+    </div>
+    {% if block.lesson %}
+    <form method="post" action="/teacher/sheet/lessons/{{ block.lesson.id }}/delete"
+          onsubmit="return confirm('{{ _("Удалить занятие вместе с оценками?") }}')">
+      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Удалить занятие") }}</button>
+    </form>
+    {% endif %}
+  </div>
   <table>
-    <thead>
-      <tr>
-        <th>#</th><th>{{ _("Колонка") }}</th><th>{{ _("Вид") }}</th>
-        <th>{{ _("Шкала") }}</th><th></th>
-      </tr>
-    </thead>
     <tbody>
-      {% for column in columns %}
+      {% for column in block.columns %}
       <tr>
-        <td class="muted num">{{ loop.index }}</td>
         <td>
           {% if column.kind == "assignment" %}{{ column.title }}
           {% else %}<a href="/teacher/sheet/{{ column.id }}">{{ column.title }}</a>{% endif %}
-          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | d }}</span>{% endif %}
         </td>
         <td class="small muted">
           {% if column.kind == "assignment" %}{{ _("из задания") }}
@@ -107,8 +156,9 @@
     </tbody>
   </table>
 </div>
+{% endfor %}
 {% else %}
-<div class="card">{{ empty("edit", _("Колонок пока нет — заведи первую в форме выше.")) }}</div>
+<div class="card">{{ empty("edit", _("Занятий пока нет — заведи первое в форме выше.")) }}</div>
 {% endif %}
 
 {% if others %}

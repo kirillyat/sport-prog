@@ -730,3 +730,6 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .attend-states .chip input:checked + span { background: var(--ink); color: var(--paper); }
 .attend-states .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 input.narrow { max-width: 90px; }
+
+/* Шапка ведомости в два этажа: сверху занятие, под ним его оценки. */
+.matrix th.block-head { border-bottom: 2px solid var(--ink); }

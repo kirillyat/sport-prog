@@ -8,6 +8,7 @@
       <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
     </p>
     <h1>{{ column.title }}</h1>
+    {% if lesson %}<p class="sub">{{ lesson.title }}{% if lesson.held_on %} · {{ lesson.held_on | d }}{% endif %}</p>{% endif %}
   </div>
   <span class="badge">
     {% if column.scale == "points" %}{{ _("баллы, максимум %(max)s") % {"max": column.max_points | round(1)} }}

@@ -103,7 +103,14 @@ def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> byte
 def sheet_csv(built) -> bytes:
     """Ведомость группы. Итог тремя числами — так же, как на странице."""
     header = [_("Студент")]
-    header += [column.title for column in built.columns]
+    # Занятие в заголовке: «Семинар 3 · посещение» читается и без второй строки.
+    titles = {}
+    for block in built.blocks:
+        for column in block.columns:
+            titles[column.id] = (
+                f"{block.lesson.title} · {column.title}" if block.lesson else column.title
+            )
+    header += [titles.get(column.id, column.title) for column in built.columns]
     header += [_("Баллы"), _("Зачтено"), _("Посещено")]
 
     body: list[list[object]] = []

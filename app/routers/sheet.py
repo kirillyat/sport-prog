@@ -25,6 +25,7 @@ from app.models import (
     Group,
     SheetColumn,
     SheetKind,
+    SheetLesson,
     SheetScale,
     utcnow,
 )
@@ -122,11 +123,60 @@ async def sheet_columns(request: Request, session: SessionDep, user: TeacherUser
         {
             "user": user,
             "group": group,
-            "columns": await sheet.columns_of(session, group_id),
+            "blocks": await sheet.blocks_of(session, group_id),
+            "lessons": await sheet.lessons_of(session, group_id),
+            "parts": sheet.PARTS,
             "assignments": assignments,
             "others": others,
             **_flash(request),
         },
+    )
+
+
+@router.post("/teacher/groups/{group_id}/sheet/lessons")
+async def add_lesson(
+    request: Request,
+    session: SessionDep,
+    user: TeacherUser,
+    group_id: int,
+    title: str = Form(...),
+    held_on: str = Form(""),
+):
+    """Занятие заводится целиком: посещение, работа и домашка сразу."""
+    group = await session.get(Group, group_id)
+    if group is None:
+        return _redirect("/teacher/groups", error=_("Группа не найдена"))
+    back = f"/teacher/groups/{group_id}/sheet/columns"
+    if not title.strip():
+        return _redirect(back, error=_("Пустое название"))
+
+    form = await request.form()
+    parts = tuple(key for key, _label, _kind in sheet.PARTS if f"part:{key}" in form)
+    if not parts:
+        return _redirect(back, error=_("Выбери хотя бы одну оценку за занятие"))
+
+    await sheet.add_lesson(
+        session,
+        group_id,
+        title,
+        held_on=parse_local_input(held_on) if held_on.strip() else None,
+        parts=parts,
+    )
+    await session.commit()
+    return _redirect(back, message=_("Занятие добавлено"))
+
+
+@router.post("/teacher/sheet/lessons/{lesson_id}/delete")
+async def delete_lesson(session: SessionDep, user: TeacherUser, lesson_id: int):
+    lesson = await session.get(SheetLesson, lesson_id)
+    if lesson is None:
+        return _redirect("/teacher/groups", error=_("Занятие не найдено"))
+    group_id = lesson.group_id
+    await sheet.remove_lesson(session, lesson)
+    await session.commit()
+    return _redirect(
+        f"/teacher/groups/{group_id}/sheet/columns",
+        message=_("Занятие удалено вместе с оценками"),
     )
 
 
@@ -141,7 +191,7 @@ async def add_column(
     max_points: str = Form("1"),
     assignment_id: str = Form(""),
     required_solved: str = Form(""),
-    held_on: str = Form(""),
+    lesson_id: str = Form(""),
 ):
     group = await session.get(Group, group_id)
     if group is None:
@@ -167,10 +217,15 @@ async def add_column(
     if column_kind == SheetKind.attendance:
         column_scale = SheetScale.pass_fail
 
+    lesson = int(lesson_id) if lesson_id.strip() else None
+    if lesson is not None and await session.get(SheetLesson, lesson) is None:
+        return _redirect(back, error=_("Занятие не найдено"))
+
     existing = await sheet.columns_of(session, group_id)
     session.add(
         SheetColumn(
             group_id=group_id,
+            lesson_id=lesson,
             title=title.strip(),
             kind=column_kind,
             scale=column_scale,
@@ -178,7 +233,6 @@ async def add_column(
             position=len(existing),
             assignment_id=linked,
             required_solved=int(required_solved) if required_solved.strip().isdigit() else None,
-            held_on=parse_local_input(held_on) if held_on.strip() else None,
         )
     )
     await session.commit()
@@ -231,6 +285,9 @@ async def column_page(request: Request, session: SessionDep, user: TeacherUser, 
             "user": user,
             "group": group,
             "column": column,
+            "lesson": await session.get(SheetLesson, column.lesson_id)
+            if column.lesson_id
+            else None,
             "students": await sheet.students_of(session, group),
             "marks": await sheet.marks_of(session, column.id),
             "attendance": Attendance,

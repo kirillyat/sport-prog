@@ -29,18 +29,24 @@
       <tr><th>{{ _("Работа") }}</th><th>{{ _("Оценка") }}</th><th>{{ _("Комментарий") }}</th></tr>
     </thead>
     <tbody>
-      {% for column in sheet.columns %}
+      {% for block in sheet.blocks %}
+      {% for column in block.columns %}
       {% set value = sheet.value(user.id, column.id) %}
       <tr>
         <td>
+          {% if loop.first and block.lesson %}
+          <span class="badge">{{ block.lesson.title }}</span>
+          {% if block.lesson.held_on %}<span class="small muted">{{ block.lesson.held_on | d }}</span>{% endif %}
+          <br>
+          {% endif %}
           {{ column.title }}
-          {% if column.held_on %}<br><span class="small muted">{{ column.held_on | d }}</span>{% endif %}
         </td>
         <td>
           {% if column.kind == "attendance" %}
             {% if value.attendance == "absent" %}<span class="badge err">{{ _("не был") }}</span>
             {% elif value.attendance == "excused" %}<span class="badge">{{ _("уважительная") }}</span>
-            {% else %}<span class="badge ok">{{ icon("check") }} {{ _("был") }}</span>{% endif %}
+            {% elif value.attendance == "present" %}<span class="badge ok">{{ icon("check") }} {{ _("был") }}</span>
+            {% else %}<span class="muted">{{ _("не отмечено") }}</span>{% endif %}
           {% elif column.kind == "assignment" %}
             <span class="badge {{ 'ok' if value.passed }}">{{ value.solved }} / {{ value.total }}</span>
           {% elif column.scale == "points" %}
@@ -54,6 +60,7 @@
         </td>
         <td class="small muted">{{ value.comment }}</td>
       </tr>
+      {% endfor %}
       {% endfor %}
     </tbody>
   </table>
