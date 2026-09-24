@@ -33,7 +33,8 @@
         {% for block in sheet.blocks %}
         <th colspan="{{ block.columns | length }}" class="block-head">
           {% if block.lesson %}
-            {{ block.lesson.title }}
+            <a href="/teacher/sheet/lessons/{{ block.lesson.id }}"
+               title="{{ _("заполнить занятие") }}">{{ block.lesson.title }}</a>
             {% if block.lesson.held_on %}<br><span class="small muted">{{ block.lesson.held_on | d }}</span>{% endif %}
           {% else %}
             <span class="small muted">{{ _("отдельно") }}</span>
@@ -91,7 +92,7 @@
   </table>
 </div>
 <p class="small muted">
-  {{ _("Колонка задания считается сама. Остальные оценки ставятся на странице колонки.") }}
+  {{ _("Занятие заполняется целиком — по ссылке в шапке. Колонка задания считается сама.") }}
 </p>
 {% endif %}
 {% endblock %}

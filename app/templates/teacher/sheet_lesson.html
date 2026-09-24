@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ lesson.title }} — {{ group.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">
+      <a href="/teacher/groups/{{ group.id }}/sheet">{{ _("ведомость") }}</a> / {{ group.title }}
+    </p>
+    <h1>{{ lesson.title }}</h1>
+    {% if lesson.held_on %}<p class="sub">{{ lesson.held_on | d }}</p>{% endif %}
+  </div>
+</div>
+
+{% if not students %}
+<div class="card">{{ empty("users", _("В группе пока никого.")) }}</div>
+{% else %}
+<form method="post" action="/teacher/sheet/lessons/{{ lesson.id }}">
+  {% if attendance_column %}
+  <h2>{{ icon("check") }} {{ _("Посещение") }}</h2>
+  <div class="card">
+    <p class="small muted" style="margin-top:0">
+      {{ _("Отмечать нужно только тех, кого не было: остальные считаются пришедшими.") }}
+    </p>
+    {% for student in students %}
+    {% set mark = marks[attendance_column.id].get(student.id) %}
+    {% set state = mark.attendance if mark else "present" %}
+    <div class="attend-row">
+      <span class="attend-name">{{ student.display_name }}</span>
+      <span class="attend-states">
+        {% for value, label in (("present", _("был")), ("absent", _("не был")), ("excused", _("уважительная"))) %}
+        <label class="chip">
+          <input type="radio" name="mark:{{ attendance_column.id }}:{{ student.id }}"
+                 value="{{ value }}" {{ 'checked' if state == value }}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if grade_columns %}
+  <h2>{{ icon("edit") }} {{ _("Оценки") }}</h2>
+  <div class="card table-wrap" style="padding:6px">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ _("Студент") }}</th>
+          {% for column in grade_columns %}
+          <th>
+            {{ column.title }}
+            {% if column.scale == "points" %}
+            <br><span class="small muted">{{ _("до %(max)s") % {"max": column.max_points | round(1)} }}</span>
+            {% endif %}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          <td>{{ student.display_name }}</td>
+          {% for column in grade_columns %}
+          {% set mark = marks[column.id].get(student.id) %}
+          <td>
+            {% if column.scale == "points" %}
+            <input type="text" name="mark:{{ column.id }}:{{ student.id }}" inputmode="decimal"
+                   class="narrow" value="{{ mark.points if mark and mark.points is not none else '' }}">
+            {% else %}
+            <select name="mark:{{ column.id }}:{{ student.id }}">
+              <option value="" {{ 'selected' if not mark or mark.passed is none }}>—</option>
+              <option value="yes" {{ 'selected' if mark and mark.passed }}>{{ _("зачёт") }}</option>
+              <option value="no" {{ 'selected' if mark and mark.passed is not none and not mark.passed }}>{{ _("незачёт") }}</option>
+            </select>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="row">
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+    <a class="btn ghost" href="/teacher/groups/{{ group.id }}/sheet">{{ _("Отмена") }}</a>
+  </div>
+  {% if grade_columns %}
+  <p class="small muted">
+    {{ _("Комментарий студенту пишется на странице отдельной оценки:") }}
+    {% for column in grade_columns %}<a href="/teacher/sheet/{{ column.id }}">{{ column.title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</form>
+{% endif %}
+{% endblock %}

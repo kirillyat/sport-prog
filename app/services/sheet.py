@@ -38,13 +38,21 @@ from app.models import (
 )
 from app.services.progress import compute_progress
 
-# Из чего обычно состоит семинар. Преподаватель снимает лишнее галочкой,
+# Из чего обычно состоит занятие. Преподаватель снимает лишнее галочкой,
 # но по умолчанию предлагаем то, ради чего ведомость и заводят.
-PARTS: tuple[tuple[str, str, SheetKind], ...] = (
-    ("attendance", N_("посещение"), SheetKind.attendance),
-    ("classwork", N_("работа на семинаре"), SheetKind.manual),
-    ("homework", N_("домашка"), SheetKind.manual),
+#
+# Контрольная здесь же, потому что бывает неделя без семинара: пришли, писали
+# контрольную, разошлись. Тогда занятие состоит из одних баллов, и посещение
+# в нём не заводится — а значит, и в знаменатель посещаемости не попадёт.
+PARTS: tuple[tuple[str, str, SheetKind, SheetScale], ...] = (
+    ("attendance", N_("посещение"), SheetKind.attendance, SheetScale.pass_fail),
+    ("classwork", N_("работа на семинаре"), SheetKind.manual, SheetScale.pass_fail),
+    ("homework", N_("домашка"), SheetKind.manual, SheetScale.pass_fail),
+    ("exam", N_("контрольная"), SheetKind.manual, SheetScale.points),
 )
+
+# Что предлагается отмечено по умолчанию: обычная неделя — это семинар.
+DEFAULT_PARTS: tuple[str, ...] = ("attendance", "classwork", "homework")
 
 
 @dataclass(slots=True)
@@ -305,7 +313,8 @@ async def add_lesson(
     group_id: int,
     title: str,
     held_on=None,
-    parts: tuple[str, ...] = ("attendance", "classwork", "homework"),
+    parts: tuple[str, ...] = DEFAULT_PARTS,
+    exam_max: float = 10,
 ) -> SheetLesson:
     """Заводит занятие вместе с его оценками — одной кнопкой.
 
@@ -322,7 +331,7 @@ async def add_lesson(
     session.add(lesson)
     await session.flush()
 
-    for index, (key, label, kind) in enumerate(PARTS):
+    for index, (key, label, kind, scale) in enumerate(PARTS):
         if key not in parts:
             continue
         session.add(
@@ -331,11 +340,17 @@ async def add_lesson(
                 lesson_id=lesson.id,
                 title=label,
                 kind=kind,
-                scale=SheetScale.pass_fail,
+                scale=scale,
+                max_points=exam_max if scale == SheetScale.points else 1,
                 position=index,
             )
         )
     return lesson
+
+
+async def columns_in(session: AsyncSession, lesson: SheetLesson) -> list[SheetColumn]:
+    """Колонки одного занятия — в порядке показа."""
+    return [c for c in await columns_of(session, lesson.group_id) if c.lesson_id == lesson.id]
 
 
 async def remove_lesson(session: AsyncSession, lesson: SheetLesson) -> None:

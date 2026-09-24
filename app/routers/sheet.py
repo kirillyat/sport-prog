@@ -126,6 +126,7 @@ async def sheet_columns(request: Request, session: SessionDep, user: TeacherUser
             "blocks": await sheet.blocks_of(session, group_id),
             "lessons": await sheet.lessons_of(session, group_id),
             "parts": sheet.PARTS,
+            "default_parts": sheet.DEFAULT_PARTS,
             "assignments": assignments,
             "others": others,
             **_flash(request),
@@ -141,8 +142,9 @@ async def add_lesson(
     group_id: int,
     title: str = Form(...),
     held_on: str = Form(""),
+    exam_max: str = Form("10"),
 ):
-    """Занятие заводится целиком: посещение, работа и домашка сразу."""
+    """Занятие заводится целиком: отмеченные оценки создаются разом."""
     group = await session.get(Group, group_id)
     if group is None:
         return _redirect("/teacher/groups", error=_("Группа не найдена"))
@@ -151,7 +153,7 @@ async def add_lesson(
         return _redirect(back, error=_("Пустое название"))
 
     form = await request.form()
-    parts = tuple(key for key, _label, _kind in sheet.PARTS if f"part:{key}" in form)
+    parts = tuple(key for key, *_rest in sheet.PARTS if f"part:{key}" in form)
     if not parts:
         return _redirect(back, error=_("Выбери хотя бы одну оценку за занятие"))
 
@@ -161,12 +163,13 @@ async def add_lesson(
         title,
         held_on=parse_local_input(held_on) if held_on.strip() else None,
         parts=parts,
+        exam_max=max(1.0, _number(exam_max) or 10),
     )
     await session.commit()
     return _redirect(back, message=_("Занятие добавлено"))
 
 
-@router.post("/teacher/sheet/lessons/{lesson_id}")
+@router.post("/teacher/sheet/lessons/{lesson_id}/edit")
 async def edit_lesson(
     session: SessionDep,
     user: TeacherUser,
@@ -190,6 +193,68 @@ async def edit_lesson(
     lesson.held_on = parse_local_input(held_on) if held_on.strip() else None
     await session.commit()
     return _redirect(back, message=_("Занятие изменено"))
+
+
+@router.get("/teacher/sheet/lessons/{lesson_id}")
+async def lesson_page(request: Request, session: SessionDep, user: TeacherUser, lesson_id: int):
+    """Занятие целиком: посещение и оценки на одном экране.
+
+    Раньше на семинар из трёх отметок приходилось три страницы и три
+    сохранения. После пары преподаватель делает одно движение: отмечает,
+    кого не было, и ставит оценки тем же списком.
+    """
+    lesson = await session.get(SheetLesson, lesson_id)
+    if lesson is None:
+        return _redirect("/teacher/groups", error=_("Занятие не найдено"))
+    group = await session.get(Group, lesson.group_id)
+    columns = await sheet.columns_in(session, lesson)
+    return templates.TemplateResponse(
+        request,
+        "teacher/sheet_lesson.html",
+        {
+            "user": user,
+            "group": group,
+            "lesson": lesson,
+            "attendance_column": next(
+                (c for c in columns if c.kind == SheetKind.attendance), None
+            ),
+            "grade_columns": [c for c in columns if c.kind == SheetKind.manual],
+            "students": await sheet.students_of(session, group),
+            "marks": {c.id: await sheet.marks_of(session, c.id) for c in columns},
+            **_flash(request),
+        },
+    )
+
+
+@router.post("/teacher/sheet/lessons/{lesson_id}")
+async def save_lesson(request: Request, session: SessionDep, user: TeacherUser, lesson_id: int):
+    """Одно сохранение на всё занятие: и посещение, и оценки."""
+    lesson = await session.get(SheetLesson, lesson_id)
+    if lesson is None:
+        return _redirect("/teacher/groups", error=_("Занятие не найдено"))
+    group = await session.get(Group, lesson.group_id)
+    form = await request.form()
+
+    for column in await sheet.columns_in(session, lesson):
+        for student in await sheet.students_of(session, group):
+            raw = str(form.get(f"mark:{column.id}:{student.id}", "") or "")
+            if column.kind == SheetKind.attendance:
+                await sheet.put(
+                    session, column, student.id,
+                    attendance=Attendance(raw) if raw in set(Attendance) else None,
+                    graded_by_id=user.id,
+                )
+            elif column.scale == SheetScale.points:
+                await sheet.put(
+                    session, column, student.id, points=_number(raw), graded_by_id=user.id
+                )
+            else:
+                await sheet.put(
+                    session, column, student.id,
+                    passed={"yes": True, "no": False}.get(raw), graded_by_id=user.id,
+                )
+    await session.commit()
+    return _redirect(f"/teacher/groups/{group.id}/sheet", message=_("Занятие заполнено"))
 
 
 @router.post("/teacher/sheet/lessons/{lesson_id}/delete")

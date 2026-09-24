@@ -459,7 +459,7 @@ async def test_a_lesson_can_be_renamed_and_dated_afterwards(session, client, gro
 
     await _login(client, "Кирилл", teacher=True)
     page = await client.post(
-        f"/teacher/sheet/lessons/{lesson.id}",
+        f"/teacher/sheet/lessons/{lesson.id}/edit",
         data={"title": "Семинар 1 · два указателя", "held_on": "2026-09-24T10:30"},
     )
 
@@ -481,7 +481,7 @@ async def test_clearing_the_date_leaves_the_lesson_alone(session, client, group)
 
     await _login(client, "Кирилл", teacher=True)
     await client.post(
-        f"/teacher/sheet/lessons/{lesson.id}", data={"title": "Семинар 1", "held_on": ""}
+        f"/teacher/sheet/lessons/{lesson.id}/edit", data={"title": "Семинар 1", "held_on": ""}
     )
 
     await session.refresh(lesson)
@@ -499,7 +499,7 @@ async def test_editing_does_not_touch_the_grades(session, client, group):
 
     await _login(client, "Кирилл", teacher=True)
     await client.post(
-        f"/teacher/sheet/lessons/{lesson.id}", data={"title": "Семинар первый", "held_on": ""}
+        f"/teacher/sheet/lessons/{lesson.id}/edit", data={"title": "Семинар первый", "held_on": ""}
     )
 
     built = await sheet.build(session, group)
@@ -581,3 +581,70 @@ async def test_untouched_works_are_counted_apart_from_failed_ones(session, group
 
     total = (await sheet.build(session, group)).total(аня.id)
     assert (total.passed, total.gradable, total.ungraded) == (1, 3, 1)
+
+
+async def test_a_whole_lesson_is_filled_in_one_save(session, client, group):
+    """После пары преподаватель делает одно движение, а не три захода по колонкам."""
+    lesson = await sheet.add_lesson(session, group.id, "Семинар 1")
+    await session.commit()
+    columns = {c.title: c for c in await sheet.columns_in(session, lesson)}
+    аня, борис = await _students(session, group)
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/teacher/sheet/lessons/{lesson.id}",
+        data={
+            f"mark:{columns['посещение'].id}:{аня.id}": "present",
+            f"mark:{columns['посещение'].id}:{борис.id}": "absent",
+            f"mark:{columns['работа на семинаре'].id}:{аня.id}": "yes",
+            f"mark:{columns['домашка'].id}:{аня.id}": "no",
+        },
+    )
+
+    assert "Занятие заполнено" in page.text
+    built = await sheet.build(session, group)
+    assert built.value(аня.id, columns["посещение"].id).attendance == Attendance.present
+    assert built.value(борис.id, columns["посещение"].id).attendance == Attendance.absent
+    assert built.value(аня.id, columns["работа на семинаре"].id).passed is True
+    assert built.value(аня.id, columns["домашка"].id).passed is False
+
+
+async def test_a_week_without_a_seminar_has_no_attendance(session, client, group):
+    """Неделя с контрольной вместо семинара: отмечать посещение нечего и незачем."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post(
+        f"/teacher/groups/{group.id}/sheet/lessons",
+        data={"title": "Неделя 7 · контрольная", "part:exam": "on", "exam_max": "20"},
+    )
+
+    lesson = (await sheet.lessons_of(session, group.id))[0]
+    columns = await sheet.columns_in(session, lesson)
+    assert [c.title for c in columns] == ["контрольная"]
+    assert (columns[0].scale, columns[0].max_points) == (SheetScale.points, 20)
+
+    аня, _ = await _students(session, group)
+    await sheet.put(session, columns[0], аня.id, points=15)
+    await session.commit()
+
+    total = (await sheet.build(session, group)).total(аня.id)
+    assert (total.points, total.points_max) == (15, 20)
+    # Посещаемости у такой недели нет — и в знаменатель она не идёт.
+    assert (total.present, total.lessons) == (0, 0)
+
+
+async def test_the_lesson_page_shows_every_grade_of_the_lesson(session, client, group):
+    """На странице занятия ровно его оценки: ни лишней колонки, ни пропущенной."""
+    lesson = await sheet.add_lesson(
+        session, group.id, "Семинар 2", parts=("attendance", "homework")
+    )
+    await session.commit()
+    columns = {c.title: c for c in await sheet.columns_in(session, lesson)}
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.get(f"/teacher/sheet/lessons/{lesson.id}")
+
+    assert page.status_code == 200
+    # Посещение — переключателями, домашка — колонкой таблицы.
+    assert f'name="mark:{columns["посещение"].id}' in page.text
+    assert f'name="mark:{columns["домашка"].id}' in page.text
+    assert "работа на семинаре" not in page.text

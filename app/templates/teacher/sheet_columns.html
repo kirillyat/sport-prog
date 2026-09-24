@@ -31,14 +31,21 @@
     <div class="field">
       <label>{{ _("Оценки за занятие") }}</label>
       <div class="row">
-        {% for key, label, kind in parts %}
+        {% for key, label, kind, scale in parts %}
         <label class="chip">
-          <input type="checkbox" name="part:{{ key }}" checked>
+          <input type="checkbox" name="part:{{ key }}" {{ 'checked' if key in default_parts }}>
           <span>{{ _(label) }}</span>
         </label>
         {% endfor %}
       </div>
     </div>
+    <div class="field" style="max-width:220px">
+      <label for="exam_max">{{ _("Максимум за контрольную") }}</label>
+      <input type="text" id="exam_max" name="exam_max" value="10" inputmode="decimal">
+    </div>
+    <p class="small muted">
+      {{ _("Неделя без семинара — это занятие из одной контрольной: посещение в нём не заводится.") }}
+    </p>
     <button type="submit">{{ icon("plus") }} {{ _("Завести занятие") }}</button>
   </form>
 </div>
@@ -121,15 +128,20 @@
       {% endif %}
     </div>
     {% if block.lesson %}
+    <div class="row">
+    <a class="btn ghost small" href="/teacher/sheet/lessons/{{ block.lesson.id }}">
+      {{ icon("edit") }} {{ _("Заполнить") }}
+    </a>
     <form method="post" action="/teacher/sheet/lessons/{{ block.lesson.id }}/delete"
           onsubmit="return confirm('{{ _("Удалить занятие вместе с оценками?") }}')">
       <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Удалить занятие") }}</button>
     </form>
+    </div>
     {% endif %}
   </div>
 
   {% if block.lesson %}
-  <form method="post" action="/teacher/sheet/lessons/{{ block.lesson.id }}" class="inline-form">
+  <form method="post" action="/teacher/sheet/lessons/{{ block.lesson.id }}/edit" class="inline-form">
     <div class="field" style="flex:1; min-width:200px">
       <label for="title-{{ block.lesson.id }}">{{ _("Название") }}</label>
       <input type="text" id="title-{{ block.lesson.id }}" name="title"
