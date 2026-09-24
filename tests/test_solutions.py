@@ -304,3 +304,84 @@ async def test_matrix_marks_the_problem_where_the_code_is_missing(session, clien
     page = (await client.get(f"/teacher/assignments/{world['assignment'].id}")).text
     assert "код не сдан" not in page
     assert "1 / 1" in page
+
+
+async def _second_student(session, world, code="print(2)"):
+    """Ещё одно решение в очереди — от другого студента к той же задаче."""
+    боря = User(display_name="Боря", oidc_sub="b-1")
+    session.add(боря)
+    await session.commit()
+    session.add(GroupMembership(group_id=world["group"].id, user_id=боря.id))
+    session.add(
+        SolutionUpload(
+            assignment_id=world["assignment"].id,
+            problem_id=world["problem"].id,
+            user_id=боря.id,
+            code=code,
+            status=ReviewStatus.pending,
+            submitted_at=BASE + timedelta(hours=3),
+        )
+    )
+    await session.commit()
+    return боря
+
+
+async def test_after_a_decision_the_next_solution_opens(session, client, world):
+    """Проверяют подряд: возвращаться в список ради одного клика — половина работы."""
+    await _login(client, "Аня")
+    await _send(client, world)
+    первое = await session.scalar(select(SolutionUpload))
+    await _second_student(session, world)
+    второе = await session.scalar(
+        select(SolutionUpload).where(SolutionUpload.id != первое.id)
+    )
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/solutions/{первое.id}/review", data={"decision": "accept", "comment": ""}
+    )
+
+    assert "Решение принято" in page.text
+    # Открылось следующее в очереди, а не список.
+    assert "Боря" in page.text
+    assert f"/solutions/{второе.id}/download" in page.text
+
+
+async def test_the_last_decision_returns_to_the_queue(session, client, world):
+    await _login(client, "Аня")
+    await _send(client, world)
+    upload = await session.scalar(select(SolutionUpload))
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.post(
+        f"/solutions/{upload.id}/review", data={"decision": "accept", "comment": ""}
+    )
+
+    assert "Непроверенных решений нет" in page.text
+
+
+async def test_the_queue_size_is_visible_while_reviewing(session, client, world):
+    await _login(client, "Аня")
+    await _send(client, world)
+    upload = await session.scalar(select(SolutionUpload))
+    await _second_student(session, world)
+
+    await _login(client, "Кирилл", teacher=True)
+    page = await client.get(f"/solutions/{upload.id}")
+
+    assert "в очереди: 2" in page.text
+    assert "Пропустить" in page.text
+
+
+async def test_a_student_sees_no_queue_on_their_own_solution(session, client, world):
+    """Счётчик чужой очереди студенту не показываем — ему он ничего не говорит."""
+    await _login(client, "Аня")
+    await _send(client, world)
+    upload = await session.scalar(select(SolutionUpload))
+    await _second_student(session, world)
+
+    page = await client.get(f"/solutions/{upload.id}")
+
+    assert page.status_code == 200
+    assert "в очереди" not in page.text
+    assert "Пропустить" not in page.text

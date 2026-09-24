@@ -16,7 +16,14 @@
       {% else %}<span class="badge warn">{{ icon("clock") }} {{ _("ждёт проверки") }}</span>{% endif %}
     </p>
   </div>
-  <a class="btn small" href="/solutions/{{ upload.id }}/download">{{ icon("download") }} {{ _("Скачать") }}</a>
+  <div class="row">
+    {% if teacher_view and left %}
+    <span class="badge">{{ _("в очереди: %(count)s") % {"count": left} }}</span>
+    {% endif %}
+    <a class="btn ghost small" href="/solutions/{{ upload.id }}/download">
+      {{ icon("download") }} {{ _("Скачать") }}
+    </a>
+  </div>
 </div>
 
 {% if upload.comment %}
@@ -35,16 +42,22 @@
   <form method="post" action="/solutions/{{ upload.id }}/review">
     <div class="field">
       <label for="comment">{{ _("Комментарий") }}</label>
-      <input type="text" id="comment" name="comment" maxlength="500"
-             value="{{ upload.comment or '' }}" placeholder="{{ _("что не так или что хорошо") }}">
+      <textarea id="comment" name="comment" maxlength="500" rows="2"
+                placeholder="{{ _("что не так или что хорошо") }}">{{ upload.comment or '' }}</textarea>
     </div>
     <div class="row" style="gap:8px">
       <button type="submit" name="decision" value="accept">{{ icon("check") }} {{ _("Принять") }}</button>
       <button class="danger" type="submit" name="decision" value="reject">
         {{ icon("alert") }} {{ _("Отклонить и снять зачёт") }}
       </button>
+      {% if following %}
+      <a class="btn ghost" href="/solutions/{{ following.id }}">{{ _("Пропустить") }}</a>
+      {% endif %}
     </div>
   </form>
+  {% if following %}
+  <p class="small muted">{{ _("После решения сразу откроется следующее в очереди.") }}</p>
+  {% endif %}
 </div>
 {% endif %}
 

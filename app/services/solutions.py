@@ -132,6 +132,30 @@ def tally(
     return out
 
 
+async def pending_count(session: AsyncSession) -> int:
+    from sqlalchemy import func
+
+    stmt = (
+        select(func.count())
+        .select_from(SolutionUpload)
+        .where(SolutionUpload.status == ReviewStatus.pending)
+    )
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def next_pending(session: AsyncSession, besides: int | None = None) -> SolutionUpload | None:
+    """Следующее в очереди. Нужно, чтобы после решения открывать его сразу:
+    возвращаться в список ради одного клика — половина работы проверяющего."""
+    stmt = (
+        select(SolutionUpload)
+        .where(SolutionUpload.status == ReviewStatus.pending)
+        .order_by(SolutionUpload.submitted_at)
+    )
+    if besides is not None:
+        stmt = stmt.where(SolutionUpload.id != besides)
+    return await session.scalar(stmt.limit(1))
+
+
 async def pending(session: AsyncSession, limit: int = 100) -> list[SolutionUpload]:
     """Очередь проверки: сначала то, что прислали раньше."""
     stmt = (

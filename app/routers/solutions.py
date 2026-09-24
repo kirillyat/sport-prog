@@ -159,6 +159,11 @@ async def view_solution(request: Request, session: SessionDep, user: CurrentUser
     author = await session.get(type(user), upload.user_id)
     assignment = await session.get(Assignment, upload.assignment_id)
     problem = await session.get(Problem, upload.problem_id)
+    # Очередь показываем только проверяющему: студенту чужие решения не видны,
+    # и счётчик ему ничего не скажет.
+    following = (
+        await solutions.next_pending(session, besides=upload.id) if user.is_teacher else None
+    )
     return templates.TemplateResponse(
         request,
         "solution.html",
@@ -169,6 +174,8 @@ async def view_solution(request: Request, session: SessionDep, user: CurrentUser
             "assignment": assignment,
             "problem": problem,
             "code": code,
+            "left": await solutions.pending_count(session) if user.is_teacher else 0,
+            "following": following,
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),
         },
@@ -232,4 +239,10 @@ async def review_solution(
         )
     await solutions.review(session, upload, status=status, comment=comment, reviewer_id=user.id)
     message = _("Решение принято") if status == ReviewStatus.accepted else _("Решение отклонено")
+
+    # Дальше — следующее в очереди: проверяют подряд, а не по одному
+    # с возвратом в список.
+    following = await solutions.next_pending(session)
+    if following is not None:
+        return RedirectResponse(f"/solutions/{following.id}?ok={quote(message)}", status_code=303)
     return RedirectResponse(f"/teacher/reviews?ok={quote(message)}", status_code=303)
