@@ -484,6 +484,23 @@ body.with-rail { padding-left: var(--rail); }
 .rail-btn { background: transparent; border: none; box-shadow: none; color: var(--inv-text); padding: 6px; opacity: .8; }
 .rail-btn:hover { opacity: 1; background: transparent; transform: none; }
 
+/* Подвал рейки: профиль, вид, оформление, язык, выход. Все кнопки одного
+   размера и без рамок — иначе строй сбивается: часть в рамке, часть без,
+   и столбик выглядит косым. Рамка у «RU» нужна на странице входа, где
+   переключатель стоит сам по себе, а здесь её роль играет сама рейка. */
+.rail-foot .rail-btn,
+.rail-foot .lang > summary {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 2px;
+  color: var(--inv-text); opacity: .75;
+}
+.rail-foot .rail-btn:hover,
+.rail-foot .lang > summary:hover,
+.rail-foot .lang[open] > summary { opacity: 1; }
+.rail-foot .lang > summary { font-size: 12px; }
+.rail-foot form { display: flex; }
+
 /* ---------- выбор языка ---------- */
 /* <details> вместо меню на скриптах: открывается силами браузера. */
 .lang { position: relative; }
