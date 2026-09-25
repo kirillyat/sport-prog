@@ -767,12 +767,64 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 .test-pair pre { margin: 4px 0 0; }
 .run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 /* Редактор: рамка как у остальных полей, высота в экран. */
-.CodeMirror { border: var(--rule) solid var(--ink); height: 420px; font-family: var(--mono); font-size: 13px; background: var(--panel); color: var(--text); }
-.CodeMirror-gutters { background: var(--panel-2); border-right: 1px solid var(--line-soft); }
-.CodeMirror-linenumber { color: var(--muted); }
-.CodeMirror-cursor { border-left: 2px solid var(--ink); }
-.CodeMirror-activeline-background { background: var(--panel-2); }
-.CodeMirror-selected { background: var(--line-soft); }
+/* Редактор кода.
+
+   Селекторы удвоены не для красоты: стили CodeMirror подключаются на странице
+   задачи после общего файла, и при равной силе побеждали бы они — редактор
+   оставался бы белым на любой теме портала, а код в нём был бы набран
+   палитрой, рассчитанной на белый лист.
+
+   Высота по содержимому: короткое решение не оставляет пустого поля
+   в пол-экрана, длинное не заставляет писать в щель. */
+.CodeMirror.CodeMirror {
+  border: var(--rule) solid var(--ink);
+  height: auto; min-height: 320px; max-height: 70vh;
+  font-family: var(--mono); font-size: 14px; line-height: 1.5;
+  background: var(--panel); color: var(--text);
+}
+.CodeMirror-scroll.CodeMirror-scroll { min-height: 320px; max-height: 70vh; }
+.CodeMirror-gutters.CodeMirror-gutters {
+  background: var(--panel-2); border-right: 1px solid var(--line-soft);
+}
+.CodeMirror-linenumber.CodeMirror-linenumber { color: var(--muted); }
+.CodeMirror-cursor.CodeMirror-cursor { border-left: 2px solid var(--ink); }
+.CodeMirror-activeline-background.CodeMirror-activeline-background { background: var(--panel-2); }
+.CodeMirror-selected.CodeMirror-selected { background: var(--line-soft); }
+.CodeMirror-line::selection, .CodeMirror-line > span::selection { background: var(--line-soft); }
+
+/* Подсветка берёт цвета темы, а не свои. Собственная палитра CodeMirror
+   рассчитана на белый лист: на «Угле» или «Неоне» фиолетовые ключевые слова
+   и тёмно-красные строки почти не видны.
+
+   В селекторе стоит `.cm-s-default` — это не украшение: свои цвета CodeMirror
+   задаёт так же, через имя темы, и при равной силе побеждал бы он. */
+.CodeMirror.cm-s-default .cm-keyword,
+.CodeMirror.cm-s-default .cm-builtin { color: var(--code-key); font-weight: 700; }
+.CodeMirror.cm-s-default .cm-string,
+.CodeMirror.cm-s-default .cm-string-2 { color: var(--code-str); }
+.CodeMirror.cm-s-default .cm-comment { color: var(--code-com); font-style: italic; }
+.CodeMirror.cm-s-default .cm-number,
+.CodeMirror.cm-s-default .cm-atom { color: var(--code-num); }
+.CodeMirror.cm-s-default .cm-def,
+.CodeMirror.cm-s-default .cm-variable,
+.CodeMirror.cm-s-default .cm-variable-2,
+.CodeMirror.cm-s-default .cm-variable-3,
+.CodeMirror.cm-s-default .cm-property,
+.CodeMirror.cm-s-default .cm-operator,
+.CodeMirror.cm-s-default .cm-punctuation,
+.CodeMirror.cm-s-default .cm-bracket { color: var(--text); }
+.CodeMirror.cm-s-default .cm-meta { color: var(--code-com); }
+.CodeMirror.cm-s-default .cm-error { color: var(--err); }
+.CodeMirror.cm-s-default .CodeMirror-matchingbracket {
+  color: var(--ink); font-weight: 800; text-decoration: underline;
+}
+
+/* Строка подсказок под редактором и отметка о черновике. */
+.editor-hints { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; }
+.editor-hints kbd {
+  font-family: var(--mono); font-size: 11px; padding: 1px 5px;
+  border: 1px solid var(--line-soft); border-radius: 3px;
+}
 
 .code-input {
   font-family: var(--mono); font-size: 13px; line-height: 1.5;

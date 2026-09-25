@@ -59,6 +59,12 @@
       {% endif %}
 
       <textarea id="code" name="code" class="code-input">{{ code }}</textarea>
+      <p class="small muted editor-hints" data-draft-state="{{ _("черновик сохранён") }}">
+        <span><kbd>Tab</kbd> {{ _("отступ") }}</span>
+        <span><kbd>Ctrl</kbd>+<kbd>/</kbd> {{ _("комментарий") }}</span>
+        <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> {{ _("перенести строку") }}</span>
+        <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> {{ _("прогнать тесты") }}</span>
+      </p>
 
       <div class="row" style="gap:8px; margin-top:12px">
         <form method="post" action="/tasks/{{ problem.slug }}/run" data-editor-form="run">
