@@ -319,6 +319,7 @@
   "отступ": "indent",
   "комментарий": "comment",
   "перенести строку": "move the line",
+  "подсказка": "suggestions",
   "прогнать тесты": "run the tests",
   "Прогнать открытые тесты": "Run open tests",
   "Сдать": "Submit",

@@ -40,8 +40,64 @@
       // Рефлекс «сохранить» не должен открывать диалог браузера: черновик
       // и так сохраняется сам, но нажать Ctrl+S спокойнее, чем поверить.
       "Ctrl-S": saveDraftNow,
-      "Cmd-S": saveDraftNow
+      "Cmd-S": saveDraftNow,
+      "Ctrl-Space": function (cm) { cm.showHint({ hint: suggest, completeSingle: false }); }
     }
+  });
+
+  /* Автодополнение. Свой источник вместо готового «по любым словам»: тот
+     предлагал бы и слова из комментариев, и опечатки, набранные выше.
+     Здесь — ключевые слова и встроенные функции питона плюс имена, которые
+     студент уже завёл в этом же решении. */
+  var PYTHON = (
+    "and as assert async await break class continue def del elif else except " +
+    "False finally for from global if import in is lambda None nonlocal not or " +
+    "pass raise return True try while with yield " +
+    "abs all any bin bool bytes chr dict divmod enumerate filter float format " +
+    "frozenset getattr hasattr hash input int isinstance iter len list map max " +
+    "min next object open ord pow print range repr reversed round set setattr " +
+    "slice sorted str sum tuple type zip"
+  ).split(" ");
+
+  function suggest(cm) {
+    var cursor = cm.getCursor();
+    var line = cm.getLine(cursor.line);
+    var start = cursor.ch;
+    while (start && /[\w_]/.test(line.charAt(start - 1))) start--;
+    var word = line.slice(start, cursor.ch);
+    if (!word) return null;
+
+    // В строке и в комментарии подсказывать нечего.
+    var token = cm.getTokenTypeAt(cursor);
+    if (token === "string" || token === "comment") return null;
+
+    var seen = {};
+    var words = [];
+    var text = cm.getValue().match(/[A-Za-z_][\w_]*/g) || [];
+    for (var i = 0; i < text.length; i++) {
+      if (text[i] !== word) seen[text[i]] = true;
+    }
+    for (var j = 0; j < PYTHON.length; j++) seen[PYTHON[j]] = true;
+    for (var name in seen) {
+      if (name.lastIndexOf(word, 0) === 0 && name !== word) words.push(name);
+    }
+    if (!words.length) return null;
+    words.sort();
+    return {
+      list: words,
+      from: CodeMirror.Pos(cursor.line, start),
+      to: CodeMirror.Pos(cursor.line, cursor.ch)
+    };
+  }
+
+  // Подсказка всплывает сама со второй буквы слова — но ничего не вставляет
+  // молча: выбор всегда за человеком.
+  editor.on("inputRead", function (cm, change) {
+    if (change.origin !== "+input" || !/[\w_]/.test(change.text[0])) return;
+    var cursor = cm.getCursor();
+    var before = cm.getLine(cursor.line).slice(0, cursor.ch);
+    if (!/[\w_]{2,}$/.test(before)) return;
+    cm.showHint({ hint: suggest, completeSingle: false });
   });
 
   /* Комментарий строкой. Своя реализация вместо ещё одного файла

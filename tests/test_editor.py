@@ -45,9 +45,26 @@ def test_editor_grows_with_the_code():
     assert "min-height" in rule and "max-height" in rule
 
 
+def test_the_suggestion_list_is_dressed_by_the_portal():
+    """Тот же капкан, что и с подсветкой: аддон красит список после нас."""
+    for selector in (".CodeMirror-hints.CodeMirror-hints",
+                     ".CodeMirror-hints li.CodeMirror-hint",
+                     ".CodeMirror-hints li.CodeMirror-hint-active"):
+        assert selector in CSS, f"{selector} слабее, чем правило аддона"
+    assert "var(--panel)" in CSS.split(".CodeMirror-hints.CodeMirror-hints")[1][:200]
+
+
+def test_suggestions_know_python_and_stay_out_of_strings():
+    assert '"Ctrl-Space"' in SCRIPT
+    for word in ("enumerate", "return", "lambda"):
+        assert word in SCRIPT, f"{word} не предлагается"
+    # В строке и в комментарии подсказывать нечего.
+    assert 'token === "string"' in SCRIPT and 'token === "comment"' in SCRIPT
+
+
 def test_shortcuts_are_bound_and_shown():
     """Сочетание, о котором никто не знает, не экономит ни одного нажатия."""
-    for key in ("Ctrl-Enter", "Ctrl-/", "Alt-Up", "Alt-Down", "Ctrl-S"):
+    for key in ("Ctrl-Enter", "Ctrl-/", "Alt-Up", "Alt-Down", "Ctrl-S", "Ctrl-Space"):
         assert f'"{key}"' in SCRIPT, f"{key} не привязан"
-    for hint in ("Ctrl", "Enter", "Alt", "Tab"):
+    for hint in ("Ctrl", "Enter", "Alt", "Tab", "Space"):
         assert hint in PAGE, f"о {hint} на странице не сказано"

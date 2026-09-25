@@ -819,6 +819,16 @@ a.badge:hover { text-decoration: none; opacity: .85; }
   color: var(--ink); font-weight: 800; text-decoration: underline;
 }
 
+/* Список автодополнения. Своя рамка и цвета: у аддона они белые с тенью,
+   на тёмной теме это светлый прямоугольник посреди кода. */
+.CodeMirror-hints.CodeMirror-hints {
+  background: var(--panel); color: var(--text);
+  border: 2px solid var(--ink); border-radius: 0; box-shadow: 4px 4px 0 var(--line-soft);
+  font-family: var(--mono); font-size: 13px; z-index: 60;
+}
+.CodeMirror-hints li.CodeMirror-hint { color: var(--text); padding: 3px 8px; }
+.CodeMirror-hints li.CodeMirror-hint-active { background: var(--inv-bg); color: var(--inv-text); }
+
 /* Строка подсказок под редактором и отметка о черновике. */
 .editor-hints { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; }
 .editor-hints kbd {

@@ -2,6 +2,7 @@
 {% block title %}{{ problem.title }} — {{ settings.app_name }}{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/static/vendor/codemirror.min.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/vendor/show-hint.min.css?v={{ asset_version }}">
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -63,6 +64,7 @@
         <span><kbd>Tab</kbd> {{ _("отступ") }}</span>
         <span><kbd>Ctrl</kbd>+<kbd>/</kbd> {{ _("комментарий") }}</span>
         <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> {{ _("перенести строку") }}</span>
+        <span><kbd>Ctrl</kbd>+<kbd>Space</kbd> {{ _("подсказка") }}</span>
         <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> {{ _("прогнать тесты") }}</span>
       </p>
 
@@ -139,5 +141,6 @@
   <script src="/static/vendor/closebrackets.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/vendor/matchbrackets.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/vendor/active-line.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/show-hint.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/editor.js?v={{ asset_version }}" defer></script>
 {% endblock %}
