@@ -10,6 +10,8 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / ".claude" / "skills"
 
@@ -79,7 +81,11 @@ def test_public_agent_files_do_not_give_away_the_instance():
 
 def test_publishing_drops_only_instance_skills(tmp_path):
     """Наружу уезжают общие навыки и ссылка для Codex, но не msu-* и не выкатка."""
-    spec = importlib.util.spec_from_file_location("publish", ROOT / "scripts" / "publish_github.py")
+    script = ROOT / "scripts" / "publish_github.py"
+    if not script.exists():
+        # Скрипт публикации сам в открытую копию не уезжает — там проверять нечего.
+        pytest.skip("в открытой копии нет scripts/publish_github.py")
+    spec = importlib.util.spec_from_file_location("publish", script)
     publish = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(publish)
 
