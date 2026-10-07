@@ -48,12 +48,32 @@
         <input type="text" id="description" name="description" value="{{ assignment.description or '' }}">
       </div>
     </div>
-    <p class="small muted">
-      {{ _("После выдачи правятся только название и описание.") }}
-    </p>
     <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
   </form>
 </details>
+
+{% if assignment.deadline %}
+<details class="formula" style="margin-bottom:18px">
+  <summary>{{ _("Сдвинуть дедлайн") }}</summary>
+  <form method="post" action="/teacher/assignments/{{ assignment.id }}/deadline" style="margin-top:10px">
+    <div class="field">
+      <label for="new_deadline">{{ _("Новый дедлайн") }}</label>
+      <input type="datetime-local" id="new_deadline" name="deadline"
+             value="{{ assignment.deadline | dtinput }}" min="{{ assignment.deadline | dtinput }}">
+    </div>
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" name="remove" value="true">
+        {{ _("снять дедлайн совсем") }}
+      </label>
+    </div>
+    <p class="small muted">
+      {{ icon("alert") }} {{ _("Только вперёд: решённое до нового срока сразу засчитается всем участникам. Раньше прежнего срока не сдвинуть — иначе зачёт снялся бы задним числом.") }}
+    </p>
+    <button type="submit">{{ icon("clock") }} {{ _("Сдвинуть") }}</button>
+  </form>
+</details>
+{% endif %}
 
 {% if progress.participants %}
 <div class="card table-wrap" style="padding:6px">

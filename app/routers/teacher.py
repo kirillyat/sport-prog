@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import string
 from datetime import datetime, timedelta
+from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
@@ -36,6 +37,7 @@ from app.routers.leaderboard import PERIODS
 from app.services import export, features, judge, solutions
 from app.services import tasks as tasks_service
 from app.services.catalog import get_state, problem_count, set_state, sync_catalog
+from app.services.deadlines import extend_deadline
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.problem_parser import parse_problem_list, search_problems
@@ -299,6 +301,15 @@ async def judge_off(session: SessionDep, user: TeacherUser):
     """Отключить судью: решения снова принимаются как код, без вердикта."""
     await judge.disconnect(session)
     return _redirect("/teacher/judge", message=_("Судья отключён"))
+
+
+@router.get("/judge/check")
+@router.get("/judge/off")
+async def judge_action_reloaded(user: TeacherUser):
+    """Пока POST ждёт судью, в адресной строке уже стоит адрес действия, и
+    обновление страницы приходит сюда GET-ом. Вместо голого 405 возвращаем
+    в раздел: само действие повторять не нужно, состояние судьи и так видно там."""
+    return _redirect("/teacher/judge")
 
 
 @router.post("/course-refresh")
@@ -819,52 +830,75 @@ async def create_assignment(
     user: TeacherUser,
     title: str = Form(...),
     problem_set_id: int = Form(...),
-    group_id: str = Form(""),
+    group_id: Annotated[list[str] | None, Form()] = None,
     description: str = Form(""),
     starts_at: str = Form(""),
     deadline: str = Form(""),
     count_prior_solves: bool = Form(False),
     requires_solution: bool = Form(False),
 ):
-    """Все правила задаются здесь: потом меняются только название и описание."""
+    """Все правила задаются здесь: потом меняются название, описание и срок вперёд.
+
+    Несколько групп — несколько заданий, по одному на группу, а не одно на
+    всех. Табло, напоминания и матрица живут по группам, и у каждой группы
+    своё задание можно продлить или удалить, не задевая соседей.
+    """
     title = title.strip()
     if not title:
         return _redirect("/teacher/assignments", error=_("Пустое название"))
     if await session.get(ProblemSet, problem_set_id) is None:
         return _redirect("/teacher/assignments", error=_("Список задач не найден"))
 
-    target_group = int(group_id) if group_id.strip() else None
-    if target_group is not None and await session.get(Group, target_group) is None:
+    try:
+        # dict.fromkeys убирает повторы и сохраняет порядок галочек.
+        group_ids = list(dict.fromkeys(int(raw) for raw in group_id or [] if raw.strip()))
+    except ValueError:
         return _redirect("/teacher/assignments", error=_("Группа не найдена"))
+    for target_group in group_ids:
+        if await session.get(Group, target_group) is None:
+            return _redirect("/teacher/assignments", error=_("Группа не найдена"))
 
     start = parse_local_input(starts_at) or utcnow()
     end = parse_local_input(deadline)
     if end is not None and end <= start:
         return _redirect("/teacher/assignments", error=_("Дедлайн раньше начала"))
 
-    assignment = Assignment(
-        title=title,
-        description=description.strip() or None,
-        problem_set_id=problem_set_id,
-        group_id=target_group,
-        assigned_at=start,
-        deadline=end,
-        created_by_id=user.id,
-        count_prior_solves=count_prior_solves,
-        requires_solution=requires_solution,
-    )
-    session.add(assignment)
+    # Ни одной группы — задание всем, как и раньше при пустом «Кому».
+    created = [
+        Assignment(
+            title=title,
+            description=description.strip() or None,
+            problem_set_id=problem_set_id,
+            group_id=target_group,
+            assigned_at=start,
+            deadline=end,
+            created_by_id=user.id,
+            count_prior_solves=count_prior_solves,
+            requires_solution=requires_solution,
+        )
+        for target_group in (group_ids or [None])
+    ]
+    session.add_all(created)
     await session.commit()
-    await session.refresh(assignment)
+    for assignment in created:
+        await session.refresh(assignment)
     # После refresh связи не загружены — считаем задачи отдельным запросом.
     problems = await session.scalar(
         select(func.count()).select_from(ProblemSetItem).where(
             ProblemSetItem.problem_set_id == problem_set_id
         )
     )
-    delivered = await notify.notify_assignment(assignment, int(problems or 0), session)
+    delivered = 0
+    for assignment in created:
+        delivered += await notify.notify_assignment(assignment, int(problems or 0), session)
+
+    if len(created) > 1:
+        return _redirect(
+            "/teacher/assignments",
+            message=_("Задание выдано группам: %(count)s") % {"count": len(created)},
+        )
     return _redirect(
-        f"/teacher/assignments/{assignment.id}",
+        f"/teacher/assignments/{created[0].id}",
         message=_("Задание выдано и отправлено в Telegram")
         if delivered
         else _("Задание выдано"),
@@ -961,8 +995,9 @@ async def edit_assignment(
 ):
     """Правится только то, что не меняет подсчёт: название и описание.
 
-    Сроки, список задач, адресат и баллы задаются при создании — иначе
-    рейтинг задним числом менялся бы у всех участников.
+    Список задач, адресат и баллы задаются при создании — иначе рейтинг
+    задним числом менялся бы у всех участников. Срок двигается отдельной
+    формой и только вперёд (`shift_deadline`).
     """
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
@@ -974,6 +1009,36 @@ async def edit_assignment(
     assignment.description = description.strip() or None
     await session.commit()
     return _redirect(f"/teacher/assignments/{assignment_id}", message=_("Сохранено"))
+
+
+@router.post("/assignments/{assignment_id}/deadline")
+async def shift_deadline(
+    session: SessionDep,
+    user: TeacherUser,
+    assignment_id: int,
+    deadline: str = Form(""),
+    remove: bool = Form(False),
+):
+    """Отдельно от правки названия: перенос срока меняет зачёт у всех участников.
+
+    Двигается только вперёд — см. `extend_deadline`.
+    """
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
+    back = f"/teacher/assignments/{assignment_id}"
+    new_deadline = None
+    if not remove:
+        new_deadline = parse_local_input(deadline)
+        if new_deadline is None:
+            return _redirect(back, error=_("Укажи новый дедлайн"))
+    error = extend_deadline(assignment, new_deadline)
+    if error:
+        return _redirect(back, error=error)
+    await session.commit()
+    return _redirect(
+        back, message=_("Дедлайн снят") if new_deadline is None else _("Дедлайн сдвинут")
+    )
 
 
 @router.post("/assignments/{assignment_id}/delete")

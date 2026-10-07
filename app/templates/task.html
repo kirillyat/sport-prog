@@ -59,52 +59,136 @@
       </p>
       {% endif %}
 
-      <textarea id="code" name="code" class="code-input">{{ code }}</textarea>
-      <p class="small muted editor-hints" data-draft-state="{{ _("черновик сохранён") }}">
-        <span><kbd>Tab</kbd> {{ _("отступ") }}</span>
-        <span><kbd>Ctrl</kbd>+<kbd>/</kbd> {{ _("комментарий") }}</span>
-        <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> {{ _("перенести строку") }}</span>
-        <span><kbd>Ctrl</kbd>+<kbd>Space</kbd> {{ _("подсказка") }}</span>
-        <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> {{ _("прогнать тесты") }}</span>
-      </p>
+      {# Одна форма на редактор и обе кнопки: кнопка сама выбирает, куда
+         отправить. Раньше у каждой кнопки была своя форма с пустым скрытым
+         полем, и код до портала не доезжал вовсе. #}
+      <form method="post" action="/tasks/{{ problem.slug }}/run#result" class="solution-form"
+            data-busy="busy.run" data-editor-form>
+        <textarea id="code" name="code" class="code-input"
+                  data-code-at="{{ code_at }}" data-draft-key="/tasks/{{ problem.slug }}">{{ code }}</textarea>
+        <p class="small muted editor-hints" data-draft-state="{{ _("черновик сохранён") }}">
+          <span><kbd>Tab</kbd> {{ _("отступ") }}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>/</kbd> {{ _("комментарий") }}</span>
+          <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> {{ _("перенести строку") }}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>Space</kbd> {{ _("подсказка") }}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> {{ _("прогнать тесты") }}</span>
+        </p>
 
-      <div class="row" style="gap:8px; margin-top:12px">
-        <form method="post" action="/tasks/{{ problem.slug }}/run" data-editor-form="run">
-          <input type="hidden" name="code" value="">
-          <button class="ghost" type="submit" {{ 'disabled' if not judge_ready }}>
-            {{ icon("refresh") }} {{ _("Прогнать открытые тесты") }}
-          </button>
-        </form>
-        <form method="post" action="/tasks/{{ problem.slug }}/submit" data-editor-form="submit">
-          <input type="hidden" name="code" value="">
-          <button type="submit" {{ 'disabled' if attempts_left == 0 }}>
-            {{ icon("send") }} {{ _("Сдать") }}
-          </button>
-        </form>
-        <form method="post" action="/tasks/{{ problem.slug }}/to-teacher" data-editor-form="teacher">
-          <input type="hidden" name="code" value="">
-          <button class="ghost" type="submit">{{ icon("shield") }} {{ _("Преподавателю") }}</button>
-        </form>
-      </div>
+        <div class="solution-actions">
+          <div class="solution-action">
+            <button class="ghost" type="submit" formaction="/tasks/{{ problem.slug }}/run#result"
+                    data-busy="busy.run" data-action="run" {{ 'disabled' if not judge_ready }}>
+              {{ icon("refresh") }} {{ _("Прогнать открытые тесты") }}
+            </button>
+            <p class="small muted">
+              {{ _("Только открытые тесты из условия. Попытку не тратит — запускай сколько угодно.") }}
+            </p>
+          </div>
+          <div class="solution-action">
+            <button type="submit" formaction="/tasks/{{ problem.slug }}/submit#result"
+                    data-busy="busy.submit" data-action="submit" {{ 'disabled' if attempts_left == 0 }}>
+              {{ icon("send") }} {{ _("Сдать решение") }}
+            </button>
+            <p class="small muted">
+              {% if attempts_left == 0 %}
+              <strong>{{ _("Попытки кончились.") }}</strong>
+              {% else %}
+              {{ _("Все тесты, включая закрытые. Тратит попытку: осталось %(left)s из %(total)s.") % {"left": attempts_left, "total": attempts_total} }}
+              {% endif %}
+              {{ _("Сданный код уходит преподавателю.") }}
+            </p>
+          </div>
+        </div>
+      </form>
     </div>
 
-    {% if run %}
-    <h2>{{ icon("activity") }} {{ _("Результат прогона") }}</h2>
+    {% if run or run_kind == "submit" %}
+    <h2 id="result">{{ icon("activity") }}
+      {{ _("Результат сдачи") if run_kind == "submit" else _("Результат прогона открытых тестов") }}
+    </h2>
     <div class="card">
+      {% if not run %}
+      {# Сдача без судьи: код принят и сохранён, но вердикта нет. #}
+      <div class="verdict">
+        {{ icon("clock") }}
+        <span>{{ _("Решение сохранено без проверки: сервер проверки сейчас не подключён.") }}</span>
+      </div>
+      {% else %}
+      {% set total = run.results | length %}
+      {% set passed = run.results | selectattr("passed") | list | length %}
+      {% if run_kind == "submit" and run.passed %}
+      <div class="verdict ok">
+        {{ icon("check") }}
+        <span>{{ _("Задача принята: пройдены все тесты (%(passed)s из %(total)s).") % {"passed": passed, "total": total} }}</span>
+      </div>
+      {% elif run_kind == "submit" %}
+      <div class="verdict bad">
+        {{ icon("close") }}
+        <span>{{ _("Не принято: %(status)s на тесте %(n)s. Пройдено %(passed)s из %(total)s.") % {"status": run.first_failed.status, "n": run.first_failed.position + 1, "passed": passed, "total": total} }}</span>
+      </div>
+      {% elif run.passed %}
+      <div class="verdict ok">
+        {{ icon("check") }}
+        <span>{{ _("Открытые тесты пройдены (%(passed)s из %(total)s). Можно сдавать — при сдаче добавятся закрытые.") % {"passed": passed, "total": total} }}</span>
+      </div>
+      {% else %}
+      <div class="verdict bad">
+        {{ icon("close") }}
+        <span>{{ _("Пройдено %(passed)s из %(total)s открытых тестов. Ниже — где разошлось.") % {"passed": passed, "total": total} }}</span>
+      </div>
+      {% endif %}
+
       {% for result in run.results %}
       <div class="run-line {{ 'ok' if result.passed else 'bad' }}">
         <span class="badge {{ 'ok' if result.passed else 'err' }}">
           {{ icon("check") if result.passed else icon("close") }}
+          {% if result.is_open %}
           {{ _("тест %(n)s") % {"n": result.position + 1} }}
+          {% else %}
+          {{ _("закрытый тест %(n)s") % {"n": result.position + 1} }}
+          {% endif %}
         </span>
         <span class="small">{{ result.status }}</span>
         {% if result.time_ms %}<span class="small muted">{{ result.time_ms }} {{ _("мс") }}</span>{% endif %}
       </div>
-      {% if not result.passed and result.is_open and result.stdout %}
-      <pre class="nb-raw small">{{ _("вывод:") }} {{ result.stdout }}</pre>
+      {# Подробности — только по открытым тестам: закрытые не показываем
+         ни вводом, ни ответом, ни выводом решения. #}
+      {% if result.is_open and not result.passed %}
+      {% set test = open_by_position.get(result.position) %}
+      <div class="run-detail">
+        {% if test %}
+        <div>
+          <span class="lbl">{{ _("Ввод") }}</span>
+          <pre class="nb-raw small">{{ test.stdin }}</pre>
+        </div>
+        <div>
+          <span class="lbl">{{ _("Ожидается") }}</span>
+          <pre class="nb-raw small">{{ test.expected }}</pre>
+        </div>
+        {% endif %}
+        <div>
+          <span class="lbl">{{ _("Вывод решения") }}</span>
+          <pre class="nb-raw small">{{ result.stdout if result.stdout else _("(пусто)") }}</pre>
+        </div>
+        {% if result.stderr %}
+        <div class="run-detail-wide">
+          <span class="lbl">{{ _("Ошибка") }}</span>
+          <pre class="nb-raw small">{{ result.stderr }}</pre>
+        </div>
+        {% endif %}
+      </div>
       {% endif %}
-      {% if result.stderr %}<pre class="nb-raw small">{{ result.stderr }}</pre>{% endif %}
       {% endfor %}
+      {% endif %}
+
+      {% if run_kind == "submit" %}
+      <p class="small muted" style="margin-bottom:0">
+        {% if sent_to_teacher %}
+        {{ _("Код сдачи ушёл преподавателю на проверку.") }}
+        {% endif %}
+        {{ _("Попыток осталось: %(left)s из %(total)s.") % {"left": attempts_left, "total": attempts_total} }}
+      </p>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -143,4 +227,5 @@
   <script src="/static/vendor/active-line.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/vendor/show-hint.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/editor.js?v={{ asset_version }}" defer></script>
+  <script src="/static/busy.js?v={{ asset_version }}" defer></script>
 {% endblock %}

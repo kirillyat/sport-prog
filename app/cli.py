@@ -20,6 +20,12 @@ USAGE = """Команды:
   sync-submissions     обновить посылки всех подтверждённых аккаунтов
   make-teacher NAME    выдать роль преподавателя пользователю с таким именем
   stats                короткая сводка по базе
+  assignments          задания с номерами, группами и дедлайнами
+  extend-deadline СРОК НОМЕР...  [--apply]
+                       отодвинуть дедлайн заданий (СРОК — местное время,
+                       2026-10-03T23:59). Без --apply только показывает,
+                       сколько зачётов прибавится; с --apply сначала делает
+                       копию базы рядом с ней
 """
 
 
@@ -99,6 +105,86 @@ async def stats() -> None:
         print("посылок:", await session.scalar(select(func.count()).select_from(Submission)))
 
 
+def _target(assignment) -> str:
+    if assignment.group is not None:
+        return assignment.group.title
+    return "персонально" if assignment.user_id else "всем"
+
+
+async def list_assignments() -> None:
+    from app.models import Assignment
+    from app.templating import fmt_dt
+
+    async with SessionLocal() as session:
+        stmt = select(Assignment).order_by(Assignment.assigned_at.desc())
+        for item in (await session.execute(stmt)).scalars().all():
+            deadline = fmt_dt(item.deadline) if item.deadline else "без дедлайна"
+            print(f"{item.id:>5}  {item.title}  [{_target(item)}]"
+                  f"  выдано {fmt_dt(item.assigned_at)}  · дедлайн {deadline}")
+
+
+async def _credits(session, assignment) -> int:
+    from app.services.progress import compute_progress
+
+    progress = await compute_progress(session, assignment)
+    return sum(progress.solved_count(user.id) for user in progress.participants)
+
+
+async def extend_deadlines(raw_deadline: str, ids: list[int], apply: bool) -> int:
+    """Тот же перенос, что кнопкой на странице задания, но сразу для многих.
+
+    Сначала всё проверяется и считается, и только если ни одно задание не
+    отказало — пишется одной транзакцией. Половина продлённых заданий хуже,
+    чем ни одного: потом не вспомнить, какие уже сдвинуты.
+    """
+    from datetime import datetime
+
+    from app.models import Assignment
+    from app.services.deadlines import extend_deadline
+    from app.templating import fmt_dt, parse_local_input
+
+    new_deadline = parse_local_input(raw_deadline)
+    if new_deadline is None:
+        print(f"не понял срок «{raw_deadline}»: нужно вида 2026-10-03T23:59")
+        return 1
+
+    async with SessionLocal() as session:
+        failed = False
+        for assignment_id in ids:
+            assignment = await session.get(Assignment, assignment_id)
+            if assignment is None:
+                print(f"{assignment_id:>5}  задания нет")
+                failed = True
+                continue
+            before = await _credits(session, assignment)
+            old = fmt_dt(assignment.deadline) if assignment.deadline else "без дедлайна"
+            error = extend_deadline(assignment, new_deadline)
+            if error:
+                print(f"{assignment_id:>5}  {assignment.title} [{_target(assignment)}]: {error}")
+                failed = True
+                continue
+            after = await _credits(session, assignment)
+            print(f"{assignment_id:>5}  {assignment.title} [{_target(assignment)}]: "
+                  f"{old} → {fmt_dt(new_deadline)}, зачётов {before} → {after} (+{after - before})")
+
+        if failed:
+            await session.rollback()
+            print("ничего не изменено: сначала разберись с ошибками выше")
+            return 1
+        if not apply:
+            await session.rollback()
+            print("это пробный прогон — чтобы записать, повтори с --apply")
+            return 0
+
+        from app.config import settings
+
+        stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+        backup(str(settings.data_dir / f"backup-before-extend-{stamp}.db"))
+        await session.commit()
+        print("записано")
+    return 0
+
+
 def main() -> int:
     args = sys.argv[1:]
     if not args:
@@ -126,6 +212,15 @@ def main() -> int:
             asyncio.run(make_teacher(" ".join(rest)))
         case "stats":
             asyncio.run(stats())
+        case "assignments":
+            asyncio.run(list_assignments())
+        case "extend-deadline":
+            apply = "--apply" in rest
+            rest = [arg for arg in rest if arg != "--apply"]
+            if len(rest) < 2 or not all(arg.isdigit() for arg in rest[1:]):
+                print("пример: python -m app.cli extend-deadline 2026-10-03T23:59 12 13 [--apply]")
+                return 1
+            return asyncio.run(extend_deadlines(rest[0], [int(arg) for arg in rest[1:]], apply))
         case _:
             print(USAGE)
             return 1

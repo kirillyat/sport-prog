@@ -16,7 +16,6 @@ from app.deps import CurrentUser, SessionDep
 from app.i18n import translate as _
 from app.models import (
     Assignment,
-    GroupMembership,
     Problem,
     ProblemSetItem,
     SolutionUpload,
@@ -24,23 +23,10 @@ from app.models import (
     User,
 )
 from app.services import notebook, solutions
+from app.services.progress import may_see_assignment
 from app.templating import templates
 
 router = APIRouter(tags=["solutions"])
-
-
-async def _may_see_assignment(session: SessionDep, user, assignment: Assignment) -> bool:
-    if user.is_teacher or assignment.user_id == user.id:
-        return True
-    if assignment.group_id is None:
-        return assignment.user_id is None
-    member = await session.scalar(
-        select(GroupMembership).where(
-            GroupMembership.group_id == assignment.group_id,
-            GroupMembership.user_id == user.id,
-        )
-    )
-    return member is not None
 
 
 async def _problem_in_assignment(
@@ -62,7 +48,7 @@ async def solution_form(
 ):
     """Страница отправки кода. Отдельная, потому что в клетку таблицы код не влезает."""
     assignment = await session.get(Assignment, assignment_id)
-    if assignment is None or not await _may_see_assignment(session, user, assignment):
+    if assignment is None or not await may_see_assignment(session, user, assignment):
         return RedirectResponse("/?err=" + quote(_("Задание не найдено")), status_code=303)
     problem = await _problem_in_assignment(session, assignment, problem_id)
     if problem is None:
@@ -101,7 +87,7 @@ async def upload_solution(
         return RedirectResponse(f"{back}?err={quote(message)}", status_code=303)
 
     assignment = await session.get(Assignment, assignment_id)
-    if assignment is None or not await _may_see_assignment(session, user, assignment):
+    if assignment is None or not await may_see_assignment(session, user, assignment):
         return RedirectResponse("/?err=" + quote(_("Задание не найдено")), status_code=303)
     if not assignment.requires_solution:
         return fail(_("Это задание решения кодом не требует"))

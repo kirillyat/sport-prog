@@ -219,12 +219,20 @@ async def ping(cfg: Config) -> str:
     if not cfg.ready:
         raise JudgeUnavailable("адрес не задан")
     try:
-        async with httpx.AsyncClient(timeout=settings.judge0_timeout) as client:
+        async with httpx.AsyncClient(timeout=settings.judge0_ping_timeout) as client:
             response = await client.get(
                 f"{cfg.url.rstrip('/')}/about", headers=_headers(cfg)
             )
+    except httpx.TimeoutException as exc:
+        # У таймаута httpx пустой текст, и без этой ветки преподаватель видел
+        # «судья недоступен:» с пустотой после двоеточия. Молчание на порту —
+        # почти всегда погашенная виртуалка, сменившийся IP или фаервол.
+        raise JudgeUnavailable(
+            f"не ответил за {settings.judge0_ping_timeout:g} с — виртуалка выключена, "
+            "адрес сменился или порт закрыт"
+        ) from exc
     except httpx.HTTPError as exc:
-        raise JudgeUnavailable(f"судья недоступен: {exc}") from exc
+        raise JudgeUnavailable(f"судья недоступен: {str(exc) or type(exc).__name__}") from exc
     if response.status_code >= 400:
         raise JudgeUnavailable(f"судья ответил {response.status_code}")
     about = response.json()
@@ -272,7 +280,7 @@ async def run(
                     raise JudgeUnavailable(f"судья ответил {response.status_code}")
                 results.append(_result(test, response.json()))
     except httpx.HTTPError as exc:
-        raise JudgeUnavailable(f"судья недоступен: {exc}") from exc
+        raise JudgeUnavailable(f"судья недоступен: {str(exc) or type(exc).__name__}") from exc
     return RunResult(results=results)
 
 
@@ -289,7 +297,11 @@ def _result(test: Case, data: dict) -> TestResult:
         status=description,
         time_ms=int(float(seconds) * 1000) if seconds else None,
         # Вывод показываем только по открытым тестам: закрытые не должны
-        # утекать в интерфейс ни ответом, ни сообщением об ошибке.
+        # утекать в интерфейс ни ответом, ни сообщением об ошибке. Поток
+        # ошибок — тоже вывод: `print(input(), file=sys.stderr)` и трейсбек
+        # со значениями переменных выдали бы закрытый тест целиком.
         stdout=(data.get("stdout") or "")[:2000] if test.is_open else "",
-        stderr=(data.get("stderr") or data.get("compile_output") or "")[:2000],
+        stderr=(data.get("stderr") or data.get("compile_output") or "")[:2000]
+        if test.is_open
+        else "",
     )

@@ -38,7 +38,7 @@
 
   {% if judge.ready %}
   <div class="row">
-    <form method="post" action="/teacher/judge/check">
+    <form method="post" action="/teacher/judge/check" data-busy="busy.check">
       <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
     </form>
     <form method="post" action="/teacher/judge/off">
@@ -50,7 +50,7 @@
 
 <h2>{{ icon("link") }} {{ _("Подключение") }}</h2>
 <div class="card">
-  <form method="post" action="/teacher/judge" class="inline-form">
+  <form method="post" action="/teacher/judge" class="inline-form" data-busy="busy.connect">
     <div class="field" style="flex:1; min-width:240px">
       <label for="url">{{ _("Адрес judge0") }}</label>
       <input type="url" id="url" name="url" placeholder="http://10.0.0.7:2358" value="{{ judge.url }}" required>
@@ -95,4 +95,8 @@
     {{ _("Если судья замолчал посреди сдачи, попытка не тратится.") }}
   </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/busy.js?v={{ asset_version }}" defer></script>
 {% endblock %}

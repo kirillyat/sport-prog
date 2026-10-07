@@ -166,6 +166,141 @@ async def test_running_open_tests_does_not_spend_an_attempt(session, client, tas
     assert (await session.execute(select(Submission))).scalars().all() == []
 
 
+async def _assign_to_everyone(session, task):
+    from app.models import Assignment, ProblemSet, ProblemSetItem
+
+    problem_set = ProblemSet(title="Разминка")
+    session.add(problem_set)
+    await session.commit()
+    session.add(ProblemSetItem(problem_set_id=problem_set.id, problem_id=task.id, position=0))
+    assignment = Assignment(title="Разминка", problem_set_id=problem_set.id)
+    session.add(assignment)
+    await session.commit()
+    return assignment
+
+
+def _verdicts(*passed_by_test, stdout="", stderr=""):
+    """Подменённый судья: по флагу на тест, в порядке тестов задачи."""
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        return judge.RunResult(
+            results=[
+                judge.TestResult(
+                    position=t.position, is_open=t.is_open, passed=ok,
+                    status="Accepted" if ok else "Wrong Answer",
+                    stdout=stdout if t.is_open else "", stderr=stderr if t.is_open else "",
+                )
+                for t, ok in zip(tests, passed_by_test, strict=False)
+            ]
+        )
+    return fake_run
+
+
+async def test_the_editor_is_sent_by_the_buttons_themselves(session, client, task):
+    """Кнопки отправляют само поле с кодом. Когда у каждой была своя форма
+    с пустым скрытым полем, код до портала не доезжал и пропадал из редактора."""
+    await _login(client, "Аня")
+    page = (await client.get(f"/tasks/{task.slug}")).text
+
+    form = page[page.index('<form method="post" action="/tasks/two-sum/run'):]
+    form = form[: form.index("</form>")]
+    assert 'name="code"' in form and "<textarea" in form
+    assert 'type="hidden" name="code"' not in page
+    assert 'formaction="/tasks/two-sum/run#result"' in form
+    assert 'formaction="/tasks/two-sum/submit#result"' in form
+    # Черновик привязан к задаче, а не к адресной строке: после кнопки там
+    # /run или /submit, и правки копились бы под чужим ключом.
+    assert 'data-draft-key="/tasks/two-sum"' in form
+
+
+async def test_code_stays_in_the_editor_when_the_judge_is_down(session, client, task, monkeypatch):
+    """Студент пишет решение прямо здесь: отказ не должен стирать его работу."""
+    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        raise judge.JudgeUnavailable("судья недоступен: ConnectTimeout")
+
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", fallen)
+    await _login(client, "Аня")
+
+    code = "n = int(input())\nprint(n * 2)"
+    for action in ("run", "submit"):
+        page = await client.post(f"/tasks/{task.slug}/{action}", data={"code": code})
+        assert "n = int(input())" in page.text
+
+
+async def test_submission_always_goes_to_the_teacher(session, client, task, monkeypatch):
+    """Автопроверка не заменяет взгляда на код: сдача сама встаёт в проверку."""
+    from app.models import ReviewStatus, SolutionUpload
+
+    assignment = await _assign_to_everyone(session, task)
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", _verdicts(True, True))
+    await _login(client, "Аня")
+
+    page = await client.post(f"/tasks/{task.slug}/submit", data={"code": "print(1)"})
+
+    upload = await session.scalar(select(SolutionUpload))
+    assert upload.assignment_id == assignment.id and upload.code == "print(1)"
+    assert upload.status == ReviewStatus.pending
+    assert "ушёл преподавателю" in page.text
+    assert "/to-teacher" not in page.text
+
+
+async def test_accepted_submission_says_all_tests_passed(session, client, task, monkeypatch):
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", _verdicts(True, True))
+    await _login(client, "Аня")
+
+    page = await client.post(f"/tasks/{task.slug}/submit", data={"code": "print(1)"})
+
+    assert "Задача принята: пройдены все тесты (2 из 2)" in page.text
+
+
+async def test_a_failed_open_test_shows_input_answer_and_output(session, client, task, monkeypatch):
+    """По открытому тесту видно, где разошлось: ввод, ожидаемое и вывод решения."""
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", _verdicts(False, stdout="1 0", stderr="ValueError: oops"))
+    await _login(client, "Аня")
+
+    page = await client.post(f"/tasks/{task.slug}/run", data={"code": "print('1 0')"})
+    result = page.text[page.text.index('id="result"'):]
+
+    assert "Пройдено 0 из 1 открытых тестов" in result
+    assert "2 7 11 15" in result and "0 1" in result     # ввод и ожидаемое
+    assert "Вывод решения" in result and "1 0" in result
+    assert "ValueError: oops" in result
+
+
+async def test_a_failed_closed_test_shows_only_its_verdict(session, client, task, monkeypatch):
+    """Закрытый тест не утекает ни вводом, ни ответом, ни выводом решения."""
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", _verdicts(True, False))
+    await _login(client, "Аня")
+
+    page = await client.post(f"/tasks/{task.slug}/submit", data={"code": "print(1)"})
+    result = page.text[page.text.index('id="result"'):]
+
+    assert "Не принято: Wrong Answer на тесте 2" in result
+    assert "закрытый тест 2" in result
+    assert "3 2 4" not in page.text and "1 2" not in result
+
+
+def test_the_judge_never_returns_stderr_of_a_closed_test():
+    """Поток ошибок — тоже вывод: `print(input(), file=sys.stderr)` выдал бы тест."""
+    closed = judge.Case(position=1, is_open=False, stdin="3\n3 2 4\n6\n", expected="1 2\n")
+    data = {"status": {"id": 4, "description": "Wrong Answer"},
+            "stdout": "1 2", "stderr": "3\n3 2 4\n6"}
+
+    result = judge._result(closed, data)
+    assert result.stdout == "" and result.stderr == ""
+
+
+def test_students_get_ten_attempts_by_default():
+    """Система для них новая — десять попыток, а не пять."""
+    from app.config import Settings
+
+    assert Settings.model_fields["task_attempts"].default == 10
+
+
 async def test_own_task_goes_into_a_problem_set_by_prefix(session, task):
     """Голый слаг неотличим от LeetCode, поэтому свои задачи пишутся с task:."""
     from app.services.problem_parser import parse_problem_list
@@ -252,6 +387,45 @@ async def test_unreachable_judge_keeps_the_address_and_says_so(session, client, 
     page = await client.post("/teacher/judge", data={"url": "http://10.0.0.7:2358"})
     assert "не отвечает" in page.text
     assert (await judge.config(session)).url == "http://10.0.0.7:2358"
+
+
+async def test_reloading_a_judge_action_returns_to_the_section(client):
+    """Обновление страницы посреди долгой проверки приходит GET-ом на адрес
+    действия — это не повод показывать преподавателю голый 405."""
+    await _login(client, "Кирилл", teacher=True)
+
+    for action in ("/teacher/judge/check", "/teacher/judge/off"):
+        page = await client.get(action, follow_redirects=False)
+        assert page.status_code == 303 and page.headers["location"] == "/teacher/judge"
+
+
+async def test_the_connection_check_does_not_wait_like_a_run(monkeypatch):
+    """Живой судья отвечает на /about сразу; ждать его полминуты, как прогона,
+    значит полминуты показывать преподавателю зависшую страницу."""
+    from app.config import settings
+
+    seen = {}
+
+    class Client:
+        def __init__(self, timeout):
+            seen["timeout"] = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, headers):
+            raise judge.httpx.ConnectTimeout("timed out")
+
+    monkeypatch.setattr(judge.httpx, "AsyncClient", Client)
+    with pytest.raises(judge.JudgeUnavailable) as failure:
+        await judge.ping(judge.Config(url="http://10.0.0.7:2358"))
+
+    assert seen["timeout"] == settings.judge0_ping_timeout < settings.judge0_timeout
+    # У таймаута httpx пустой текст: причина должна быть видна и без него.
+    assert "не ответил" in str(failure.value)
 
 
 async def test_own_task_does_not_ask_for_the_code_twice(session, client, task):

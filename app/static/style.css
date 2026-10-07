@@ -23,6 +23,12 @@
   src: local("JetBrains Mono"), url("fonts/JetBrainsMono-Regular.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 700; font-display: swap;
   src: local("JetBrains Mono Bold"), url("fonts/JetBrainsMono-Bold.woff2") format("woff2"); }
+/* Шрифт для формул. MathML рисует браузер, но растягивать скобки он умеет только
+   шрифтом с математической таблицей: без него фигурная скобка у cases и скобки
+   вокруг дробей остаются строчного роста. Браузер скачивает файл только
+   на страницах, где есть формулы, — и не скачивает, если шрифт уже стоит. */
+@font-face { font-family: "STIX Two Math"; font-display: swap;
+  src: local("STIX Two Math"), local("STIXTwoMath-Regular"), url("fonts/STIXTwoMath.otf") format("opentype"); }
 
 /* ============================================================
    Цветовые темы. Тема — это пара «поле и краска» плюс акцент: портал
@@ -695,6 +701,10 @@ textarea { min-height: 130px; resize: vertical; font-family: var(--mono); font-s
 label { display: block; font-size: 10px; color: var(--text); margin-bottom: 6px; }
 label.check { display: inline-flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 14px; cursor: pointer; }
 label.check input { width: auto; margin: 0; accent-color: var(--ink); }
+/* Выбор нескольких групп. Рамка как у поля ввода, чтобы читалось как один
+   контрол, а не россыпь галочек; длинный список прокручивается внутри. */
+.check-list { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; max-height: 168px; overflow-y: auto; border: var(--rule) solid var(--ink); background: var(--field-bg); }
+.check-list label.check { color: var(--field-text); margin: 0; }
 .field { margin-bottom: 14px; }
 .inline-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .inline-form .field { margin-bottom: 0; }
@@ -717,6 +727,8 @@ button.ghost:hover, .btn.ghost:hover { color: var(--text); }
 button.danger, .btn.danger { background: transparent; color: var(--text); border-color: var(--line-soft); }
 button.danger:hover, .btn.danger:hover { background: var(--err); color: var(--err-text); border-color: var(--err); transform: none; box-shadow: none; }
 button.small, .btn.small { padding: 6px 11px; font-size: 10.5px; }
+/* Запрос ушёл: кнопка не прыгает под курсором, чтобы её не хотелось жать снова. */
+button[aria-busy="true"], button[aria-busy="true"]:hover { cursor: progress; opacity: .6; transform: none; box-shadow: none; }
 
 /* ============================================================
    Бейджи — плотность заливки вместо цвета
@@ -783,6 +795,23 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 .test-pair:last-child { border-bottom: none; }
 .test-pair pre { margin: 4px 0 0; }
 .run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+/* Прогон и сдача — разные действия с разной ценой, поэтому у каждой кнопки
+   своя подпись прямо под ней, а не общая строка где-то сбоку. */
+.solution-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+.solution-action button { width: 100%; justify-content: center; }
+.solution-action p { margin: 8px 0 0; }
+@media (max-width: 640px) { .solution-actions { grid-template-columns: 1fr; } }
+/* Итог прогона — первым и крупно: «принято» или «не принято» видно сразу,
+   подробности по тестам ниже. */
+.verdict { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; margin-bottom: 12px;
+  font-weight: 600; border: var(--rule) solid var(--ink); }
+.verdict.ok { background: var(--inv-bg); color: var(--inv-text); }
+.verdict.bad { background: var(--err); color: var(--err-text); border-color: var(--err); }
+.run-detail { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 4px 0 12px;
+  border-bottom: 1px solid var(--line-soft); }
+.run-detail pre { margin: 4px 0 0; max-height: 220px; overflow: auto; }
+.run-detail-wide { grid-column: 1 / -1; }
+@media (max-width: 640px) { .run-detail { grid-template-columns: 1fr; } }
 /* Редактор: рамка как у остальных полей, высота в экран. */
 /* Редактор кода.
 
@@ -1100,7 +1129,12 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .nb-code .nb, .nb-code .bp { color: var(--code-key); }
 .nb-code .err { color: var(--err); }
 
-/* Формулы. MathML браузер рисует сам — нам остаются размер и прокрутка. */
+/* Формулы. MathML браузер рисует сам — нам остаются шрифт, размер и прокрутка. */
+math { font-family: "STIX Two Math", math; }
+/* Выравнивание столбцов из LaTeX (cases, aligned) приходит атрибутом
+   columnalign, а Chrome его не читает и центрирует всё подряд. */
+mtd[columnalign="left"] { text-align: left; }
+mtd[columnalign="right"] { text-align: right; }
 .nb-md math, .nb-out math { font-size: 1.05em; }
 .math-block { display: block; overflow-x: auto; margin: 12px 0; text-align: center; }
 .math-block math { font-size: 1.15em; }

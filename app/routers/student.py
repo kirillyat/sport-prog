@@ -28,6 +28,7 @@ from app.services.progress import (
     assignments_for_user,
     compute_progress,
     groups_for_user,
+    may_see_assignment,
     participants_for_assignment,
 )
 from app.services.stats import user_stats
@@ -89,18 +90,8 @@ async def assignment_detail(
     if assignment is None:
         return RedirectResponse("/?err=" + quote(_("Задание не найдено")), status_code=303)
 
-    if not user.is_teacher:
-        allowed = assignment.user_id == user.id
-        if not allowed and assignment.group_id is not None:
-            member = await session.scalar(
-                select(GroupMembership).where(
-                    GroupMembership.group_id == assignment.group_id,
-                    GroupMembership.user_id == user.id,
-                )
-            )
-            allowed = member is not None
-        if not allowed:
-            return RedirectResponse("/?err=" + quote(_("Это задание не для тебя")), status_code=303)
+    if not await may_see_assignment(session, user, assignment):
+        return RedirectResponse("/?err=" + quote(_("Это задание не для тебя")), status_code=303)
 
     # Считаем по всем участникам, а не только по себе: иначе не узнать,
     # кто закрыл задачу первым.
@@ -141,8 +132,30 @@ async def public_profile(request: Request, session: SessionDep, user: CurrentUse
 
 
 async def _profile(request: Request, session: SessionDep, viewer: User, target: User):
-    stats = await user_stats(session, target)
     groups = await groups_for_user(session, target)
+    # Преподаватель прорешивает задачи контрольной заранее, и его профиль выдал
+    # бы их студентам до начала: последние решения, прогресс по заданиям, темы,
+    # ссылки на аккаунты площадок, где посылки видны всем. Студенту не отдаём
+    # ничего из этого — не прячем в шаблоне, а просто не считаем.
+    if target.is_teacher and not viewer.is_teacher:
+        return templates.TemplateResponse(
+            request,
+            "profile.html",
+            {
+                "user": viewer,
+                "target": target,
+                "groups": groups,
+                "hide_solves": True,
+                "accounts": [],
+                "is_self": False,
+                "can_rename": False,
+                "can_sync": False,
+                "ok": request.query_params.get("ok"),
+                "error": request.query_params.get("err"),
+            },
+        )
+
+    stats = await user_stats(session, target)
 
     # Место в рейтинге и баллы — иначе профиль живёт отдельно от табло.
     # Считаем в первой группе студента: общего табло у портала нет.
@@ -183,6 +196,7 @@ async def _profile(request: Request, session: SessionDep, viewer: User, target: 
         {
             "user": viewer,
             "target": target,
+            "hide_solves": False,
             "stats": stats,
             "groups": groups,
             "place": place,

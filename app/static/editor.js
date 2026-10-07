@@ -8,6 +8,7 @@
 
   var area = document.getElementById("code");
   if (!area || typeof CodeMirror === "undefined") return;
+  var t = window.portalStrings || function (key, fallback) { return fallback; };
 
   var editor = CodeMirror.fromTextArea(area, {
     mode: "python",
@@ -44,6 +45,30 @@
       "Ctrl-Space": function (cm) { cm.showHint({ hint: suggest, completeSingle: false }); }
     }
   });
+
+  /* CodeMirror меряет колонку номеров строк один раз — при создании. Если
+     в этот момент редактор ещё не отрисован (ссылка открыта в фоновой
+     вкладке, страница поднята из кеша, браузер отложил вёрстку), ширина
+     выходит нулевой, и номера ложатся прямо поверх кода: «a,1 b», «pr2int».
+     Поэтому перемеряем, как только у редактора появилась или сменилась
+     ширина, а заодно когда доехали шрифты и догрузилась страница. */
+  var wrapper = editor.getWrapperElement();
+  var measuredWidth = wrapper.offsetWidth;
+  function remeasure() { editor.refresh(); }
+  if (window.ResizeObserver) {
+    // Только по ширине: высота редактора растёт с кодом, и перемер на каждую
+    // новую строку был бы лишней работой.
+    new ResizeObserver(function () {
+      var width = wrapper.offsetWidth;
+      if (width !== measuredWidth) {
+        measuredWidth = width;
+        remeasure();
+      }
+    }).observe(wrapper);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(remeasure);
+  window.addEventListener("load", remeasure);
+  window.addEventListener("pageshow", function (event) { if (event.persisted) remeasure(); });
 
   /* Автодополнение. Свой источник вместо готового «по любым словам»: тот
      предлагал бы и слова из комментариев, и опечатки, набранные выше.
@@ -140,31 +165,56 @@
     cm.setCursor({ line: target, ch: cursor.ch });
   }
 
-  // Формы отправляют содержимое textarea — синхронизируем перед отправкой.
-  function submitForm(name) {
-    var form = document.querySelector('form[data-editor-form="' + name + '"]');
-    if (form) { editor.save(); form.requestSubmit ? form.requestSubmit() : form.submit(); }
+  /* Textarea лежит внутри формы, и кнопки отправляют её саму — поэтому
+     перед отправкой редактор переписывает в неё свой текст. Ctrl+Enter
+     жмёт ту же кнопку, что и мышь: куда отправлять, решает кнопка. */
+  var form = area.form;
+  function submitForm(action) {
+    var button = form && form.querySelector('button[data-action="' + action + '"]');
+    if (!button || button.disabled) return;
+    editor.save();
+    if (form.requestSubmit) form.requestSubmit(button);
+    else button.click();
   }
+  if (form) form.addEventListener("submit", function () { editor.save(); saveDraftNow(); });
 
-  var forms = document.querySelectorAll("form[data-editor-form]");
-  for (var i = 0; i < forms.length; i++) {
-    forms[i].addEventListener("submit", function () { editor.save(); });
-  }
+  /* Черновик переживает закрытую вкладку и уход со страницы. Ключ — адрес
+     задачи, поэтому у разных задач черновики не путаются. Берём его со
+     страницы, а не из адресной строки: после кнопки там /run или /submit,
+     и правки после прогона копились бы под чужим ключом и терялись.
 
-  // Черновик переживает случайное закрытие вкладки. Ключ — адрес задачи,
-  // поэтому у разных задач черновики не путаются.
-  var key = "sport-draft:" + location.pathname;
-  try {
-    var saved = localStorage.getItem(key);
-    if (saved && !area.value.trim()) editor.setValue(saved);
-  } catch (e) { /* приватный режим — просто без черновика */ }
-
+     Страница приносит свой код — последнюю сдачу или только что
+     отправленное — и время этого кода. Побеждает более свежий: несданные
+     правки после последней сдачи не должны пропадать при возвращении
+     на задачу, а сдача с другого компьютера — затираться старым черновиком. */
+  var key = "sport-draft:" + (area.getAttribute("data-draft-key") || location.pathname);
+  var pageAt = Number(area.getAttribute("data-code-at")) || 0;
   var state = document.querySelector("[data-draft-state]");
   var saved_label = state ? state.getAttribute("data-draft-state") : "";
 
+  function readDraft() {
+    var raw = localStorage.getItem(key);
+    if (!raw) return null;
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.code === "string") return parsed;
+    } catch (e) { /* черновик старого формата — просто текст */ }
+    return { code: raw, at: 0 };
+  }
+
+  try {
+    var draft = readDraft();
+    var current = area.value;
+    if (draft && draft.code.trim() && draft.code !== current &&
+        (!current.trim() || draft.at > pageAt)) {
+      editor.setValue(draft.code);
+      if (state) state.textContent = t("draft.restored", "восстановлен несданный черновик");
+    }
+  } catch (e) { /* приватный режим — просто без черновика */ }
+
   function saveDraftNow() {
     try {
-      localStorage.setItem(key, editor.getValue());
+      localStorage.setItem(key, JSON.stringify({ code: editor.getValue(), at: Date.now() }));
       if (state) state.textContent = saved_label;
     } catch (e) { /* приватный режим — просто без черновика */ }
   }

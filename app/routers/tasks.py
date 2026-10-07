@@ -1,8 +1,11 @@
 """Свои задачи: страница задачи, прогон открытых тестов и сдача.
 
-Страница одна на задачу: условие, открытые тесты, редактор и три кнопки.
+Страница одна на задачу: условие, открытые тесты, редактор и две кнопки.
 Прогон открытых тестов ничего не стоит — он про «я правильно понял условие».
-Сдача тратит попытку и идёт по всем тестам, включая закрытые.
+Сдача тратит попытку, идёт по всем тестам, включая закрытые, и всегда
+уходит преподавателю на проверку глазами: автопроверка не заменяет взгляда
+на код, а отдельная кнопка «преподавателю» означала бы, что половина
+решений до него не доедет.
 
 Разговор с судьёй длится секунды, и всё это время портал не должен ничего
 держать. Отсюда два правила ниже: соединение к базе отпускается перед
@@ -15,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
@@ -84,13 +88,16 @@ def _not_found() -> RedirectResponse:
     return RedirectResponse("/?err=" + quote(_("Задача не найдена")), status_code=303)
 
 
-def _back(slug: str, message: str = "", error: str = "") -> RedirectResponse:
-    query = ""
-    if message:
-        query = "?ok=" + quote(message)
-    elif error:
-        query = "?err=" + quote(error)
-    return RedirectResponse(f"/tasks/{slug}{query}", status_code=303)
+def _epoch_ms(moment: datetime | None) -> int:
+    """Метка для скрипта редактора: чей код новее — черновика или страницы.
+
+    SQLite отдаёт время без зоны, хотя пишем мы UTC, — достраиваем зону сами.
+    """
+    if moment is None:
+        return 0
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return int(moment.timestamp() * 1000)
 
 
 async def _page(
@@ -100,16 +107,31 @@ async def _page(
     problem: Problem,
     task: Task,
     *,
-    code: str = "",
+    code: str | None = None,
     run: judge.RunResult | None = None,
+    run_kind: str = "",
+    sent_to_teacher: bool = False,
     ok: str | None = None,
     error: str | None = None,
 ):
     """Страница задачи. Общая для GET и для прогона тестов, чтобы результат
-    прогона можно было показать сразу, не храня его нигде между запросами."""
+    прогона можно было показать сразу, не храня его нигде между запросами.
+
+    `code` передаётся всегда, когда запрос его принёс, — в том числе при
+    отказе. Студент пишет решение прямо здесь, и страница, вернувшаяся
+    после кнопки без его кода, — это потерянная работа, а не сообщение
+    об ошибке.
+    """
     used = await tasks.attempts_used(session, user.id, problem.id)
     history = await tasks.my_attempts(session, user.id, problem.id)
     assignment = await tasks.assignment_for(session, user.id, problem.id)
+    open_tests = await tasks.tests_for(session, task, only_open=True)
+    if code is not None:
+        shown, shown_at = code, utcnow()
+    elif history:
+        shown, shown_at = history[0].code or "", history[0].submitted_at
+    else:
+        shown, shown_at = "", None
     return templates.TemplateResponse(
         request,
         "task.html",
@@ -119,19 +141,25 @@ async def _page(
             "task": task,
             "assignment": assignment,
             "statement": notebook.render_markdown(task.statement),
-            "open_tests": await tasks.tests_for(session, task, only_open=True),
+            "open_tests": open_tests,
+            # Ввод и ответ открытого теста — к его строке в результатах прогона.
+            "open_by_position": {test.position: test for test in open_tests},
             "attempts_used": used,
             "attempts_left": max(0, settings.task_attempts - used),
             "attempts_total": settings.task_attempts,
             "history": history,
             # Подключён и отвечает — разные вещи: виртуалку могли погасить
-        # посреди контрольной, и студенту честнее сказать об этом сразу.
-        "judge_ready": (await judge.config(session)).ready,
-        "judge_down": not (await judge.health(session)).ok,
-            # В редакторе — последнее присланное: начинать с чистого листа
-            # после отказа хуже всего.
-            "code": code or (history[0].code if history else "") or "",
+            # посреди контрольной, и студенту честнее сказать об этом сразу.
+            "judge_ready": (await judge.config(session)).ready,
+            "judge_down": not (await judge.health(session)).ok,
+            # В редакторе — только что присланное, иначе последняя сдача:
+            # начинать с чистого листа после отказа хуже всего. Время кода
+            # нужно скрипту: черновик в браузере новее — побеждает черновик.
+            "code": shown,
+            "code_at": _epoch_ms(shown_at),
             "run": run,
+            "run_kind": run_kind,
+            "sent_to_teacher": sent_to_teacher,
             "ok": ok if ok is not None else request.query_params.get("ok"),
             "error": error if error is not None else request.query_params.get("err"),
         },
@@ -158,7 +186,7 @@ async def run_open_tests(
 
     text, error = _solution(code)
     if error:
-        return await _page(request, session, user, problem, task, error=error)
+        return await _page(request, session, user, problem, task, code=code, error=error)
 
     cfg = await judge.config(session)
     open_tests = judge.cases(await tasks.tests_for(session, task, only_open=True))
@@ -178,7 +206,9 @@ async def run_open_tests(
             error=_("Проверка недоступна: %(why)s") % {"why": exc},
         )
     await judge.note(session)
-    return await _page(request, session, user, problem, task, code=text, run=result)
+    return await _page(
+        request, session, user, problem, task, code=text, run=result, run_kind="run"
+    )
 
 
 @router.post("/tasks/{slug}/submit")
@@ -193,7 +223,7 @@ async def submit(
 
     text, error = _solution(code)
     if error:
-        return await _page(request, session, user, problem, task, error=error)
+        return await _page(request, session, user, problem, task, code=code, error=error)
 
     used = await tasks.attempts_used(session, user.id, problem.id)
     if used >= settings.task_attempts:
@@ -244,42 +274,22 @@ async def submit(
     )
     await session.commit()
 
-    left = settings.task_attempts - attempt
-    message = (
-        _("Решение принято")
-        if accepted
-        else _("Сдано: %(verdict)s. Попыток осталось: %(left)s")
-        % {"verdict": verdict, "left": left}
-    )
-    return await _page(request, session, user, problem, task, code=text, run=result, ok=message)
-
-
-@router.post("/tasks/{slug}/to-teacher")
-async def send_to_teacher(
-    request: Request, session: SessionDep, user: CurrentUser, slug: str, code: str = Form("")
-):
-    """Отправить код преподавателю — отдельно от сдачи, попытку не тратит."""
-    found = await tasks.get_by_slug(session, slug)
-    if found is None:
-        return _not_found()
-    problem, task = found
-
-    text, error = _solution(code)
-    if error:
-        return await _page(request, session, user, problem, task, code=text, error=error)
-
+    # Сдача уходит преподавателю всегда, а не по отдельной кнопке. Задачи
+    # вне задания отправлять некуда — посылка с кодом при этом всё равно есть.
     assignment = await tasks.assignment_for(session, user.id, problem.id)
-    if assignment is None:
-        return await _page(
-            request, session, user, problem, task, code=text,
-            error=_("Задача не входит ни в одно твоё задание — отправлять некуда"),
+    if assignment is not None:
+        await solutions.put(
+            session,
+            assignment_id=assignment.id,
+            problem_id=problem.id,
+            user_id=user.id,
+            code=text,
         )
 
-    await solutions.put(
-        session,
-        assignment_id=assignment.id,
-        problem_id=problem.id,
-        user_id=user.id,
-        code=text,
+    return await _page(
+        request, session, user, problem, task, code=text, run=result, run_kind="submit",
+        sent_to_teacher=assignment is not None,
+        # Итог сдачи — в плашке результата рядом с редактором, а не во
+        # всплывающей строке наверху страницы, которую не видно у длинного условия.
+        ok="",
     )
-    return _back(slug, message=_("Решение отправлено преподавателю"))

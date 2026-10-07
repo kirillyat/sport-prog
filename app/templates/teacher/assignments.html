@@ -25,11 +25,15 @@
         </select>
       </div>
       <div class="field">
-        <label for="group_id">{{ _("Кому") }}</label>
-        <select id="group_id" name="group_id">
-          <option value="">{{ _("Всем") }}</option>
-          {% for group in groups %}<option value="{{ group.id }}">{{ group.title }}</option>{% endfor %}
-        </select>
+        {# Галочки, а не select: один семинар часто идёт у нескольких групп сразу. #}
+        <label id="group_id_label">{{ _("Кому — ни одной группы значит всем") }}</label>
+        <div class="check-list" role="group" aria-labelledby="group_id_label">
+          {% for group in groups %}
+          <label class="check"><input type="checkbox" name="group_id" value="{{ group.id }}"> {{ group.title }}</label>
+          {% else %}
+          <span class="small muted">{{ _("Групп нет — задание получат все") }}</span>
+          {% endfor %}
+        </div>
       </div>
       <div class="field">
         <label for="description">{{ _("Описание (необязательно)") }}</label>
@@ -57,7 +61,7 @@
       </label>
     </div>
     <p class="small muted">
-      {{ icon("alert") }} {{ _("Сроки, задачи и адресат задаются здесь: после выдачи правятся только название и описание.") }}
+      {{ icon("alert") }} {{ _("Задачи и адресат задаются здесь. После выдачи правятся название и описание, а дедлайн можно только отодвинуть.") }}
     </p>
     <button type="submit">{{ icon("send") }} {{ _("Выдать") }}</button>
   </form>

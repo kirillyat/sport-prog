@@ -156,11 +156,13 @@ async def test_assignment_text_and_route(session, client, outbox):
 
     await client.post("/teacher/assignments", data={
         "title": "Неделя 1", "problem_set_id": problem_set.id, "group_id": group.id,
-        "deadline": "2026-10-01T18:00",
+        # Дата далеко впереди: задание начинается «сейчас», и срок в прошлом
+        # маршрут отклоняет — тест не должен истекать вместе с календарём.
+        "deadline": "2030-10-01T18:00",
     })
     assert len(outbox) == 1
     text = outbox[0][1]
-    assert "Неделя 1" in text and "Дедлайн: 01.10.2026 18:00" in text
+    assert "Неделя 1" in text and "Дедлайн: 01.10.2030 18:00" in text
     # Ссылка на задание ушла в кнопку под сообщением.
     assignment = await session.scalar(select(Assignment))
     assert notify.assignment_button(assignment)[1].endswith(f"/assignments/{assignment.id}")

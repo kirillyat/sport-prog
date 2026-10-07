@@ -131,6 +131,63 @@ async def test_assignment_hidden_from_outsiders(session, client):
     assert "не для тебя" in response.text
 
 
+async def test_an_assignment_for_everyone_opens_for_any_student(session, client):
+    """Задание «всем» стоит у студента в списке — значит, и по ссылке открывается.
+    Страница считала доступ по-своему, забывала про «всем» и отвечала «не для
+    тебя», а преподаватель этого не видел: его проверка пропускает."""
+    from app.models import Assignment, ProblemSet
+
+    # Преподаватель уже есть: иначе первый вошедший сам станет преподавателем
+    # и проверка доступа не сработает вовсе.
+    session.add(User(display_name="Кирилл", role=Role.teacher))
+    problem_set = ProblemSet(title="Разминка")
+    session.add(problem_set)
+    await session.commit()
+    assignment = Assignment(title="Разминка: ввод и вывод", problem_set_id=problem_set.id)
+    session.add(assignment)
+    await session.commit()
+
+    await _login(client, "Аня")
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    assert anya.role == Role.student
+
+    dashboard = await client.get("/")
+    assert f'/assignments/{assignment.id}"' in dashboard.text
+    page = await client.get(f"/assignments/{assignment.id}")
+    assert "не для тебя" not in page.text
+    assert "Разминка: ввод и вывод" in page.text
+
+
+async def test_a_teacher_profile_does_not_show_students_what_was_solved(session, client):
+    """Преподаватель прорешивает задачи контрольной заранее: его профиль не
+    должен выдать их студентам — ни названием, ни аккаунтом на площадке."""
+    from app.models import PlatformAccount, Submission, utcnow
+
+    teacher = User(display_name="Кирилл", role=Role.teacher)
+    session.add(teacher)
+    await session.commit()
+    session.add(PlatformAccount(user_id=teacher.id, platform=Platform.leetcode,
+                                handle="kirill-secret", verified_at=utcnow()))
+    session.add(Submission(
+        user_id=teacher.id, platform=Platform.leetcode, external_id="1",
+        problem_slug="secret-task", problem_title="Задача с контрольной",
+        verdict="Accepted", is_accepted=True, language="python", submitted_at=utcnow(),
+    ))
+    await session.commit()
+
+    await _login(client, "Аня")
+    page = (await client.get(f"/u/{teacher.id}")).text
+    assert "Кирилл" in page and "скрыты" in page
+    assert "Задача с контрольной" not in page
+    assert "kirill-secret" not in page
+
+    # Коллеге-преподавателю профиль открыт целиком.
+    await client.post("/logout")
+    await _login(client, "Маша", teacher=True)
+    colleague = (await client.get(f"/u/{teacher.id}")).text
+    assert "kirill-secret" in colleague and "скрыты" not in colleague
+
+
 async def test_dev_login_disabled_by_default(session, client, monkeypatch):
     from app.config import settings
 

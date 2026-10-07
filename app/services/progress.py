@@ -242,6 +242,26 @@ async def assignments_for_user(session: AsyncSession, user: User) -> list[Assign
     return list((await session.execute(stmt)).scalars().all())
 
 
+async def may_see_assignment(session: AsyncSession, user: User, assignment: Assignment) -> bool:
+    """Тот же круг, что у `assignments_for_user`: лично, через группу или всем.
+
+    Правило одно на список и на страницу задания. Когда страница считала
+    по-своему и забывала про «всем», задание висело у студента в списке,
+    а по ссылке отвечало «не для тебя».
+    """
+    if user.is_teacher or assignment.user_id == user.id:
+        return True
+    if assignment.group_id is None:
+        return assignment.user_id is None
+    member = await session.scalar(
+        select(GroupMembership).where(
+            GroupMembership.group_id == assignment.group_id,
+            GroupMembership.user_id == user.id,
+        )
+    )
+    return member is not None
+
+
 async def groups_for_user(session: AsyncSession, user: User) -> list[Group]:
     stmt = (
         select(Group)

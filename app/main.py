@@ -96,7 +96,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title=settings.app_name, lifespan=lifespan, docs_url=None, redoc_url=None)
 
 # У стандартной таблицы MIME нет woff2 — без этого шрифт уходит как octet-stream.
+# С otf (шрифт формул) то же самое в контейнере: на маке тип берётся из системы,
+# а в slim-образе системной таблицы нет.
 mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/otf", ".otf")
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

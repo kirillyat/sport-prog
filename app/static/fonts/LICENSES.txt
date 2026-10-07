@@ -1,3 +1,4 @@
 JetBrains Mono — © JetBrains, SIL Open Font License 1.1 (см. OFL-JetBrainsMono.txt)
 Unbounded    — © NaN, SIL Open Font License 1.1, https://github.com/NaNxNaN/Unbounded
 Golos Text   — © Paratype, SIL Open Font License 1.1, https://github.com/paratype/Golos
+STIX Two Math — © The STIX Fonts Project Authors, SIL Open Font License 1.1 (см. OFL-STIXTwoMath.txt)

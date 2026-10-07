@@ -67,7 +67,7 @@
       {% for group in groups %}<span class="badge">{{ group.title }}</span>{% endfor %}
       {% if not groups %}<span>{{ _("без группы") }}</span>{% endif %}
     </div>
-    {% if accounts %}
+    {% if accounts and not hide_solves %}
     <div class="row small" style="margin-top:8px">
       {% for account in accounts %}
         <a class="badge {{ 'ok' if account.is_verified else 'warn' }}"
@@ -89,6 +89,15 @@
   {% endif %}
 </div>
 
+{% if hide_solves %}
+{# Преподаватель прорешивает задачи контрольной заранее — профиль выдал бы их
+   студентам до начала. Данных для этих блоков страница даже не получает. #}
+<div class="card">
+  <p class="small muted" style="margin:0">
+    {{ icon("shield") }} {{ _("Решения преподавателя скрыты: среди них бывают задачи будущих контрольных.") }}
+  </p>
+</div>
+{% else %}
 <div class="grid stats">
   <div class="stat">{{ icon("trophy") }}
     {% if score %}
@@ -218,6 +227,7 @@
     {% endfor %}
   {% else %}<p class="small muted" style="margin:0">{{ _("Решай задачи — здесь появятся темы.") }}</p>{% endif %}
 </div>
+{% endif %}
 
 {% if is_self %}
 <p class="small muted">

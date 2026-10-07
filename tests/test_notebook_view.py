@@ -145,6 +145,33 @@ async def test_formulas_become_mathml(session, client):
     assert 'class="math-block"' in page          # выключная формула — отдельным блоком
 
 
+def test_formulas_are_drawn_with_a_bundled_math_font():
+    """Без шрифта с математической таблицей Chrome не растягивает скобки:
+    у cases остаётся крошечная «{». Шрифт лежит у нас и подключён к <math>."""
+    import re
+    from pathlib import Path
+
+    static = Path(__file__).resolve().parent.parent / "app" / "static"
+    css = (static / "style.css").read_text(encoding="utf-8")
+
+    face = re.search(r'@font-face \{ font-family: "STIX Two Math";[^}]*\}', css)
+    assert face, "нет @font-face для шрифта формул"
+    file = re.search(r'url\("(fonts/[^"]+)"\)', face.group(0)).group(1)
+    assert (static / file).stat().st_size > 100_000
+    assert (static / "fonts" / "OFL-STIXTwoMath.txt").exists()   # лицензия едет со шрифтом
+    assert re.search(r'^math \{ font-family: "STIX Two Math"', css, re.M)
+    # Выравнивание столбцов cases: Chrome не читает атрибут columnalign.
+    assert 'mtd[columnalign="left"] { text-align: left; }' in css
+
+
+async def test_the_math_font_is_served_as_a_font(client):
+    """В slim-образе нет системной таблицы MIME, и .otf уходил как octet-stream.
+    На маке тест прошёл бы и без правки — проверяет его прогон в контейнере."""
+    response = await client.get("/static/fonts/STIXTwoMath.otf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "font/otf"
+
+
 async def test_math_cannot_smuggle_a_tag(session, client):
     """latex2mathml пропускает содержимое \\text{...} как есть — чистим сами."""
     await _teacher(client)
