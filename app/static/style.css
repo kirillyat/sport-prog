@@ -597,6 +597,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 34px 32px 90px; }
    Типографика
    ============================================================ */
 h1 { font-family: var(--display); font-weight: 800; font-size: 44px; line-height: .95; letter-spacing: -.02em; text-transform: uppercase; margin: 0 0 10px; }
+/* «ДВУХСТУПЕНЧАТЫЕ» крупным шрифтом шире телефона: длинное слово переносим. */
+h1, .eyebrow { overflow-wrap: break-word; hyphens: auto; }
 h2 { font-size: 11px; color: var(--text); margin: 38px 0 12px; display: flex; align-items: center; gap: 12px; }
 h2::before { content: ""; width: 28px; height: var(--rule); background: var(--ink); flex: none; }
 h2::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
@@ -653,6 +655,10 @@ a.card:hover .badge.bad, .step:hover .badge.bad,
 .callout.warn { border-left-color: var(--err); }
 
 .grid { display: grid; gap: 16px; }
+/* Ячейка сетки по умолчанию не уже своего самого широкого содержимого:
+   одна формула или строка теста распирала всю страницу на телефоне. С нулём
+   широкое прокручивается внутри своего блока, а страница остаётся в экране. */
+.grid > * { min-width: 0; }
 .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .grid.three { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); counter-reset: sec; }
 .grid.three > a.card h3::before { counter-increment: sec; content: counter(sec, decimal-leading-zero); font-size: 12px; opacity: .55; margin-right: 6px; }
@@ -793,7 +799,9 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 /* ---------- страница задачи ---------- */
 .test-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
 .test-pair:last-child { border-bottom: none; }
-.test-pair pre { margin: 4px 0 0; }
+.test-pair pre { margin: 4px 0 0; overflow-x: auto; }
+/* Строка теста не переносится — порядок строк ввода важен, — а прокручивается. */
+.test-pair > * { min-width: 0; }
 .run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 /* Прогон и сдача — разные действия с разной ценой, поэтому у каждой кнопки
    своя подпись прямо под ней, а не общая строка где-то сбоку. */
