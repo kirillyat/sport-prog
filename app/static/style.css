@@ -803,6 +803,22 @@ a.badge:hover { text-decoration: none; opacity: .85; }
 /* Строка теста не переносится — порядок строк ввода важен, — а прокручивается. */
 .test-pair > * { min-width: 0; }
 .run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+/* Развёрнутый редактор: колонка решения целиком — поверх страницы, редактор
+   во всю высоту. Слой выше рейки и нижней панели, но ниже подсказок
+   CodeMirror — иначе автодополнение пряталось бы под редактором. */
+.editor-toolbar { display: flex; justify-content: flex-end; margin: -6px 0 8px; }
+.editor-expand .when-expanded { display: none; }
+.editor-expand span { display: inline-flex; align-items: center; gap: 6px; }
+body.editor-expanded { overflow: hidden; }
+body.editor-expanded .solution-pane {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: var(--bg); padding: 16px 24px 32px;
+}
+body.editor-expanded .editor-expand .when-collapsed { display: none; }
+body.editor-expanded .editor-expand .when-expanded { display: inline-flex; }
+body.editor-expanded .CodeMirror.CodeMirror,
+body.editor-expanded .CodeMirror-scroll.CodeMirror-scroll { min-height: calc(100vh - 260px); max-height: none; }
+@media (max-width: 640px) { body.editor-expanded .solution-pane { padding: 10px 12px 24px; } }
 /* Прогон и сдача — разные действия с разной ценой, поэтому у каждой кнопки
    своя подпись прямо под ней, а не общая строка где-то сбоку. */
 .solution-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }

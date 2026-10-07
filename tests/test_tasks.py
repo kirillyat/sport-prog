@@ -287,6 +287,23 @@ async def test_the_editor_is_sent_by_the_buttons_themselves(session, client, tas
     assert 'data-draft-key="/tasks/two-sum"' in form
 
 
+async def test_the_editor_unfolds_together_with_its_buttons_and_result(
+    session, client, task, monkeypatch
+):
+    """Развёрнутый редактор ложится поверх условия вместе с кнопками и
+    результатом: после «Прогнать» студент видит вердикт, не сворачивая."""
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", _verdicts(True))
+    await _login(client, "Аня")
+
+    page = (await client.post(f"/tasks/{task.slug}/run", data={"code": "print(1)"})).text
+    pane = page[page.index("data-solution-pane"):]
+    assert pane.index("data-editor-expand") < pane.index("<textarea") < pane.index('id="result"')
+    # Без скрипта кнопка ничего не умеет — до его загрузки её не видно.
+    button = pane[pane.index("<button"):pane.index("data-editor-expand") + 40]
+    assert "hidden" in button
+
+
 async def test_code_stays_in_the_editor_when_the_judge_is_down(session, client, task, monkeypatch):
     """Студент пишет решение прямо здесь: отказ не должен стирать его работу."""
     async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb):

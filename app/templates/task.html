@@ -44,9 +44,19 @@
     {% endif %}
   </div>
 
-  <div>
+  {# Колонка решения целиком: редактор, кнопки, результат. Развёрнутая, она
+     ложится поверх условия — писать код в узкой колонке неудобно. #}
+  <div class="solution-pane" data-solution-pane>
     <h2>{{ icon("code") }} {{ _("Решение") }}</h2>
     <div class="card">
+      <div class="editor-toolbar">
+        {# Без скрипта кнопка ничего не умеет, поэтому до его загрузки скрыта. #}
+        <button type="button" class="ghost small editor-expand" data-editor-expand hidden
+                aria-pressed="false">
+          <span class="when-collapsed">{{ icon("expand") }} {{ _("Развернуть") }}</span>
+          <span class="when-expanded">{{ icon("shrink") }} {{ _("Свернуть · Esc") }}</span>
+        </button>
+      </div>
       {% if not judge_ready %}
       <p class="small muted" style="margin-top:0">
         {{ icon("alert") }}

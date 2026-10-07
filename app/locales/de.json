@@ -314,6 +314,8 @@
   "Прогон по ним не тратит попытки. При сдаче добавляются закрытые тесты.": "Sie laufen zu lassen kostet keine Versuche. Beim Abgeben kommen die geschlossenen Tests dazu.",
   "Ввод": "Eingabe",
   "Ожидается": "Erwartet",
+  "Развернуть": "Vergrößern",
+  "Свернуть · Esc": "Verkleinern · Esc",
   "Сервер проверки сейчас не поднят: код примем и сохраним, но вердикта не будет.": "Der Prüfserver läuft gerade nicht: wir nehmen den Code an und speichern ihn, ein Verdikt gibt es nicht.",
   "Сервер проверки не отвечает. Попробуй прогнать тесты — если он вернулся, портал это заметит.": "Der Prüfserver antwortet nicht. Versuch, die Tests laufen zu lassen — ist er zurück, merkt das Portal es.",
   "черновик сохранён": "Entwurf gespeichert",

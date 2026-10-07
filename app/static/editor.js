@@ -70,6 +70,47 @@
   window.addEventListener("load", remeasure);
   window.addEventListener("pageshow", function (event) { if (event.persisted) remeasure(); });
 
+  /* Развернуть редактор поверх условия. Выбор запоминается в браузере: после
+     «Прогнать» страница приходит заново, и студенту, который пишет в большом
+     редакторе, не нужно разворачивать его каждый раз. */
+  var expandButton = document.querySelector("[data-editor-expand]");
+  var EXPANDED_KEY = "sport-editor-expanded";
+
+  function setExpanded(on) {
+    document.body.classList.toggle("editor-expanded", on);
+    if (expandButton) expandButton.setAttribute("aria-pressed", on ? "true" : "false");
+    editor.refresh();
+  }
+
+  if (expandButton) {
+    expandButton.hidden = false;
+    expandButton.addEventListener("click", function () {
+      var on = !document.body.classList.contains("editor-expanded");
+      setExpanded(on);
+      try { localStorage.setItem(EXPANDED_KEY, on ? "1" : ""); } catch (e) { /* приватный режим */ }
+      editor.focus();
+    });
+    var remembered = false;
+    try { remembered = localStorage.getItem(EXPANDED_KEY) === "1"; } catch (e) { /* приватный режим */ }
+    if (remembered) {
+      setExpanded(true);
+      // Браузер прокрутил страницу к #result до того, как колонка стала слоем
+      // поверх, — внутри слоя результат нужно показать заново.
+      var result = location.hash === "#result" && document.getElementById("result");
+      if (result) result.scrollIntoView();
+    }
+    // Esc сворачивает, но не тот Esc, которым закрывают подсказку редактора.
+    // Слушаем на погружении — до CodeMirror: он сам помечает любой Esc
+    // обработанным, и по метке подсказку от свёртки уже не отличить.
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      if (!document.body.classList.contains("editor-expanded")) return;
+      if (document.querySelector(".CodeMirror-hints")) return;
+      setExpanded(false);
+      try { localStorage.setItem(EXPANDED_KEY, ""); } catch (e) { /* приватный режим */ }
+    }, true);
+  }
+
   /* Автодополнение. Свой источник вместо готового «по любым словам»: тот
      предлагал бы и слова из комментариев, и опечатки, набранные выше.
      Здесь — ключевые слова и встроенные функции питона плюс имена, которые
