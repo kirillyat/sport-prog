@@ -75,6 +75,81 @@ def test_archive_without_open_tests_is_refused():
         tasks.parse_archive(buffer.getvalue())
 
 
+def test_a_closed_test_may_weigh_up_to_a_megabyte_and_an_open_one_cannot():
+    """Задачам с n = 5·10⁴ не хватало 256 КБ. Закрытый тест на странице не
+    показывается — ему можно до мегабайта; открытый показывается всем."""
+    big = "1 " * (300 * 1024 // 2)          # ~300 КБ
+    task = tasks.parse_archive(_zip(**{"two-sum/tests/closed/02.in": big,
+                                       "two-sum/tests/closed/02.out": "0\n"}))[0]
+    assert len(task.tests) == 3
+
+    with pytest.raises(tasks.ArchiveError, match="256 КБ"):
+        tasks.parse_archive(_zip(**{"two-sum/tests/open/02.in": big,
+                                    "two-sum/tests/open/02.out": "0\n"}))
+
+    huge = "1 " * (1100 * 1024 // 2)        # ~1,1 МБ
+    with pytest.raises(tasks.ArchiveError, match="1 МБ"):
+        tasks.parse_archive(_zip(**{"two-sum/tests/closed/02.in": huge,
+                                    "two-sum/tests/closed/02.out": "0\n"}))
+
+
+async def test_a_submission_does_not_hold_every_test_in_memory(session, client, task, monkeypatch):
+    """Закрытые тесты бывают по мегабайту, а сдаёт вся группа: судье уходят
+    ссылки на тесты, а не их содержимое."""
+    seen = {}
+
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+        seen["tests"] = list(tests)
+        return judge.RunResult(results=[
+            judge.TestResult(position=t.position, is_open=t.is_open, passed=True, status="Accepted")
+            for t in tests
+        ])
+
+    await judge.connect(session, "http://judge.test")
+    monkeypatch.setattr(judge, "run", fake_run)
+    await _login(client, "Аня")
+    await client.post(f"/tasks/{task.slug}/submit", data={"code": "print(1)"})
+
+    assert len(seen["tests"]) == 2
+    assert all(isinstance(t, judge.TestRef) for t in seen["tests"])
+    assert not any(hasattr(t, "stdin") for t in seen["tests"])
+
+
+async def test_the_judge_reads_each_test_right_before_sending_it(session, db, task, monkeypatch):
+    """Ссылка на тест превращается в ввод и ответ только перед отправкой судье."""
+    sent = []
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"status": {"id": judge.ACCEPTED, "description": "Accepted"}, "time": "0.01"}
+
+    class Client:
+        def __init__(self, timeout):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, url, params, json, headers):
+            sent.append((json["stdin"], json["expected_output"]))
+            return Response()
+
+    monkeypatch.setattr(judge, "SessionLocal", db)
+    monkeypatch.setattr(judge.httpx, "AsyncClient", Client)
+    stored = await session.scalar(select(Task).where(Task.problem_id == task.id))
+    refs = await tasks.test_refs(session, stored)
+
+    result = await judge.run(judge.Config(url="http://judge.test"), "print(1)", refs, 1000, 256)
+
+    assert result.passed
+    assert sent == [("4\n2 7 11 15\n9\n", "0 1\n"), ("3\n3 2 4\n6\n", "1 2\n")]
+
+
 def test_archive_without_answer_file_is_refused():
     with pytest.raises(tasks.ArchiveError, match="ответ"):
         tasks.parse_archive(_zip(**{"two-sum/tests/open/02.in": "1\n"}))

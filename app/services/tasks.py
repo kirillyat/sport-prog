@@ -37,10 +37,17 @@ from app.models import (
     TaskTest,
     utcnow,
 )
+from app.services.judge import TestRef
 
 # Столько же, сколько у материалов: архив с тестами больше не бывает.
 MAX_BYTES = 20 * 1024 * 1024
-MAX_TEST_BYTES = 256 * 1024
+# Открытый тест показывается на странице задачи — мегабайт ввода раздул бы
+# её у каждого студента. Закрытый не показывается нигде, ему можно больше:
+# 256 КБ — это около 30 000 чисел, а задачам с n = 5·10⁴ этого не хватало.
+# Больше мегабайта не надо и закрытым: у judge0 по умолчанию столько же
+# на файлы, которые пишет решение, и большой ответ упрётся уже в судью.
+MAX_OPEN_TEST_BYTES = 256 * 1024
+MAX_CLOSED_TEST_BYTES = 1024 * 1024
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 FRONT_MATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.S)
@@ -123,11 +130,12 @@ def parse_archive(data: bytes) -> list[ParsedTask]:
     return tasks
 
 
-def _read(archive: zipfile.ZipFile, name: str) -> str:
+def _read(archive: zipfile.ZipFile, name: str, limit: int = MAX_OPEN_TEST_BYTES) -> str:
     with archive.open(name) as handle:
-        raw = handle.read(MAX_TEST_BYTES + 1)
-    if len(raw) > MAX_TEST_BYTES:
-        raise ArchiveError(f"{name}: файл больше {MAX_TEST_BYTES // 1024} КБ")
+        raw = handle.read(limit + 1)
+    if len(raw) > limit:
+        size = f"{limit // 1024 // 1024} МБ" if limit >= 1024 * 1024 else f"{limit // 1024} КБ"
+        raise ArchiveError(f"{name}: файл больше {size}")
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -146,6 +154,7 @@ def _task(archive: zipfile.ZipFile, folder: str, slug: str) -> ParsedTask:
 
     position = 0
     for kind, is_open in (("open", True), ("closed", False)):
+        limit = MAX_OPEN_TEST_BYTES if is_open else MAX_CLOSED_TEST_BYTES
         prefix = f"{folder}tests/{kind}/"
         inputs = sorted(n for n in archive.namelist() if n.startswith(prefix) and n.endswith(".in"))
         for name in inputs:
@@ -156,8 +165,8 @@ def _task(archive: zipfile.ZipFile, folder: str, slug: str) -> ParsedTask:
                 ParsedTest(
                     position=position,
                     is_open=is_open,
-                    stdin=_read(archive, name),
-                    expected=_read(archive, answer),
+                    stdin=_read(archive, name, limit),
+                    expected=_read(archive, answer, limit),
                 )
             )
             position += 1
@@ -230,6 +239,24 @@ async def get_by_slug(session: AsyncSession, slug: str) -> tuple[Problem, Task] 
         return None
     task = await session.scalar(select(Task).where(Task.problem_id == problem.id))
     return (problem, task) if task is not None else None
+
+
+async def test_refs(
+    session: AsyncSession, task: Task, only_open: bool = False
+) -> list[TestRef]:
+    """Номера тестов без содержимого — для прогона.
+
+    Ввод и ответ закрытого теста бывают по мегабайту, а сдают сразу всей
+    группой: держать все тесты каждой сдачи в памяти, пока судья думает, —
+    это сотни мегабайт на сервере. Судья дочитывает тест сам, перед отправкой.
+    """
+    stmt = select(TaskTest.id, TaskTest.position, TaskTest.is_open).where(
+        TaskTest.task_id == task.id
+    )
+    if only_open:
+        stmt = stmt.where(TaskTest.is_open.is_(True))
+    rows = (await session.execute(stmt.order_by(TaskTest.position))).all()
+    return [TestRef(test_id=row.id, position=row.position, is_open=row.is_open) for row in rows]
 
 
 async def tests_for(session: AsyncSession, task: Task, only_open: bool = False) -> list[TaskTest]:

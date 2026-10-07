@@ -38,7 +38,8 @@ import time
 import zipfile
 from pathlib import Path
 
-LIMIT_BYTES = 256 * 1024
+# Как у портала: открытый тест на странице у всех, закрытый — нигде.
+LIMIT_BYTES = {"open": 256 * 1024, "closed": 1024 * 1024}
 BRUTE_MAX_INPUT = 2_000          # перебор гоняем только на маленьких тестах
 HEADROOM = 3                     # эталон должен укладываться в лимит с таким запасом
 
@@ -97,9 +98,10 @@ def check(task: Path, python: str) -> list[str]:
     for name, stdin_path, answer_path in tests:
         stdin = stdin_path.read_text(encoding="utf-8")
         expected = answer_path.read_text(encoding="utf-8")
+        cap = LIMIT_BYTES[name.split("/")[0]]
         for path in (stdin_path, answer_path):
-            if path.stat().st_size >= LIMIT_BYTES:
-                problems.append(f"{task.name}/{name}: {path.name} тяжелее 256 КБ")
+            if path.stat().st_size > cap:
+                problems.append(f"{task.name}/{name}: {path.name} тяжелее {cap // 1024} КБ")
         out, seconds, err = run(python, task / "solution.py", stdin, timeout=limit * 10)
         worst = max(worst, seconds)
         if not same(out, expected):

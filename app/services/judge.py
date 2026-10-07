@@ -20,15 +20,16 @@
 уложен в общий срок: медленный судья не должен держать студента в ожидании
 бесконечно.
 
-Тесты сюда приезжают простыми `Case`, а не строками базы: разговор с судьёй
-длится секунды, и всё это время сессия базы должна быть отпущена.
+Тесты сюда приезжают ссылками (`TestRef`), а ввод и ответ дочитываются по
+одному, своей короткой сессией перед отправкой: разговор с судьёй длится
+секунды, сессия запроса всё это время отпущена, а закрытый тест бывает по
+мегабайту — держать все тесты каждой сдачи в памяти нельзя.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -36,6 +37,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.db import SessionLocal
 from app.models import TaskTest, utcnow
 from app.services.catalog import get_state, set_state
 
@@ -66,11 +68,30 @@ class Case:
     expected: str
 
 
-def cases(tests: Iterable[TaskTest]) -> list[Case]:
-    return [
-        Case(position=t.position, is_open=t.is_open, stdin=t.stdin, expected=t.expected)
-        for t in tests
-    ]
+@dataclass(frozen=True, slots=True)
+class TestRef:
+    """Тест без ввода и ответа: что за тест, а содержимое — перед отправкой.
+
+    Закрытый тест бывает по мегабайту, сдаёт вся группа разом, и каждая
+    сдача ждёт судью секундами. Держать все её тесты в памяти всё это время —
+    сотни мегабайт на сервере; по одному — один тест на сдачу.
+    """
+
+    test_id: int
+    position: int
+    is_open: bool
+
+
+async def _fetch(ref: TestRef) -> Case:
+    # Своя короткая сессия на каждый тест: сессия запроса во время прогона
+    # отпущена, и держать соединение к базе, пока судья думает, нельзя.
+    async with SessionLocal() as session:
+        test = await session.get(TaskTest, ref.test_id)
+        if test is None:
+            # Преподаватель перезалил набор посреди сдачи.
+            raise JudgeUnavailable("тесты задачи заменили во время проверки — сдай ещё раз")
+        return Case(position=test.position, is_open=test.is_open,
+                    stdin=test.stdin, expected=test.expected)
 
 
 @dataclass(slots=True)
@@ -240,9 +261,13 @@ async def ping(cfg: Config) -> str:
 
 
 async def run(
-    cfg: Config, code: str, tests: list[Case], time_limit_ms: int, memory_limit_mb: int
+    cfg: Config, code: str, tests: list[Case | TestRef], time_limit_ms: int, memory_limit_mb: int
 ) -> RunResult:
-    """Прогоняет код по тестам. Падение судьи — исключение, а не пустой результат."""
+    """Прогоняет код по тестам. Падение судьи — исключение, а не пустой результат.
+
+    Тесты приходят ссылками (`TestRef`) и дочитываются по одному перед
+    отправкой; готовые `Case` тоже годятся — так удобнее в проверках.
+    """
     if not cfg.ready:
         raise JudgeUnavailable("сервер проверки не настроен")
 
@@ -252,7 +277,8 @@ async def run(
     deadline = time.monotonic() + settings.judge0_total_timeout
     try:
         async with httpx.AsyncClient(timeout=settings.judge0_timeout) as client:
-            for test in tests:
+            for item in tests:
+                test = await _fetch(item) if isinstance(item, TestRef) else item
                 if time.monotonic() > deadline:
                     raise JudgeUnavailable(
                         f"проверка не уложилась в {int(settings.judge0_total_timeout)} с"

@@ -189,7 +189,7 @@ async def run_open_tests(
         return await _page(request, session, user, problem, task, code=code, error=error)
 
     cfg = await judge.config(session)
-    open_tests = judge.cases(await tasks.tests_for(session, task, only_open=True))
+    open_tests = await tasks.test_refs(session, task, only_open=True)
     limits = (task.time_limit_ms, task.memory_limit_mb)
     try:
         async with _one_at_a_time(user.id):
@@ -234,7 +234,7 @@ async def submit(
     verdict, accepted, result = _("Не проверено"), False, None
     cfg = await judge.config(session)
     if cfg.ready:
-        all_tests = judge.cases(await tasks.tests_for(session, task))
+        all_tests = await tasks.test_refs(session, task)
         limits = (task.time_limit_ms, task.memory_limit_mb)
         try:
             async with _one_at_a_time(user.id):

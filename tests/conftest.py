@@ -54,6 +54,7 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     from app.db import get_session
     from app.main import app
     from app.services import features
+    from app.services import judge as judge_service
     from app.services import sync as sync_service
 
     async def _override() -> AsyncIterator[AsyncSession]:
@@ -66,6 +67,8 @@ async def client(session: AsyncSession, db: async_sessionmaker, monkeypatch) -> 
     # Массовое обновление результатов открывает свою сессию: оно живёт в фоне,
     # когда запрос уже ответил и его сессия закрыта.
     monkeypatch.setattr(sync_service, "SessionLocal", db)
+    # Судья дочитывает тесты по одному своей сессией — тоже мимо override.
+    monkeypatch.setattr(judge_service, "SessionLocal", db)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://test", follow_redirects=True
