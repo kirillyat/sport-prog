@@ -10,7 +10,7 @@ from app import notify
 from app.config import settings
 from app.models import Announcement, Assignment, Material
 
-BUTTON = ("Открыть задание", "https://sport.ai.msu.ru/assignments/7")
+BUTTON = ("Открыть задание", "https://portal.example.org/assignments/7")
 
 
 class FakeAPI:
@@ -83,7 +83,7 @@ async def test_refused_button_is_retried_without_it(api):
     assert len(fake.calls) == 2
     assert "reply_markup" in fake.calls[0]
     assert "reply_markup" not in fake.calls[1]
-    assert 'href="https://sport.ai.msu.ru/assignments/7"' in fake.calls[1]["text"]
+    assert 'href="https://portal.example.org/assignments/7"' in fake.calls[1]["text"]
 
 
 async def test_document_gets_the_button_too(api):
@@ -98,13 +98,13 @@ async def test_document_gets_the_button_too(api):
 
 
 def test_buttons_point_where_expected(monkeypatch):
-    monkeypatch.setattr(settings, "base_url", "https://sport.ai.msu.ru/")
+    monkeypatch.setattr(settings, "base_url", "https://portal.example.org/")
 
     assignment = Assignment(id=7, title="Неделя 3", problem_set_id=1)
     material = Material(id=4, title="Семинар", stored_name="a", filename="a.ipynb",
                         content_type="text/plain", size=1)
-    assert notify.assignment_button(assignment)[1] == "https://sport.ai.msu.ru/assignments/7"
-    assert notify.material_button(material)[1] == "https://sport.ai.msu.ru/materials/4/view"
+    assert notify.assignment_button(assignment)[1] == "https://portal.example.org/assignments/7"
+    assert notify.material_button(material)[1] == "https://portal.example.org/materials/4/view"
 
     # У анонса своя ссылка — она важнее портала.
     contest = Announcement(title="Раунд", url="https://codeforces.com/contest/1",
@@ -112,4 +112,4 @@ def test_buttons_point_where_expected(monkeypatch):
     assert notify.announcement_button(contest) == ("Регистрация", "https://codeforces.com/contest/1")
     plain = Announcement(title="Сбор")
     assert plain.url is None
-    assert notify.announcement_button(plain)[1] == "https://sport.ai.msu.ru/announcements"
+    assert notify.announcement_button(plain)[1] == "https://portal.example.org/announcements"

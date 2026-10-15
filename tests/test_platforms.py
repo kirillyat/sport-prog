@@ -43,7 +43,7 @@ CF_STATUS = {
 CF_USER = {
     "status": "OK",
     "result": [{"handle": "student", "firstName": "Иван", "lastName": "Петров",
-                "organization": "msu-sport-deadbeef", "rating": 1400}],
+                "organization": "algo-deadbeef", "rating": 1400}],
 }
 
 LC_PROBLEMS = {
@@ -65,7 +65,7 @@ LC_RECENT = {
 
 LC_PROFILE = {
     "data": {"matchedUser": {"username": "anya", "githubUrl": None, "profile": {
-        "realName": "Anya", "aboutMe": "msu-sport-cafe1234", "company": None,
+        "realName": "Anya", "aboutMe": "algo-cafe1234", "company": None,
         "school": None, "websites": [], "countryName": "Russia"}}}
 }
 
@@ -108,7 +108,7 @@ async def test_codeforces_profile_exposes_verification_fields():
     async with CodeforcesClient(_client(handler)) as client:
         profile = await client.fetch_profile("student")
 
-    assert "msu-sport-deadbeef" in profile.searchable_text
+    assert "algo-deadbeef" in profile.searchable_text
     assert profile.display_name == "Иван Петров"
 
 
@@ -170,7 +170,7 @@ async def test_leetcode_profile_searchable_text():
     async with LeetCodeClient(_client(handler)) as client:
         profile = await client.fetch_profile("anya")
 
-    assert "msu-sport-cafe1234" in profile.searchable_text
+    assert "algo-cafe1234" in profile.searchable_text
 
 
 async def test_leetcode_retries_then_fails():

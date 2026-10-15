@@ -5,25 +5,29 @@ import secrets
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.i18n import mark as N_
 from app.i18n import translate as _
 from app.models import Platform, PlatformAccount, User, utcnow
 from app.platforms import CodeforcesClient, LeetCodeClient
 from app.platforms.base import PlatformError, RemoteProfile, UserNotFound
 
-CODE_PREFIX = "msu-sport-"
-
 
 def new_verification_code() -> str:
-    return CODE_PREFIX + secrets.token_hex(4)
+    """Уже выданные коды со старой приставкой продолжают работать: при
+    проверке портал ищет в профиле код, сохранённый в базе, а не приставку."""
+    return settings.verification_prefix.strip() + secrets.token_hex(4)
 
 
+# Переводятся при выводе: словарь собирается при импорте, когда язык
+# читателя ещё неизвестен, и с `_` здесь подсказка всегда была бы русской.
 WHERE_TO_PUT = {
     Platform.codeforces: (
-        _("Зайди в Codeforces → Settings → Social, впиши код в поле «Organization» "
+        N_("Зайди в Codeforces → Settings → Social, впиши код в поле «Organization» "
           "(или во «First name») и сохрани.")
     ),
     Platform.leetcode: (
-        _("Зайди в LeetCode → Profile → Edit Profile, впиши код в поле «Name» "
+        N_("Зайди в LeetCode → Profile → Edit Profile, впиши код в поле «Name» "
           "(или в «Summary»/«Website») и сохрани.")
     ),
 }

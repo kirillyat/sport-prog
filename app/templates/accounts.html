@@ -51,13 +51,13 @@
       {% else %}<span class="badge">{{ _("не настроен") }}</span>{% endif %}
     </div>
     {% if user.oidc_sub %}
-      <p class="small">{{ user.email or settings.org_account_name }}</p>
-      <p class="small muted">{{ _("Вход по") }} {{ settings.org_account_name | lower }}.</p>
+      <p class="small">{{ user.email or org_account() }}</p>
+      <p class="small muted">{{ _("Вход по") }} {{ org_account() | lower }}.</p>
       <p class="small muted push-bottom">
-        {{ _("Подтверждает, что ты %(who)s, — отвязать нельзя.") % {"who": settings.org_student} }}
+        {{ _("Подтверждает, что ты %(who)s, — отвязать нельзя.") % {"who": org_student()} }}
       </p>
     {% elif settings.oidc_enabled %}
-      <p class="small muted">{{ _("Добавит вход по") }} {{ settings.org_account_name | lower }}.</p>
+      <p class="small muted">{{ _("Добавит вход по") }} {{ org_account() | lower }}.</p>
       <a class="btn small push-bottom" href="/login/oidc?link=1">{{ icon("link") }} {{ _("Привязать") }}</a>
     {% else %}
       <p class="small muted">{{ _("Не настроен на этом портале.") }}</p>

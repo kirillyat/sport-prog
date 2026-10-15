@@ -1,10 +1,10 @@
 # Развёртывание — инструкция системному администратору
 
-Учебный портал «Алгоритмы ФИИ МГУ». Одно веб-приложение на Python
+Портал тренировок по программированию. Одно веб-приложение на Python
 и база SQLite в томе Docker. Внешних сервисов не требует: ни СУБД, ни очередей,
 ни кеша.
 
-Репозиторий: `https://git.ai.msu.ru/kirillyat/sport-prog-club`
+Репозиторий: `https://github.com/kirillyat/sport-prog`
 
 ---
 
@@ -107,7 +107,7 @@ Client Secret — это секрет: передавать его тем же �
 ## 4. Установка
 
 ```bash
-git clone https://git.ai.msu.ru/kirillyat/sport-prog-club.git /srv/sport
+git clone https://github.com/kirillyat/sport-prog.git /srv/sport
 cd /srv/sport
 cp .env.example .env
 ```
@@ -149,10 +149,10 @@ docker compose logs --tail 30
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name algo.ai.msu.ru;
+    server_name portal.example.org;
 
-    ssl_certificate     /etc/letsencrypt/live/algo.ai.msu.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/algo.ai.msu.ru/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/portal.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/portal.example.org/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -296,23 +296,3 @@ docker compose cp web:/data/materials /var/backups/materials-$(date +%F)
 
 Логи: `docker compose logs -f web`. Ошибки синхронизации видны и в интерфейсе —
 на странице «Аккаунты» у студента.
-
----
-
-## Приложение. Просьба по Gitea
-
-На `git.ai.msu.ru` отключено зеркалирование репозиториев
-(`mirrors_disabled: true` в API). Если это возможно, просьба включить в
-`app.ini`:
-
-```ini
-[mirror]
-ENABLED = true
-```
-
-Это позволит держать копию репозитория на GitHub автоматически, без ручных
-операций и без хранения токенов в CI.
-
-Отдельно: выкатку на стороне Gitea выполняет `act_runner`, зарегистрированный
-на самой виртуалке с меткой `algo:host`; workflow лежит
-в `.gitea/workflows/deploy.yml`.

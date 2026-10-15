@@ -93,7 +93,9 @@ class Platform(enum.StrEnum):
 
     @property
     def title(self) -> str:
-        return {"leetcode": "LeetCode", "codeforces": "Codeforces", "local": "Портал"}[self.value]
+        # Названия площадок — имена собственные; «Портал» — слово, его переводим.
+        names = {"leetcode": "LeetCode", "codeforces": "Codeforces", "local": _("Портал")}
+        return names[self.value]
 
     @property
     def is_external(self) -> bool:

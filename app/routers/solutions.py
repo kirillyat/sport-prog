@@ -22,7 +22,7 @@ from app.models import (
     Submission,
     User,
 )
-from app.services import notebook, solutions
+from app.services import languages, notebook, solutions
 from app.services.progress import may_see_assignment
 from app.templating import templates
 
@@ -183,7 +183,6 @@ async def view_submission(
 
     author = await session.get(User, submission.user_id)
     problem = await session.get(Problem, submission.problem_id) if submission.problem_id else None
-    name = f"solution.{(submission.language or 'txt').lower()}"
     return templates.TemplateResponse(
         request,
         "submission.html",
@@ -192,7 +191,8 @@ async def view_submission(
             "submission": submission,
             "author": author,
             "problem": problem,
-            "code": notebook.highlight_file(submission.code, name),
+            # Язык из посылки: «C++ (GCC 9.2.0)», «Python3», «GNU G++17».
+            "code": notebook.highlight(submission.code, languages.lexer_name(submission.language)),
         },
     )
 

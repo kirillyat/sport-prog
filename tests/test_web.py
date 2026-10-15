@@ -809,7 +809,7 @@ async def test_teacher_rail_shows_daily_work_and_hides_the_showcase(session, cli
     await _login(client, "Кирилл", teacher=True)
     shown, more = _rail((await client.get("/teacher")).text)
     for href in ("/teacher/groups", "/teacher/assignments", "/teacher/sets",
-                 "/teacher/reviews", "/teacher/judge"):
+                 "/teacher/reviews", "/teacher/integrations"):
         assert f'href="{href}"' in shown, href
     for href in ("/announcements", "/feed", "/leaderboard", "/teacher/features"):
         assert f'href="{href}"' in more and f'href="{href}"' not in shown, href

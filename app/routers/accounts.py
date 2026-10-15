@@ -4,7 +4,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
-from app.access import is_confirmed
+from app.access import is_confirmed, org_student
 from app.config import settings
 from app.deps import CurrentUser, SessionDep
 from app.i18n import translate as _
@@ -75,7 +75,7 @@ async def unlink_oidc(session: SessionDep, user: CurrentUser):
     )
     return _back(
         error=_("%(provider)s подтверждает, что ты %(who)s — отвязать нельзя")
-        % {"provider": settings.oidc_provider_name, "who": settings.org_student}
+        % {"provider": settings.oidc_provider_name, "who": org_student()}
     )
 
 

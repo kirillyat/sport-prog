@@ -19,16 +19,17 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from app.config import settings
-from app.deps import CurrentUser, SessionDep
+from app.deps import CurrentUser, OptionalInt, SessionDep
 from app.i18n import translate as _
 from app.models import Platform, Problem, Submission, Task, User, utcnow
-from app.services import judge, notebook, solutions, tasks
+from app.services import judge, languages, notebook, solutions, tasks
 from app.templating import templates
 
 router = APIRouter(tags=["tasks"])
@@ -53,7 +54,9 @@ async def _one_at_a_time(user_id: int):
         _running.discard(user_id)
 
 
-async def _judged(session: SessionDep, cfg, code: str, tests: list, limits: tuple[int, int]):
+async def _judged(
+    session: SessionDep, cfg, code: str, tests: list, limits: tuple[int, int], language_id: int
+):
     """Прогон с отпущенным соединением к базе.
 
     Сессия держит соединение, пока открыта транзакция, а судья отвечает
@@ -66,7 +69,7 @@ async def _judged(session: SessionDep, cfg, code: str, tests: list, limits: tupl
     посреди отрисовки. Коммит при `expire_on_commit=False` их сохраняет.
     """
     await session.commit()
-    return await judge.run(cfg, code, tests, *limits)
+    return await judge.run(cfg, code, tests, *limits, language_id=language_id)
 
 
 def _solution(code: str) -> tuple[str, str]:
@@ -108,6 +111,7 @@ async def _page(
     task: Task,
     *,
     code: str | None = None,
+    language: languages.Language | None = None,
     run: judge.RunResult | None = None,
     run_kind: str = "",
     sent_to_teacher: bool = False,
@@ -126,6 +130,10 @@ async def _page(
     history = await tasks.my_attempts(session, user.id, problem.id)
     assignment = await tasks.assignment_for(session, user.id, problem.id)
     open_tests = await tasks.tests_for(session, task, only_open=True)
+    choices = await languages.allowed(session)
+    if language is None:
+        # Открыл задачу заново — язык прошлой сдачи: студент пишет на одном.
+        language = languages.pick(choices, name=history[0].language if history else None)
     if code is not None:
         shown, shown_at = code, utcnow()
     elif history:
@@ -157,6 +165,9 @@ async def _page(
             # нужно скрипту: черновик в браузере новее — побеждает черновик.
             "code": shown,
             "code_at": _epoch_ms(shown_at),
+            # Не «language»: так в шаблонах называется язык интерфейса.
+            "code_languages": choices,
+            "code_language": language,
             "run": run,
             "run_kind": run_kind,
             "sent_to_teacher": sent_to_teacher,
@@ -176,59 +187,77 @@ async def task_page(request: Request, session: SessionDep, user: CurrentUser, sl
 
 @router.post("/tasks/{slug}/run")
 async def run_open_tests(
-    request: Request, session: SessionDep, user: CurrentUser, slug: str, code: str = Form("")
+    request: Request,
+    session: SessionDep,
+    user: CurrentUser,
+    slug: str,
+    code: str = Form(""),
+    language_id: Annotated[OptionalInt, Form()] = None,
 ):
     """Прогон по открытым тестам. Попытку не тратит."""
     found = await tasks.get_by_slug(session, slug)
     if found is None:
         return _not_found()
     problem, task = found
+    language = languages.pick(await languages.allowed(session), language_id)
 
     text, error = _solution(code)
     if error:
-        return await _page(request, session, user, problem, task, code=code, error=error)
+        return await _page(
+            request, session, user, problem, task, code=code, language=language, error=error
+        )
 
     cfg = await judge.config(session)
     open_tests = await tasks.test_refs(session, task, only_open=True)
     limits = (task.time_limit_ms, task.memory_limit_mb)
     try:
         async with _one_at_a_time(user.id):
-            result = await _judged(session, cfg, text, open_tests, limits)
+            result = await _judged(session, cfg, text, open_tests, limits, language.id)
     except _Busy:
         return await _page(
-            request, session, user, problem, task, code=text,
+            request, session, user, problem, task, code=text, language=language,
             error=_("Предыдущий прогон ещё идёт — подожди его конца"),
         )
     except judge.JudgeUnavailable as exc:
         await judge.note(session, str(exc))
         return await _page(
-            request, session, user, problem, task, code=text,
+            request, session, user, problem, task, code=text, language=language,
             error=_("Проверка недоступна: %(why)s") % {"why": exc},
         )
     await judge.note(session)
     return await _page(
-        request, session, user, problem, task, code=text, run=result, run_kind="run"
+        request, session, user, problem, task, code=text, language=language,
+        run=result, run_kind="run",
     )
 
 
 @router.post("/tasks/{slug}/submit")
 async def submit(
-    request: Request, session: SessionDep, user: CurrentUser, slug: str, code: str = Form("")
+    request: Request,
+    session: SessionDep,
+    user: CurrentUser,
+    slug: str,
+    code: str = Form(""),
+    language_id: Annotated[OptionalInt, Form()] = None,
 ):
     """Сдача: все тесты и минус одна попытка."""
     found = await tasks.get_by_slug(session, slug)
     if found is None:
         return _not_found()
     problem, task = found
+    language = languages.pick(await languages.allowed(session), language_id)
 
     text, error = _solution(code)
     if error:
-        return await _page(request, session, user, problem, task, code=code, error=error)
+        return await _page(
+            request, session, user, problem, task, code=code, language=language, error=error
+        )
 
     used = await tasks.attempts_used(session, user.id, problem.id)
     if used >= settings.task_attempts:
         return await _page(
-            request, session, user, problem, task, code=text, error=_("Попытки кончились")
+            request, session, user, problem, task, code=text, language=language,
+            error=_("Попытки кончились"),
         )
 
     verdict, accepted, result = _("Не проверено"), False, None
@@ -238,17 +267,17 @@ async def submit(
         limits = (task.time_limit_ms, task.memory_limit_mb)
         try:
             async with _one_at_a_time(user.id):
-                result = await _judged(session, cfg, text, all_tests, limits)
+                result = await _judged(session, cfg, text, all_tests, limits, language.id)
         except _Busy:
             return await _page(
-                request, session, user, problem, task, code=text,
+                request, session, user, problem, task, code=text, language=language,
                 error=_("Предыдущий прогон ещё идёт — подожди его конца"),
             )
         except judge.JudgeUnavailable as exc:
             # Попытку не тратим: студент не виноват, что судья лёг.
             await judge.note(session, str(exc))
             return await _page(
-                request, session, user, problem, task, code=text,
+                request, session, user, problem, task, code=text, language=language,
                 error=_("Проверка недоступна: %(why)s") % {"why": exc},
             )
         await judge.note(session)
@@ -266,7 +295,7 @@ async def submit(
             problem_title=problem.title,
             verdict=verdict,
             is_accepted=accepted,
-            language="python",
+            language=language.name,
             submitted_at=utcnow(),
             code=text,
             code_fetched_at=utcnow(),
@@ -287,7 +316,8 @@ async def submit(
         )
 
     return await _page(
-        request, session, user, problem, task, code=text, run=result, run_kind="submit",
+        request, session, user, problem, task, code=text, language=language,
+        run=result, run_kind="submit",
         sent_to_teacher=assignment is not None,
         # Итог сдачи — в плашке результата рядом с редактором, а не во
         # всплывающей строке наверху страницы, которую не видно у длинного условия.

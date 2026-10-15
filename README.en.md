@@ -1,8 +1,9 @@
 # Competitive programming portal
 
-A teaching portal for university programming courses. A teacher assigns problems
-from LeetCode and Codeforces; the portal pulls each student's submissions by
-itself and keeps the scoreboard. No spreadsheets, no "send me a screenshot".
+A companion site for any university algorithms course. A teacher assigns problems
+from LeetCode, Codeforces or the portal's own judged problems; the portal pulls
+each student's submissions by itself, counts credit and keeps the scoreboard and
+the gradebook. No spreadsheets, no "send me a screenshot".
 
 One Python process and a SQLite file in a volume. No Postgres, no Kafka, no
 Redis, no separate worker. It runs on the smallest VM you can rent: measured
@@ -16,13 +17,26 @@ the wording about student accounts and the logo are configuration.
 
 **For students** — link Codeforces and LeetCode accounts (ownership is
 verified), join a group by code, see assignments with deadlines and progress,
+solve the portal's own problems in a code editor with verdicts from judge0,
 a solution feed, seminar materials and course notebooks rendered in the portal,
-announcements with a countdown, a profile with stats, and a per-group scoreboard.
+announcements with a countdown, their row of the gradebook, a profile with stats,
+and a per-group scoreboard.
 
 **For teachers** — groups with join codes, problem lists built by pasting links,
-assignments with soft or hard deadlines, a `students × problems` matrix, manual
-bonus points, CSV exports, a review queue for uploaded solutions, and per-section
-visibility switches.
+own problems uploaded as a zip with open and hidden tests, assignments with
+deadlines, a `students × problems` matrix, a gradebook with attendance and manual
+marks, CSV exports, a review queue for submitted code, and per-section visibility
+switches. The judge (judge0, with the programming languages the teacher allows)
+and an OpenAI-compatible language model are connected on the **Integrations**
+page, without restarting the portal.
+
+**For AI assistants** — the portal speaks [MCP](https://modelcontextprotocol.io)
+at `/mcp`. A student's assistant sees only that student's assignments, problem
+statements and credit, read-only. A teacher's assistant can search the problem
+catalogue, check a list against what a group has already solved, create problem
+lists, give assignments (with a write-enabled key) and read submitted code for
+review. Keys are issued on the **AI** page; Claude Code, Cursor, Codex and Claude
+Desktop are configured from snippets shown there.
 
 **Under the hood** — a background syncer pulls submissions every 10 minutes and
 refreshes the problem catalogue daily (11 400 Codeforces + 4 055 LeetCode
@@ -51,9 +65,11 @@ signed with it, and a known value lets anyone sign in as anyone.
 |---|---|
 | `APP_NAME`, `APP_SHORT_NAME` | title in the rail, browser tab, notifications |
 | `ORG_NAME` | the wording "confirm you are a student of X" |
-| `ORG_ACCOUNT_NAME` | what the institutional login is called |
+| `ORG_ACCOUNT_NAME` | what the institutional login is called; empty — a generic name |
+| `VERIFICATION_PREFIX` | start of the code a student puts into their Codeforces or LeetCode profile (`algo-` by default) |
 | `COURSE_TITLE`, `COURSE_SUBTITLE` | the heading of the "Course" section |
-| `DEFAULT_LANGUAGE` | `ru`, `en` or `fr` for visitors who never chose |
+| `DEFAULT_LANGUAGE` | `ru`, `en`, `fr`, `es` or `de` for visitors who never chose |
+| `DISPLAY_TIMEZONE` | the time zone of every date shown |
 | `OIDC_*` | any OpenID Connect provider; group → teacher role mapping |
 | `TELEGRAM_*` | optional login and notifications through a bot |
 
@@ -63,7 +79,7 @@ portal picks them up — no rebuild, and your emblem never enters the source tre
 
 ## Languages
 
-The interface speaks Russian, English and French. The switcher sits in the rail
+The interface speaks Russian, English, French, Spanish and German. The switcher sits in the rail
 next to the theme and on the sign-in page — a language is needed before signing
 in no less than after. The choice lives in the `lang` cookie; for a first-time
 visitor the browser suggests one through `Accept-Language`, and
@@ -76,7 +92,7 @@ dictionary key**.
 {{ _("Задания") }}
 ```
 
-The translation is looked up in `app/locales/en.json` and `fr.json`. Not found —
+The translation is looked up in `app/locales/<code>.json`. Not found —
 the Russian source is shown, so a partial translation never breaks a page, it
 only leaves it Russian. No gettext, no `.mo` compilation step.
 
@@ -91,6 +107,15 @@ Authentication is deliberately pluggable: sign-in through a Telegram bot works
 without a public domain, OIDC works with any provider, and a dev login exists
 for local work. Student identity is confirmed by the institutional account,
 never by Telegram.
+
+## Working on it with an AI agent
+
+`AGENTS.md` is read by Codex and Cursor directly and by Claude Code through
+`CLAUDE.md`. It lists the rules that are easy to break (credit is counted in one
+place, hidden tests never leave the portal, a page and an AI tool share one
+service) and points to the skills in `.claude/skills/` — for developers (local
+run, migrations, translations, MCP tools) and for teachers (picking problems,
+preparing judged problems, running an exam).
 
 ## Documentation
 

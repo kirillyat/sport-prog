@@ -231,7 +231,7 @@ async def check(session: AsyncSession) -> tuple[Config, Health]:
     return cfg, await health(session)
 
 
-def _headers(cfg: Config) -> dict[str, str]:
+def auth_headers(cfg: Config) -> dict[str, str]:
     return {"X-Auth-Token": cfg.token} if cfg.token else {}
 
 
@@ -242,7 +242,7 @@ async def ping(cfg: Config) -> str:
     try:
         async with httpx.AsyncClient(timeout=settings.judge0_ping_timeout) as client:
             response = await client.get(
-                f"{cfg.url.rstrip('/')}/about", headers=_headers(cfg)
+                f"{cfg.url.rstrip('/')}/about", headers=auth_headers(cfg)
             )
     except httpx.TimeoutException as exc:
         # У таймаута httpx пустой текст, и без этой ветки преподаватель видел
@@ -261,7 +261,12 @@ async def ping(cfg: Config) -> str:
 
 
 async def run(
-    cfg: Config, code: str, tests: list[Case | TestRef], time_limit_ms: int, memory_limit_mb: int
+    cfg: Config,
+    code: str,
+    tests: list[Case | TestRef],
+    time_limit_ms: int,
+    memory_limit_mb: int,
+    language_id: int | None = None,
 ) -> RunResult:
     """Прогоняет код по тестам. Падение судьи — исключение, а не пустой результат.
 
@@ -272,7 +277,7 @@ async def run(
         raise JudgeUnavailable("сервер проверки не настроен")
 
     base = cfg.url.rstrip("/")
-    headers = _headers(cfg)
+    headers = auth_headers(cfg)
     results: list[TestResult] = []
     deadline = time.monotonic() + settings.judge0_total_timeout
     try:
@@ -285,7 +290,7 @@ async def run(
                     )
                 payload = {
                     "source_code": code,
-                    "language_id": settings.judge0_language_id,
+                    "language_id": language_id or settings.judge0_language_id,
                     "stdin": test.stdin,
                     "expected_output": test.expected,
                     "cpu_time_limit": round(time_limit_ms / 1000, 2),

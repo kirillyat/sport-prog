@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Интеграции") }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<h1>{{ _("Интеграции") }}</h1>
+<p class="sub">{{ _("Сервисы, к которым обращается портал. Подключаются без перезапуска.") }}</p>
+
+<h2>{{ icon("cpu") }} {{ _("Тестирующая система") }}</h2>
+<div class="card">
+  <p class="small muted" style="margin-top:0">{{ _("Проверяет решения своих задач. Нужна только на время контрольной.") }}</p>
+  {% if not judge.ready %}
+  <p class="row">
+    <span class="badge">{{ icon("close") }} {{ _("не подключена") }}</span>
+  </p>
+  <p class="small muted">{{ _("Решения сохраняются как код, без вердикта.") }}</p>
+  {% elif health.ok %}
+  <p class="row">
+    <span class="badge ok">{{ icon("check") }} {{ _("отвечает") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+    {% if health.version %}<span class="badge">judge0 {{ health.version }}</span>{% endif %}
+    {% if judge.token %}<span class="badge">{{ _("токен задан") }}</span>{% endif %}
+  </p>
+  <p class="small muted">{{ _("Проверено") }} {{ health.checked_at | ago }}.</p>
+  {% elif health.known %}
+  <p class="row">
+    <span class="badge err">{{ icon("alert") }} {{ _("не отвечает") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+  </p>
+  <p class="small muted">
+    {{ _("Последний раз пробовали") }} {{ health.checked_at | ago }}: {{ health.detail }}.
+    {{ _("Адрес сохранён. Если судья ещё поднимается, портал заметит это при первом прогоне.") }}
+  </p>
+  {% else %}
+  <p class="row">
+    <span class="badge">{{ icon("clock") }} {{ _("подключена, связь не проверена") }}</span>
+    <span class="badge mono">{{ judge.url }}</span>
+  </p>
+  {% endif %}
+
+  {% if judge.ready %}
+  <div class="row">
+    <form method="post" action="/teacher/judge/check" data-busy="busy.check">
+      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
+    </form>
+    <form method="post" action="/teacher/judge/off">
+      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Отключить") }}</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/teacher/judge" class="inline-form" data-busy="busy.connect" style="margin-top:14px">
+    <div class="field" style="flex:1; min-width:240px">
+      <label for="url">{{ _("Адрес judge0") }}</label>
+      <input type="url" id="url" name="url" placeholder="http://10.0.0.7:2358" value="{{ judge.url }}" required>
+    </div>
+    <div class="field" style="min-width:180px">
+      <label for="token">{{ _("Токен (если включён)") }}</label>
+      <input type="password" id="token" name="token" autocomplete="off">
+    </div>
+    <button type="submit">{{ icon("link") }} {{ _("Подключить") }}</button>
+  </form>
+  <p class="small muted">
+    {{ _("Связь проверяется сразу после сохранения.") }}
+    {% if from_env %}
+    {{ _("В окружении задан свой адрес. Он работает, пока здесь не задан другой.") }}
+    {% endif %}
+  </p>
+
+  <details class="formula">
+    <summary>{{ _("Что будет без проверки") }}</summary>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>{{ _("Судья отвечает") }}</th><th>{{ _("Судьи нет") }}</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>{{ _("Прогнать открытые тесты") }}</td>
+          <td class="small">{{ _("вердикт по каждому тесту") }}</td>
+          <td class="small muted">{{ _("кнопка недоступна") }}</td>
+        </tr>
+        <tr>
+          <td>{{ _("Сдать") }}</td>
+          <td class="small">{{ _("вердикт, попытка тратится") }}</td>
+          <td class="small muted">{{ _("код сохраняется, вердикт «Не проверено»") }}</td>
+        </tr>
+        <tr>
+          <td>{{ _("Отправить преподавателю") }}</td>
+          <td class="small">{{ _("работает") }}</td>
+          <td class="small">{{ _("работает") }}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="small muted">{{ _("Если судья замолчал посреди сдачи, попытка не тратится.") }}</p>
+  </details>
+</div>
+
+<h2>{{ icon("code") }} {{ _("Языки программирования") }}</h2>
+<div class="card">
+  <p class="row" style="margin-top:0">
+    {% for lang in allowed %}<span class="badge info">{{ lang.name }}</span>{% endfor %}
+  </p>
+  {% if offered %}
+  <form method="post" action="/teacher/judge/languages">
+    {% set allowed_ids = allowed | map(attribute="id") | list %}
+    <div class="check-list language-list">
+      {% for lang in offered %}
+      <label class="check">
+        <input type="checkbox" name="language" value="{{ lang.id }}" {{ 'checked' if lang.id in allowed_ids }}>
+        {{ lang.name }}
+      </label>
+      {% endfor %}
+    </div>
+    <p class="small muted">
+      {{ _("Студент выбирает язык над редактором. Ничего не отмечено — %(name)s.") % {"name": default_language.name} }}
+    </p>
+    <button type="submit">{{ icon("check") }} {{ _("Сохранить языки") }}</button>
+  </form>
+  {% else %}
+  <p class="small muted">{{ _("Список языков берётся у судьи.") }}</p>
+  {% endif %}
+  {% if judge.ready %}
+  <form method="post" action="/teacher/judge/languages/refresh" data-busy="busy.check" style="margin-top:10px">
+    <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Загрузить языки судьи") }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<h2>{{ icon("spark") }} {{ _("Языковая модель") }}</h2>
+<div class="card">
+  <p class="small muted" style="margin-top:0">
+    {{ _("Любая модель с OpenAI-совместимым API: облачная или развёрнутая у себя — DeepSeek, Qwen, Mistral через vLLM или Ollama. Студентам пока не видна.") }}
+  </p>
+  {% if not llm.url %}
+  <p class="row"><span class="badge">{{ icon("close") }} {{ _("не подключена") }}</span></p>
+  {% elif llm_health.ok %}
+  <p class="row">
+    <span class="badge ok">{{ icon("check") }} {{ _("отвечает") }}</span>
+    <span class="badge mono">{{ llm.url }}</span>
+    <span class="badge">{{ llm.model }}</span>
+    {% if llm.token %}<span class="badge">{{ _("ключ задан") }}</span>{% endif %}
+  </p>
+  <p class="small muted">{{ _("Проверено") }} {{ llm_health.checked_at | ago }}.</p>
+  {% elif llm_health.known %}
+  <p class="row">
+    <span class="badge err">{{ icon("alert") }} {{ _("не отвечает") }}</span>
+    <span class="badge mono">{{ llm.url }}</span>
+    <span class="badge">{{ llm.model }}</span>
+  </p>
+  <p class="small muted">{{ _("Последний раз пробовали") }} {{ llm_health.checked_at | ago }}: {{ llm_health.detail }}.</p>
+  {% else %}
+  <p class="row">
+    <span class="badge">{{ icon("clock") }} {{ _("подключена, связь не проверена") }}</span>
+    <span class="badge mono">{{ llm.url }}</span>
+  </p>
+  {% endif %}
+
+  {% if llm.url %}
+  <div class="row">
+    <form method="post" action="/teacher/llm/check" data-busy="busy.check">
+      <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Проверить связь") }}</button>
+    </form>
+    <form method="post" action="/teacher/llm/off">
+      <button class="ghost small" type="submit">{{ icon("close") }} {{ _("Отключить") }}</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/teacher/llm" class="inline-form" data-busy="busy.connect" style="margin-top:14px">
+    <div class="field" style="flex:1; min-width:240px">
+      <label for="llm-url">{{ _("Адрес API") }}</label>
+      <input type="url" id="llm-url" name="url" placeholder="http://10.0.0.9:8000/v1" value="{{ llm.url }}" required>
+    </div>
+    <div class="field" style="min-width:180px">
+      <label for="llm-model">{{ _("Модель") }}</label>
+      <input type="text" id="llm-model" name="model" placeholder="qwen2.5-coder" value="{{ llm.model }}" required>
+    </div>
+    <div class="field" style="min-width:180px">
+      <label for="llm-token">{{ _("Ключ (пусто — прежний)") }}</label>
+      <input type="password" id="llm-token" name="token" autocomplete="off">
+    </div>
+    <button type="submit">{{ icon("link") }} {{ _("Подключить") }}</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/busy.js?v={{ asset_version }}" defer></script>
+{% endblock %}

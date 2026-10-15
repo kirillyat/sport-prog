@@ -1361,3 +1361,10 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 }
 .subnav a:hover { text-decoration: none; background: var(--ink); color: var(--bg); }
 .subnav a.active { background: var(--ink); color: var(--bg); }
+
+/* Выбор языка над редактором: подпись и список в одну строку. */
+.language-pick { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.language-pick label { margin: 0; }
+.language-pick select { width: auto; min-width: 200px; }
+/* Языков у judge0 десятки — список выше обычного, с прокруткой. */
+.check-list.language-list { max-height: 280px; margin-bottom: 8px; }

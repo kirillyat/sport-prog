@@ -125,14 +125,14 @@ async def test_oidc_links_to_existing_account(session, client, provider):
     assert start.status_code == 303
     from urllib.parse import parse_qs, urlparse
     query = parse_qs(urlparse(start.headers["location"]).query)
-    provider["claims"] = {"sub": "ak-77", "nonce": query["nonce"][0], "email": "anya@msu.ru"}
+    provider["claims"] = {"sub": "ak-77", "nonce": query["nonce"][0], "email": "anya@uni.example"}
     provider["profile"] = {"groups": []}
 
     response = await client.get(f"/login/oidc/callback?code=c&state={query['state'][0]}")
     assert "привязан" in response.text
     await session.refresh(user)
     assert user.oidc_sub == "ak-77"
-    assert user.email == "anya@msu.ru"
+    assert user.email == "anya@uni.example"
     assert await session.scalar(select(func.count()).select_from(User)) == 1
 
 

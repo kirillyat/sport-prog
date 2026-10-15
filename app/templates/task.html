@@ -74,7 +74,22 @@
          полем, и код до портала не доезжал вовсе. #}
       <form method="post" action="/tasks/{{ problem.slug }}/run#result" class="solution-form"
             data-busy="busy.run" data-editor-form>
-        <textarea id="code" name="code" class="code-input"
+        {# Выбор языка — только если их больше одного: с одним языком строка
+           над редактором была бы вопросом без вариантов ответа. #}
+        {% if code_languages | length > 1 %}
+        <div class="language-pick">
+          <label for="language_id">{{ _("Язык") }}</label>
+          <select id="language_id" name="language_id" data-language-pick>
+            {% for item in code_languages %}
+            <option value="{{ item.id }}" data-mode="{{ item.editor_mode }}"
+                    {{ 'selected' if item.id == code_language.id }}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="language_id" value="{{ code_language.id }}">
+        {% endif %}
+        <textarea id="code" name="code" class="code-input" data-mode="{{ code_language.editor_mode }}"
                   data-code-at="{{ code_at }}" data-draft-key="/tasks/{{ problem.slug }}">{{ code }}</textarea>
         <p class="small muted editor-hints" data-draft-state="{{ _("черновик сохранён") }}">
           <span><kbd>Tab</kbd> {{ _("отступ") }}</span>

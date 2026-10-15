@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
 
+from app import access
 from app.config import settings
 from app.i18n import LANGUAGES, current_language
 from app.i18n import mark as N_
@@ -291,6 +292,8 @@ templates.env.globals["brand_logo_dark"] = _find_asset(LOGO_DARK_NAMES)
 templates.env.globals["favicon_asset"] = _find_asset(FAVICON_NAMES)
 templates.env.globals["brand_mark"] = _find_asset(MARK_NAMES)
 templates.env.globals["course_available"] = course.is_available()
+templates.env.globals["org_student"] = access.org_student
+templates.env.globals["org_account"] = access.org_account
 # Перевод: строка в шаблоне — русская, она же ключ словаря.
 def js_strings() -> dict[str, str]:
     """Переводы для скриптов: инлайнового JS не держим, поэтому отдаём данными."""

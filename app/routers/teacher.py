@@ -34,7 +34,16 @@ from app.models import (
     utcnow,
 )
 from app.routers.leaderboard import PERIODS
-from app.services import assignments, export, features, judge, problem_sets, solutions
+from app.services import (
+    assignments,
+    export,
+    features,
+    judge,
+    languages,
+    llm,
+    problem_sets,
+    solutions,
+)
 from app.services import tasks as tasks_service
 from app.services.catalog import get_state, problem_count, set_state, sync_catalog
 from app.services.deadlines import extend_deadline
@@ -233,24 +242,40 @@ async def upload_tasks(
     )
 
 
-@router.get("/judge")
-async def judge_page(request: Request, session: SessionDep, user: TeacherUser):
-    """Тестирующая система: отдельный раздел, а не часть страницы задач.
+INTEGRATIONS = "/teacher/integrations"
 
-    Задачи заводят заранее и один раз, судью подключают в день контрольной
-    и гасят после неё — это разная работа в разное время.
+
+@router.get("/integrations")
+async def integrations_page(request: Request, session: SessionDep, user: TeacherUser):
+    """Внешние сервисы портала: судья, языки программирования, языковая модель.
+
+    Отдельный раздел, а не часть страницы задач: задачи заводят заранее и
+    один раз, судью подключают в день контрольной и гасят после неё.
     """
+    cfg = await judge.config(session)
+    health = await judge.health(session)
     return templates.TemplateResponse(
         request,
-        "teacher/judge.html",
+        "teacher/integrations.html",
         {
             "user": user,
-            "judge": await judge.config(session),
-            "health": await judge.health(session),
+            "judge": cfg,
+            "health": health,
             "from_env": bool(settings.judge0_url.strip()),
+            "allowed": await languages.allowed(session),
+            "offered": await languages.cached_offered(session),
+            "default_language": languages.default(),
+            "llm": await llm.config(session),
+            "llm_health": await llm.health(session),
             **_flash(request),
         },
     )
+
+
+@router.get("/judge")
+async def judge_page_moved(user: TeacherUser):
+    """Старый адрес раздела: он в закладках и в инструкциях к контрольной."""
+    return _redirect(INTEGRATIONS)
 
 
 @router.post("/judge")
@@ -264,7 +289,7 @@ async def judge_connect(
     к роли, а не к вводу, поэтому форма открыта только преподавателю.
     """
     if not url.strip():
-        return _redirect("/teacher/judge", error=_("Адрес пустой"))
+        return _redirect(INTEGRATIONS, error=_("Адрес пустой"))
 
     await judge.connect(session, url, token)
     health = (await judge.check(session))[1]
@@ -272,11 +297,11 @@ async def judge_connect(
         # Адрес всё равно сохранён: судья может ещё подниматься, а вводить
         # его заново, когда он ответит, — лишняя работа.
         return _redirect(
-            "/teacher/judge",
+            INTEGRATIONS,
             error=_("Адрес сохранён, но судья не отвечает: %(why)s") % {"why": health.detail},
         )
     return _redirect(
-        "/teacher/judge",
+        INTEGRATIONS,
         message=_("Судья подключён, версия %(version)s") % {"version": health.version},
     )
 
@@ -285,13 +310,13 @@ async def judge_connect(
 async def judge_check(session: SessionDep, user: TeacherUser):
     config, health = await judge.check(session)
     if not config.ready:
-        return _redirect("/teacher/judge", error=_("Судья не подключён"))
+        return _redirect(INTEGRATIONS, error=_("Судья не подключён"))
     if not health.ok:
         return _redirect(
-            "/teacher/judge", error=_("Судья не отвечает: %(why)s") % {"why": health.detail}
+            INTEGRATIONS, error=_("Судья не отвечает: %(why)s") % {"why": health.detail}
         )
     return _redirect(
-        "/teacher/judge",
+        INTEGRATIONS,
         message=_("Судья отвечает, версия %(version)s") % {"version": health.version},
     )
 
@@ -300,16 +325,98 @@ async def judge_check(session: SessionDep, user: TeacherUser):
 async def judge_off(session: SessionDep, user: TeacherUser):
     """Отключить судью: решения снова принимаются как код, без вердикта."""
     await judge.disconnect(session)
-    return _redirect("/teacher/judge", message=_("Судья отключён"))
+    return _redirect(INTEGRATIONS, message=_("Судья отключён"))
+
+
+@router.post("/judge/languages")
+async def judge_languages(request: Request, session: SessionDep, user: TeacherUser):
+    """Какие языки судьи разрешены студентам.
+
+    Имена берём у судьи, а не из формы: в посылку пишется имя языка, и
+    подсунуть туда что угодно через поддельную форму не должно получиться.
+    """
+    form = await request.form()
+    wanted = set()
+    for raw in form.getlist("language"):
+        try:
+            wanted.add(int(raw))
+        except ValueError:
+            continue
+    offered = await languages.cached_offered(session)
+    chosen = [lang for lang in offered if lang.id in wanted]
+    await languages.save(session, chosen)
+    if not chosen:
+        return _redirect(
+            INTEGRATIONS,
+            message=_("Языки не выбраны — студенты пишут на %(name)s")
+            % {"name": languages.default().name},
+        )
+    return _redirect(
+        INTEGRATIONS, message=_("Разрешено языков: %(count)s") % {"count": len(chosen)}
+    )
+
+
+@router.post("/judge/languages/refresh")
+async def judge_languages_refresh(session: SessionDep, user: TeacherUser):
+    try:
+        offered = await languages.refresh_offered(session, await judge.config(session))
+    except judge.JudgeUnavailable as exc:
+        return _redirect(INTEGRATIONS, error=_("Судья не отвечает: %(why)s") % {"why": exc})
+    return _redirect(
+        INTEGRATIONS, message=_("Языков у судьи: %(count)s") % {"count": len(offered)}
+    )
+
+
+@router.post("/llm")
+async def llm_connect(
+    session: SessionDep,
+    user: TeacherUser,
+    url: str = Form(""),
+    model: str = Form(""),
+    token: str = Form(""),
+):
+    if not url.strip() or not model.strip():
+        return _redirect(INTEGRATIONS, error=_("Нужны адрес и модель"))
+    await llm.connect(session, url, model, token)
+    health = (await llm.check(session))[1]
+    if not health.ok:
+        return _redirect(
+            INTEGRATIONS,
+            error=_("Сохранено, но модель не отвечает: %(why)s") % {"why": health.detail},
+        )
+    return _redirect(INTEGRATIONS, message=_("Модель подключена"))
+
+
+@router.post("/llm/check")
+async def llm_check(session: SessionDep, user: TeacherUser):
+    config, health = await llm.check(session)
+    if not config.url:
+        return _redirect(INTEGRATIONS, error=_("Модель не подключена"))
+    if not health.ok:
+        return _redirect(
+            INTEGRATIONS, error=_("Модель не отвечает: %(why)s") % {"why": health.detail}
+        )
+    return _redirect(INTEGRATIONS, message=_("Модель отвечает"))
+
+
+@router.post("/llm/off")
+async def llm_off(session: SessionDep, user: TeacherUser):
+    await llm.disconnect(session)
+    return _redirect(INTEGRATIONS, message=_("Модель отключена"))
 
 
 @router.get("/judge/check")
 @router.get("/judge/off")
-async def judge_action_reloaded(user: TeacherUser):
-    """Пока POST ждёт судью, в адресной строке уже стоит адрес действия, и
+@router.get("/judge/languages")
+@router.get("/judge/languages/refresh")
+@router.get("/llm")
+@router.get("/llm/check")
+@router.get("/llm/off")
+async def integration_action_reloaded(user: TeacherUser):
+    """Пока POST ждёт ответа, в адресной строке уже стоит адрес действия, и
     обновление страницы приходит сюда GET-ом. Вместо голого 405 возвращаем
-    в раздел: само действие повторять не нужно, состояние судьи и так видно там."""
-    return _redirect("/teacher/judge")
+    в раздел: действие повторять не нужно, состояние и так видно там."""
+    return _redirect(INTEGRATIONS)
 
 
 @router.post("/course-refresh")

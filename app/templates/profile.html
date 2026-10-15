@@ -55,7 +55,7 @@
       </p>
       {{ platform_accounts(target, platforms, where_to_put, back="/me") }}
       <p class="small muted">
-        {{ _("То же самое и способы входа — телеграм, %(account)s — на странице") % {"account": settings.org_account_name | lower} }}
+        {{ _("То же самое и способы входа — телеграм, %(account)s — на странице") % {"account": org_account() | lower} }}
         <a href="/accounts">{{ _("аккаунтов") }}</a>.
       </p>
       {% endif %}

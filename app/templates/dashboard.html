@@ -10,7 +10,7 @@
 
 {% if not confirmed %}
 <div class="card callout warn">
-  <h3>{{ icon("shield") }} {{ _("Подтверди, что ты %(who)s") % {"who": settings.org_student} }}</h3>
+  <h3>{{ icon("shield") }} {{ _("Подтверди, что ты %(who)s") % {"who": org_student()} }}</h3>
   <p class="small" style="margin:0 0 12px">
     {{ _("Вход через %(provider)s открывает вступление в группы и задания.") % {"provider": settings.oidc_provider_name} }}{% if settings.telegram_enabled %}
     {{ _("Telegram остаётся для входа и уведомлений.") }}{% endif %}
@@ -102,7 +102,7 @@
       </form>
       {% else %}
       <p class="small muted">
-        {{ _("Вступить в группу можно после входа через %(provider)s — так портал знает, что ты %(who)s.") % {"provider": settings.oidc_provider_name, "who": settings.org_student} }}
+        {{ _("Вступить в группу можно после входа через %(provider)s — так портал знает, что ты %(who)s.") % {"provider": settings.oidc_provider_name, "who": org_student()} }}
       </p>
       <a class="btn small" href="/accounts">{{ icon("shield") }} {{ _("Подтвердить") }}</a>
       {% endif %}

@@ -29,7 +29,7 @@ async def test_start_verification_issues_code(session, users, monkeypatch):
     account = await verification.start_verification(session, anya, Platform.codeforces, " tourist ")
 
     assert account.handle == "tourist"  # пробелы срезаются
-    assert account.verification_code.startswith("msu-sport-")
+    assert account.verification_code.startswith("algo-")
     assert account.is_verified is False
 
 
@@ -103,3 +103,26 @@ async def test_relinking_resets_verification(session, users, monkeypatch):
         select(func.count()).select_from(PlatformAccount).where(PlatformAccount.user_id == anya.id)
     )
     assert count == 1
+
+
+async def test_code_issued_before_the_prefix_change_still_confirms(session, users, monkeypatch):
+    """Приставку сменили с «msu-sport-» на нейтральную. Студент, который уже
+    вписал старый код в профиль, не должен получать отказ."""
+    anya, _ = users
+    account = PlatformAccount(
+        user_id=anya.id, platform=Platform.codeforces, handle="anya",
+        verification_code="msu-sport-1a2b3c4d",
+    )
+    session.add(account)
+    await session.commit()
+
+    async def with_old_code(platform, handle):
+        return _profile("organization: msu-sport-1a2b3c4d")
+
+    monkeypatch.setattr(verification, "fetch_profile", with_old_code)
+    assert await verification.confirm_verification(session, account) is True
+
+
+def test_prefix_does_not_name_a_university():
+    """Код видно всем, кто откроет профиль студента на площадке."""
+    assert verification.new_verification_code().startswith("algo-")

@@ -442,8 +442,7 @@ Claude Desktop, Cursor, Codex. Портал отвечает по
 
 ## Курс
 
-Раздел «Курс» показывает материалы курса «Алгоритмы и структуры данных»
-(факультет ИИ МГУ, публичный сайт — <https://learn.ai.msu.ru/algo>). Оглавление
+Раздел «Курс» показывает материалы курса из репозитория преподавателей. Оглавление
 повторяет источник: недели семестра, у каждой лекция и семинар, а внутри —
 конспект, практика и домашние задания. Нет файла в источнике — нет слота на
 странице, пустых ссылок раздел не рисует.
@@ -458,7 +457,7 @@ Claude Desktop, Cursor, Codex. Портал отвечает по
 
 ```ini
 # .env
-COURSE_SOURCE_URL=https://git.ai.msu.ru/api/v1/repos/bach-teachers/algo-1/archive/main.tar.gz
+COURSE_SOURCE_URL=https://git.example.org/api/v1/repos/<владелец>/<курс>/archive/main.tar.gz
 COURSE_TOKEN=...          # для приватного репозитория
 COURSE_REFRESH_HOURS=6
 ```
@@ -559,7 +558,7 @@ python scripts/sync_course.py ~/src/algo-1
 
 ```bash
 pip install playwright httpx && playwright install chromium
-INGEST_TOKEN=... python scripts/fetch_sources.py https://algo.ai.msu.ru
+INGEST_TOKEN=... python scripts/fetch_sources.py https://portal.example.org
 ```
 
 Первый запуск открывает окно: пройти проверку Cloudflare и, если нужен
@@ -738,7 +737,8 @@ OIDC_TEACHER_GROUPS=sp-teachers
 
 Портал не просит пароли и токены — только подтверждение, что профиль твой:
 
-1. Студент вводит хэндл на `/accounts` и получает код вида `msu-sport-a1b2c3d4`.
+1. Студент вводит хэндл на `/accounts` и получает код вида `algo-a1b2c3d4`
+   (приставка — `VERIFICATION_PREFIX`; код видят все, кто откроет профиль).
 2. Вписывает код в профиль на платформе:
    - **Codeforces** — Settings → Social → поле «Organization» (или «First name»);
    - **LeetCode** — Edit Profile → поле «Name» (или «Summary»/«Website»).
@@ -815,8 +815,8 @@ Telegram — способ связи, а не удостоверение: бот
 Пока `OIDC_ISSUER` пуст, проверять нечем и портал работает как раньше: Telegram
 даёт полный доступ. Это же спасает локальную разработку.
 
-Преподаватель видит отметку «МГУ» в списке студентов и сразу понимает, кто
-подтверждён, а кто зашёл с улицы.
+Преподаватель видит отметку «подтверждён» в списке студентов и сразу понимает,
+кто вошёл через организацию, а кто зашёл с улицы.
 
 ---
 

@@ -14,7 +14,7 @@
 
 Запуск (токен берётся из окружения, в командной строке ему не место):
 
-    INGEST_TOKEN=... python scripts/fetch_sources.py https://algo.ai.msu.ru
+    INGEST_TOKEN=... python scripts/fetch_sources.py https://portal.example.org
 
 Первый запуск открывает окно браузера: пройдите проверку Cloudflare и, если
 нужен LeetCode, войдите в свой аккаунт. Профиль сохраняется в ~/.sport-fetcher,
@@ -133,7 +133,7 @@ async def main() -> int:
     from playwright.async_api import async_playwright
 
     parser = argparse.ArgumentParser(description="Загрузка исходников посылок в портал")
-    parser.add_argument("portal", help="адрес портала, например https://algo.ai.msu.ru")
+    parser.add_argument("portal", help="адрес портала, например https://portal.example.org")
     parser.add_argument("--limit", type=int, default=25, help="сколько посылок за раз")
     parser.add_argument("--channel", default="chromium", help="chromium или chrome")
     parser.add_argument("--headless", action="store_true", help="без окна (после первой проверки)")

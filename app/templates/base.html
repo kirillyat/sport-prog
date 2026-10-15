@@ -121,7 +121,7 @@
     {{ navlink("/teacher/sets", "code", _("Задачи"), also=("/teacher/tasks", "/teacher/problems")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
-    {{ navlink("/teacher/judge", "cpu", _("Судья")) }}
+    {{ navlink("/teacher/integrations", "plug", _("Интеграции"), also=("/teacher/judge", "/teacher/llm")) }}
     {% set for_students = [] %}
     {% if "materials" in sections_on %}{% set for_students = for_students + [("/materials", "book", _("Материалы"), False)] %}{% endif %}
     {% if course_available and "course" in sections_on %}{% set for_students = for_students + [("/course", "layers", _("Курс"), False)] %}{% endif %}

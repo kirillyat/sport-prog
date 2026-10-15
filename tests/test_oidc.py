@@ -31,7 +31,7 @@ async def test_login_button_visible_only_when_configured(session, client, monkey
 
 async def test_full_flow_creates_user_and_maps_teacher_group(session, client, provider):
     state, nonce = await _start(client, provider["disc"])
-    provider["claims"] = {"sub": "ak-42", "nonce": nonce, "email": "anya@msu.ru"}
+    provider["claims"] = {"sub": "ak-42", "nonce": nonce, "email": "anya@uni.example"}
     provider["profile"] = {"name": "Аня Ковалёва", "groups": ["students", "sp-teachers"]}
 
     # Занимаем место первого пользователя, чтобы роль пришла именно из группы.
@@ -46,7 +46,7 @@ async def test_full_flow_creates_user_and_maps_teacher_group(session, client, pr
 
     user = await session.scalar(select(User).where(User.oidc_sub == "ak-42"))
     assert user.display_name == "Аня Ковалёва"
-    assert user.email == "anya@msu.ru"
+    assert user.email == "anya@uni.example"
     assert user.role == Role.teacher
     assert provider["exchange"][0][0] == "abc"
 

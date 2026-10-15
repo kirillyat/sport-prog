@@ -14,7 +14,20 @@ from __future__ import annotations
 from sqlalchemy import ColumnElement, true
 
 from app.config import settings
+from app.i18n import translate as _
 from app.models import User
+
+
+def org_student() -> str:
+    """«студент МГУ» или просто «студент». Склеивается на языке страницы:
+    в настройках фраза навсегда осталась бы по-русски."""
+    org = settings.org_name.strip()
+    return _("студент %(org)s") % {"org": org} if org else _("студент вуза")
+
+
+def org_account() -> str:
+    """Название входа через организацию: своё из настроек или общее."""
+    return settings.org_account_name.strip() or _("учётная запись организации")
 
 
 def gate_enabled() -> bool:

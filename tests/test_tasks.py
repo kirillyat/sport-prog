@@ -98,7 +98,7 @@ async def test_a_submission_does_not_hold_every_test_in_memory(session, client, 
     ссылки на тесты, а не их содержимое."""
     seen = {}
 
-    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         seen["tests"] = list(tests)
         return judge.RunResult(results=[
             judge.TestResult(position=t.position, is_open=t.is_open, passed=True, status="Accepted")
@@ -201,7 +201,7 @@ async def test_attempts_run_out(session, client, task, monkeypatch):
 
 async def test_accepted_submission_counts_as_solved(session, client, task, monkeypatch):
     """Принятая сдача — обычная посылка: её видит и зачёт, и лента."""
-    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         return judge.RunResult(
             results=[
                 judge.TestResult(
@@ -223,7 +223,7 @@ async def test_accepted_submission_counts_as_solved(session, client, task, monke
 
 
 async def test_running_open_tests_does_not_spend_an_attempt(session, client, task, monkeypatch):
-    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         assert all(t.is_open for t in tests), "прогон не должен трогать закрытые тесты"
         return judge.RunResult(
             results=[
@@ -256,7 +256,7 @@ async def _assign_to_everyone(session, task):
 
 def _verdicts(*passed_by_test, stdout="", stderr=""):
     """Подменённый судья: по флагу на тест, в порядке тестов задачи."""
-    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         return judge.RunResult(
             results=[
                 judge.TestResult(
@@ -306,7 +306,7 @@ async def test_the_editor_unfolds_together_with_its_buttons_and_result(
 
 async def test_code_stays_in_the_editor_when_the_judge_is_down(session, client, task, monkeypatch):
     """Студент пишет решение прямо здесь: отказ не должен стирать его работу."""
-    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         raise judge.JudgeUnavailable("судья недоступен: ConnectTimeout")
 
     await judge.connect(session, "http://judge.test")
@@ -486,9 +486,9 @@ async def test_reloading_a_judge_action_returns_to_the_section(client):
     действия — это не повод показывать преподавателю голый 405."""
     await _login(client, "Кирилл", teacher=True)
 
-    for action in ("/teacher/judge/check", "/teacher/judge/off"):
+    for action in ("/teacher/judge/check", "/teacher/judge/off", "/teacher/llm/check"):
         page = await client.get(action, follow_redirects=False)
-        assert page.status_code == 303 and page.headers["location"] == "/teacher/judge"
+        assert page.status_code == 303 and page.headers["location"] == "/teacher/integrations"
 
 
 async def test_the_connection_check_does_not_wait_like_a_run(monkeypatch):
@@ -544,7 +544,7 @@ async def test_a_judge_that_went_down_is_visible_without_a_separate_check(
     session, client, task, monkeypatch
 ):
     """Виртуалку гасят посреди контрольной — портал узнаёт об этом сам, прогоном."""
-    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fallen(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         raise judge.JudgeUnavailable("судья недоступен: connect timeout")
 
     await judge.connect(session, "http://judge.test")
@@ -558,7 +558,7 @@ async def test_a_judge_that_went_down_is_visible_without_a_separate_check(
     assert state.known and not state.ok and "timeout" in state.detail
 
     # Вернувшийся судья отмечается сам — первым же удавшимся прогоном.
-    async def alive(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def alive(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         return judge.RunResult(
             results=[judge.TestResult(position=0, is_open=True, passed=True, status="Accepted")]
         )
@@ -587,7 +587,7 @@ async def test_the_database_is_released_while_the_judge_thinks(
     открываться страницы."""
     seen = {}
 
-    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb):
+    async def fake_run(cfg, code, tests, time_limit_ms, memory_limit_mb, language_id=None):
         seen["в транзакции"] = session.in_transaction()
         return judge.RunResult(
             results=[judge.TestResult(position=0, is_open=True, passed=True, status="Accepted")]

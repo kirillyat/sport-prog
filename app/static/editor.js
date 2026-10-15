@@ -10,8 +10,12 @@
   if (!area || typeof CodeMirror === "undefined") return;
   var t = window.portalStrings || function (key, fallback) { return fallback; };
 
+  // Режим подсветки приходит со страницы: язык выбирает студент. Пусто —
+  // режима для языка у нас нет, и редактор просто не красит код.
+  function modeOf(value) { return value === undefined ? "python" : (value || null); }
+
   var editor = CodeMirror.fromTextArea(area, {
-    mode: "python",
+    mode: modeOf(area.dataset.mode),
     lineNumbers: true,
     indentUnit: 4,
     tabSize: 4,
@@ -265,4 +269,12 @@
     clearTimeout(timer);
     timer = setTimeout(saveDraftNow, 800);
   });
+
+  var languagePick = document.querySelector("[data-language-pick]");
+  if (languagePick) {
+    languagePick.addEventListener("change", function () {
+      var option = languagePick.options[languagePick.selectedIndex];
+      editor.setOption("mode", modeOf(option.dataset.mode));
+    });
+  }
 })();
