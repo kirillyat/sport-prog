@@ -20,7 +20,7 @@ from app.i18n import translate as _
 from app.mcp import registry
 from app.mcp import server as _server  # noqa: F401 — регистрирует инструменты
 from app.models import Role, User
-from app.services import api_tokens
+from app.services import api_tokens, features
 from app.templating import templates
 
 router = APIRouter(tags=["ai"])
@@ -81,6 +81,7 @@ async def _page(request: Request, session: SessionDep, user: User, issued: str |
     # и «студенческий» ключ преподавателя отдал бы его инструменты.
     preview = user.is_teacher and viewing_as_student(request)
     teacher_page = user.is_teacher and not preview
+    flags = await features.load(session)
     return templates.TemplateResponse(
         request,
         "ai.html",
@@ -95,7 +96,14 @@ async def _page(request: Request, session: SessionDep, user: User, issued: str |
             "snippets": snippets(issued or PLACEHOLDER),
             # Все инструменты роли, включая те, что требуют ключа на запись:
             # человек должен видеть, ради чего такой ключ выпускать.
-            "tools": registry.for_role(Role.teacher if teacher_page else Role.student),
+            "tools": registry.for_role(
+                Role.teacher if teacher_page else Role.student,
+                frozenset(
+                    section.key
+                    for section in features.SECTIONS
+                    if features.allows_role(flags, section.key, teacher=teacher_page)
+                ),
+            ),
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),
         },

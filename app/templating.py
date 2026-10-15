@@ -262,11 +262,12 @@ templates.env.filters["gravatar"] = gravatar_url
 # а сочетание. Порядок — порядок в меню.
 THEMES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     (N_("Светлые"), (
+        # Первой — тема по умолчанию: она же стоит у голого :root в CSS.
+        ("finland", N_("Финляндия")),
         ("amber", N_("Янтарь")),
         ("parchment", N_("Пергамент")),
         ("mandarin", N_("Мандарин")),
         ("lime", N_("Лайм")),
-        ("finland", N_("Финляндия")),
         ("japan", N_("Япония")),
     )),
     (N_("Тёмные"), (
@@ -309,6 +310,9 @@ def js_strings() -> dict[str, str]:
         "busy.run": _("Прогоняю тесты…"),
         "busy.submit": _("Проверяю сдачу…"),
         "draft.restored": _("восстановлен несданный черновик"),
+        "copy.button": _("Скопировать"),
+        "copy.done": _("Скопировано"),
+        "copy.failed": _("Выдели и скопируй"),
     }
 
 

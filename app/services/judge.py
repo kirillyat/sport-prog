@@ -150,8 +150,13 @@ async def config(session: AsyncSession) -> Config:
 
 
 async def connect(session: AsyncSession, url: str, token: str = "") -> Config:
+    """Пустой токен оставляет прежний. Поле токена на странице не показывает
+    сохранённое, и раньше каждое «Подключить» с пустым полем стирало токен —
+    судья в разгар контрольной начинал отвечать 401. Убрать токен совсем —
+    «Отключить» и подключить заново без него."""
     await set_state(session, URL_KEY, url.strip())
-    await set_state(session, TOKEN_KEY, token.strip())
+    if token.strip():
+        await set_state(session, TOKEN_KEY, token.strip())
     # Прошлые отказы к новому адресу отношения не имеют.
     await _forget_health(session)
     return await config(session)

@@ -21,9 +21,10 @@
         value = window.matchMedia
           && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
       }
-      return THEMES.indexOf(value) >= 0 ? value : "amber";
+      // Без выбора — тема по умолчанию, та же, что у голого :root в CSS.
+      return THEMES.indexOf(value) >= 0 ? value : "finland";
     } catch (e) {
-      return "amber";
+      return "finland";
     }
   }
 

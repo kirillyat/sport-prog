@@ -629,3 +629,16 @@ async def test_a_huge_paste_is_refused_before_the_judge_sees_it(session, client,
 
     assert "длиннее" in page.text
     assert (await session.execute(select(Submission))).scalars().all() == []
+
+
+async def test_reconnecting_with_an_empty_token_field_keeps_the_token(session):
+    """Поле токена не показывает сохранённое. Раньше «Подключить» с пустым
+    полем стирало токен, и судья посреди контрольной отвечал 401."""
+    await judge.connect(session, "http://10.0.0.7:2358", token="secret")
+    await judge.connect(session, "http://10.0.0.8:2358")
+    config = await judge.config(session)
+    assert (config.url, config.token) == ("http://10.0.0.8:2358", "secret")
+
+    await judge.disconnect(session)
+    await judge.connect(session, "http://10.0.0.8:2358")
+    assert (await judge.config(session)).token == ""

@@ -47,7 +47,7 @@
       {% else %}
         <div class="card flat" style="margin: 12px 0 14px">
           <p class="small muted" style="margin-top:0">{{ _(where_to_put[platform]) }}</p>
-          <div class="code-box">{{ account.verification_code }}</div>
+          <div class="code-box" data-copy>{{ account.verification_code }}</div>
         </div>
         <div class="row">
           <form method="post" action="/accounts/{{ account.id }}/verify">

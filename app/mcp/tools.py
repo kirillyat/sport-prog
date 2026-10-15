@@ -22,7 +22,7 @@ from sqlalchemy import case, func, select
 
 from app.config import settings
 from app.i18n import mark as N_
-from app.mcp.registry import STUDENT, TEACHER, Context, ToolError, tool
+from app.mcp.registry import STUDENT, STUDENT_ONLY, TEACHER, Context, ToolError, tool
 from app.models import (
     Assignment,
     Group,
@@ -31,6 +31,8 @@ from app.models import (
     Problem,
     ProblemSet,
     ProblemSetItem,
+    SheetKind,
+    SheetScale,
     Submission,
     Task,
     TaskTest,
@@ -40,7 +42,7 @@ from app.models import (
 from app.notify import portal_url
 from app.routers.announcements import list_visible
 from app.services import assignments as assignments_service
-from app.services import problem_sets, solutions
+from app.services import problem_sets, sheet, solutions
 from app.services import tasks as tasks_service
 from app.services.problem_parser import parse_problem_list, search_problems
 from app.services.progress import (
@@ -1043,6 +1045,126 @@ async def create_assignment(ctx: Context, args: CreateAssignmentParams) -> dict:
     return {
         "assignments": await _describe(ctx, created, teacher=True),
         "telegram_messages": delivered,
+    }
+
+
+# ---------------------------------------------------------------- оценки
+#
+# Раздел «Оценки» закрывается в «Видимости разделов» — тогда эти инструменты
+# пропадают у той же роли, что и страница (`section="grades"`).
+
+
+def _mark(column, value: sheet.Value) -> dict:
+    """Ячейка ведомости как её видит человек на странице."""
+    out: dict = {"comment": value.comment or None}
+    if column.kind == SheetKind.attendance:
+        out["attendance"] = value.attendance.value if value.attendance else None
+    elif column.kind == SheetKind.assignment:
+        out.update(solved=value.solved, total=value.total, passed=value.passed)
+    elif column.scale == SheetScale.points:
+        out.update(points=value.points, max_points=column.max_points)
+    else:
+        out["passed"] = value.passed
+    return out
+
+
+def _columns(book: sheet.Sheet) -> list[tuple[dict, object]]:
+    """Колонки по порядку ведомости вместе с занятием, к которому относятся."""
+    out = []
+    for block in book.blocks:
+        for column in block.columns:
+            out.append(
+                (
+                    {
+                        "column_id": column.id,
+                        "lesson": block.title or None,
+                        "held_on": _when(block.lesson.held_on) if block.lesson else None,
+                        "title": column.title,
+                        "kind": column.kind.value,
+                    },
+                    column,
+                )
+            )
+    return out
+
+
+def _total(total: sheet.Total) -> dict:
+    return {
+        "points": total.points,
+        "points_max": total.points_max,
+        "passed": total.passed,
+        "gradable": total.gradable,
+        "not_graded_yet": total.ungraded,
+        "present": total.present,
+        "lessons_marked": total.lessons,
+    }
+
+
+@tool(
+    "get_my_grades",
+    title=N_("Мои оценки"),
+    hint=N_("посещения, оценки и комментарии по группам"),
+    roles=STUDENT_ONLY,
+    section="grades",
+)
+async def get_my_grades(ctx: Context, args: NoParams) -> dict:
+    """Своя строка ведомости по каждой группе — то же, что в разделе «Оценки».
+
+    По работам: посещение (present / absent / excused), зачёт (`passed`),
+    баллы из максимума или решённые задачи задания; `comment` — пометка
+    преподавателя. Пустое значение — работу ещё не оценили, это не двойка.
+    Итог — три отдельных числа: баллы, зачёты и посещаемость; одной итоговой
+    оценки портал не считает.
+    """
+    groups = []
+    for group, book in await sheet.my_rows(ctx.session, ctx.user):
+        works = [
+            {**meta, **_mark(column, book.value(ctx.user.id, column.id))}
+            for meta, column in _columns(book)
+        ]
+        groups.append(
+            {"group": group.title, "works": works, "total": _total(book.total(ctx.user.id))}
+        )
+    return {"groups": groups}
+
+
+@tool(
+    "get_gradebook",
+    title=N_("Ведомость группы"),
+    hint=N_("все студенты группы по всем работам"),
+    roles=TEACHER,
+    section="grades",
+)
+async def get_gradebook(ctx: Context, args: GroupParams) -> dict:
+    """Ведомость группы: колонки по порядку занятий и строка каждого студента.
+
+    Значения те же, что на странице ведомости и в её CSV: колонки-задания
+    считаются по правилу зачёта портала, остальное ставит преподаватель.
+    Пустое значение — работу ещё не оценили.
+    """
+    group = await ctx.session.get(Group, args.group_id)
+    if group is None:
+        raise ToolError(f"Группы {args.group_id} нет")
+    book = await sheet.build(ctx.session, group)
+    columns = _columns(book)
+    return {
+        "group": group.title,
+        "columns": [meta for meta, _ in columns],
+        "students": [
+            {
+                "student_id": student.id,
+                "student": student.display_name,
+                "marks": [
+                    {
+                        "column_id": meta["column_id"],
+                        **_mark(column, book.value(student.id, column.id)),
+                    }
+                    for meta, column in columns
+                ],
+                "total": _total(book.total(student.id)),
+            }
+            for student in book.students
+        ],
     }
 
 

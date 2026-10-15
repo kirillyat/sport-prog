@@ -86,26 +86,16 @@
 </div>
 {% endif %}
 
+{# Только то, чего нет на виду в рейке: группы, задания, задачи, проверка и
+   интеграции там уже есть, и карточки-двойники только удлиняли панель. #}
 <h2>{{ icon("layers") }} {{ _("Разделы") }}</h2>
 <div class="grid three">
-  <a class="card" href="/teacher/groups"><h3>{{ icon("users") }} {{ _("Группы") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Код вступления и состав") }}</p></a>
-  <a class="card" href="/teacher/sets"><h3>{{ icon("layers") }} {{ _("Списки задач") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Подборка задач из ссылок") }}</p></a>
-  <a class="card" href="/teacher/tasks"><h3>{{ icon("code") }} {{ _("Свои задачи") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Условие и тесты на портале — для контрольной") }}</p></a>
-  <a class="card" href="/teacher/assignments"><h3>{{ icon("tasks") }} {{ _("Задания") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Выдать список группе и следить за матрицей решений") }}</p></a>
-  <a class="card" href="/teacher/integrations"><h3>{{ icon("plug") }} {{ _("Интеграции") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Судья, языки программирования, языковая модель") }}</p></a>
   <a class="card" href="/teacher/announcements"><h3>{{ icon("megaphone") }} {{ _("Объявления") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Анонс соревнования со ссылкой и обратным отсчётом") }}</p></a>
   <a class="card" href="/teacher/groups"><h3>{{ icon("edit") }} {{ _("Ведомости") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Оценки, посещаемость и итоги — у каждой группы своя") }}</p></a>
   <a class="card" href="/teacher/students"><h3>{{ icon("user") }} {{ _("Студенты") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Роли и бонусы") }}</p></a>
-  <a class="card" href="/teacher/reviews"><h3>{{ icon("search") }} {{ _("Проверка решений") }}</h3>
-    <p class="small muted" style="margin:0">{{ _("Файлы, присланные к заданиям с обязательным решением") }}</p></a>
   <a class="card" href="/teacher/features"><h3>{{ icon("shield") }} {{ _("Видимость разделов") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Что показывать студентам, а что пока только преподавателям") }}</p></a>
 </div>

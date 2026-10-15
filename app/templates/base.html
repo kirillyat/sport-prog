@@ -14,7 +14,7 @@
         if (t === "auto") t = window.matchMedia
           && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
         t = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" }[t] || t;
-        // По умолчанию — «Янтарь», поэтому без выбора атрибут не ставим.
+        // По умолчанию — «Финляндия», поэтому без выбора атрибут не ставим.
         if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta"].indexOf(t) >= 0)
           document.documentElement.dataset.theme = t;
       } catch (e) {}
@@ -239,6 +239,7 @@
 <script src="/static/countdown.js?v={{ asset_version }}" defer></script>
 <script src="/static/theme.js?v={{ asset_version }}" defer></script>
 <script src="/static/menus.js?v={{ asset_version }}" defer></script>
+<script src="/static/copy.js?v={{ asset_version }}" defer></script>
 {% if settings.telegram_enabled %}<script src="/static/telegram-login.js?v={{ asset_version }}" defer></script>{% endif %}
 {# Скрипты страницы: редактор кода подключается только там, где он нужен. #}
 {% block scripts %}{% endblock %}

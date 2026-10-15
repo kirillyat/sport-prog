@@ -26,6 +26,8 @@ from app.models import Role, User
 logger = logging.getLogger(__name__)
 
 STUDENT = frozenset({Role.student, Role.teacher})
+# Только студенту: «мои оценки» у преподавателя пусты и только сбивали бы модель.
+STUDENT_ONLY = frozenset({Role.student})
 TEACHER = frozenset({Role.teacher})
 
 
@@ -43,6 +45,9 @@ class Context:
     user: User
     # Ключ разрешает менять портал. Без него инструменты записи не видны вовсе.
     can_write: bool = False
+    # Разделы портала, открытые этому человеку (`features`). Пусто по умолчанию:
+    # забыл загрузить — инструменты закрытых разделов не видны, а не наоборот.
+    sections: frozenset[str] = frozenset()
 
 
 Handler = Callable[[Context, Any], Awaitable[dict]]
@@ -64,9 +69,20 @@ class Tool:
     # Действие видно за пределами портала: например, сообщение группе в Telegram.
     # Клиенты MCP по этой отметке переспрашивают человека.
     notifies: bool = False
+    # Раздел портала, которому инструмент принадлежит. Закрыт раздел для роли
+    # в «Видимости разделов» — закрыт и инструмент: страница и нейросеть не
+    # должны показывать разное.
+    section: str | None = None
+
+    def open_in(self, sections: frozenset[str]) -> bool:
+        return self.section is None or self.section in sections
 
     def allowed(self, ctx: Context) -> bool:
-        return ctx.user.role in self.roles and (ctx.can_write or not self.writes)
+        return (
+            ctx.user.role in self.roles
+            and (ctx.can_write or not self.writes)
+            and self.open_in(ctx.sections)
+        )
 
     def schema(self) -> dict:
         """Описание для клиента MCP.
@@ -102,6 +118,7 @@ def tool(
     roles: frozenset[Role],
     writes: bool = False,
     notifies: bool = False,
+    section: str | None = None,
 ):
     """Регистрирует инструмент. Описание для модели — докстрока функции.
 
@@ -121,16 +138,17 @@ def tool(
             roles=roles,
             writes=writes,
             notifies=notifies,
+            section=section,
         )
         return fn
 
     return register
 
 
-def for_role(role: Role) -> list[Tool]:
+def for_role(role: Role, sections: frozenset[str]) -> list[Tool]:
     """Всё, что роль может получить, включая инструменты записи, — для
     страницы «ИИ». Порядок тот же, что у `available`."""
-    return [item for item in TOOLS.values() if role in item.roles]
+    return [item for item in TOOLS.values() if role in item.roles and item.open_in(sections)]
 
 
 def available(ctx: Context) -> list[Tool]:
@@ -142,15 +160,22 @@ def available(ctx: Context) -> list[Tool]:
 SECTION = "ai"
 
 
-async def section_open(ctx: Context) -> bool:
+async def context_for(session: AsyncSession, user: User, *, can_write: bool = False) -> Context:
+    """Контекст вызова с открытыми человеку разделами. Собирать его только так:
+    иначе инструменты закрытых разделов стали бы невидимы и для открытых."""
+    from app.services import features
+
+    sections = frozenset(features.visible(await features.load(session), user))
+    return Context(session=session, user=user, can_write=can_write, sections=sections)
+
+
+def section_open(ctx: Context) -> bool:
     """Раздел «ИИ» закрыт этой роли — закрыт и доступ по ключам.
 
     Так преподаватель одной галочкой выключает нейросети студентам, например
     на время контрольной, не отзывая ключи по одному.
     """
-    from app.services import features
-
-    return features.allows(await features.load(ctx.session), SECTION, ctx.user)
+    return SECTION in ctx.sections
 
 
 def _validation_message(exc: ValidationError) -> str:
@@ -168,6 +193,8 @@ async def call(ctx: Context, name: str, arguments: dict | None) -> dict:
     # студенту, что у преподавателя есть выгрузка решений.
     if item is None or ctx.user.role not in item.roles:
         raise ToolError(f"Инструмента {name!r} нет")
+    if not item.open_in(ctx.sections):
+        raise ToolError("Этот раздел портала сейчас закрыт преподавателем")
     if item.writes and not ctx.can_write:
         raise ToolError(
             "Ключ выпущен только на чтение. Чтобы менять портал, выпусти на странице "

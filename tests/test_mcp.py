@@ -623,3 +623,88 @@ async def test_teacher_looking_as_a_student_sees_the_student_page(session, clien
     # Ключ преподавателя дал бы его инструменты — выпускать его отсюда нельзя.
     assert 'action="/ai/tokens"' not in page
     assert "сдать решение или что-то изменить" in page
+
+
+# ---------------------------------------------------------------- оценки и закрытые разделы
+
+
+async def _gradebook(session, group, *students):
+    """Занятие с явкой и домашкой, у каждого студента — свои отметки."""
+    from app.models import Attendance, SheetColumn, SheetKind, SheetLesson, SheetMark, SheetScale
+
+    lesson = SheetLesson(group_id=group.id, title="Неделя 1", position=0)
+    session.add(lesson)
+    await session.commit()
+    seen = SheetColumn(group_id=group.id, lesson_id=lesson.id, title="явка",
+                       kind=SheetKind.attendance, scale=SheetScale.pass_fail, position=0)
+    homework = SheetColumn(group_id=group.id, lesson_id=lesson.id, title="домашка",
+                           kind=SheetKind.manual, scale=SheetScale.pass_fail, position=1)
+    session.add_all([seen, homework])
+    await session.commit()
+    for number, student in enumerate(students):
+        session.add_all([
+            SheetMark(column_id=seen.id, user_id=student.id, attendance=Attendance.present),
+            SheetMark(column_id=homework.id, user_id=student.id, passed=number == 0,
+                      comment=f"комментарий для {student.display_name}"),
+        ])
+    await session.commit()
+
+
+async def test_student_sees_own_grades_and_nobody_elses(session, client):
+    anya = await _user(session, "Аня")
+    boris = await _user(session, "Борис")
+    await _gradebook(session, await _group_with(session, "ПМИ-1", anya, boris), anya, boris)
+    key = await _key(session, anya)
+
+    response = await _rpc(client, key, "tools/call", {"name": "get_my_grades", "arguments": {}})
+    assert "Борис" not in response.text
+    grades = response.json()["result"]["structuredContent"]["groups"][0]
+    by_title = {work["title"]: work for work in grades["works"]}
+    assert by_title["явка"]["attendance"] == "present"
+    assert by_title["домашка"]["passed"] is True
+    assert grades["total"]["passed"] == 1
+
+
+async def test_closed_section_hides_its_tools_from_that_role(session, client):
+    """Оценки скрыты от студентов — их инструменты тоже: страница и нейросеть
+    не показывают разное. Преподавателю раздел открыт, и ведомость при нём."""
+    anya = await _user(session, "Аня")
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    group = await _group_with(session, "ПМИ-1", anya)
+    await _gradebook(session, group, anya)
+    student_key, teacher_key = await _key(session, anya), await _key(session, teacher)
+    group_id = group.id
+
+    assert "get_my_grades" in await _tool_names(client, student_key)
+    await features.save(session, "grades", for_students=False, for_teachers=True)
+
+    assert "get_my_grades" not in await _tool_names(client, student_key)
+    refused = await _call(client, student_key, "get_my_grades")
+    assert "закрыт" in refused["error"]
+
+    book = await _call(client, teacher_key, "get_gradebook", group_id=group_id)
+    assert [s["student"] for s in book["students"]] == ["Аня"]
+    assert book["students"][0]["marks"][1]["comment"] == "комментарий для Аня"
+
+    await features.save(session, "grades", for_students=False, for_teachers=False)
+    assert "get_gradebook" not in await _tool_names(client, teacher_key)
+
+
+async def test_ai_page_does_not_promise_tools_of_a_closed_section(session, client):
+    await client.post("/login/dev", data={"name": "Кирилл", "teacher": "true"})
+    await features.save(session, "grades", for_students=False, for_teachers=True)
+    teacher_page = (await client.get("/ai")).text
+    assert "get_gradebook" in teacher_page
+
+    await client.post("/view/student", data={"next": "/"})
+    student_page = (await client.get("/ai")).text
+    assert "get_my_grades" not in student_page and "list_assignments" in student_page
+
+
+async def test_what_people_copy_has_a_copy_button(session, client):
+    """Адрес, ключ и настройки клиентов переносят в другую программу —
+    кнопка рядом, а не выделение текста наугад."""
+    await client.post("/login/dev", data={"name": "Кирилл", "teacher": "true"})
+    page = (await client.get("/ai")).text
+    assert page.count("data-copy") >= 2          # адрес и настройки клиентов
+    assert "/static/copy.js" in page

@@ -142,8 +142,8 @@ async def _context(request: Request, session) -> registry.Context:
     if found is None:
         raise RpcError(UNAUTHORIZED, "Ключ не подходит: его отозвали или он неполный", 401)
     token, user = found
-    ctx = registry.Context(session=session, user=user, can_write=token.can_write)
-    if not await registry.section_open(ctx):
+    ctx = await registry.context_for(session, user, can_write=token.can_write)
+    if not registry.section_open(ctx):
         raise RpcError(FORBIDDEN, "Раздел «ИИ» сейчас закрыт преподавателем", 403)
     return ctx
 

@@ -87,10 +87,17 @@ def allows(flags: Flags, key: str, user: User | None) -> bool:
     """Открыт ли раздел этому человеку. Роль решает, какой из двух флагов смотреть."""
     if key not in SECTION_BY_KEY:
         return True
-    for_students, for_teachers = flags.get(key, DEFAULT)
     if user is None:
         return False
-    return for_teachers if user.is_teacher else for_students
+    return allows_role(flags, key, teacher=user.is_teacher)
+
+
+def allows_role(flags: Flags, key: str, *, teacher: bool) -> bool:
+    """То же для роли — когда смотрят «глазами студента», а человек преподаватель."""
+    if key not in SECTION_BY_KEY:
+        return True
+    for_students, for_teachers = flags.get(key, DEFAULT)
+    return for_teachers if teacher else for_students
 
 
 def visible(flags: Flags, user: User | None) -> set[str]:

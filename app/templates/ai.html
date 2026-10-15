@@ -28,14 +28,14 @@
 <div class="card callout">
   <h2>{{ _("Новый ключ") }}</h2>
   <p class="small">{{ _("Скопируй сейчас — второй раз ключ не покажем. Настройки ниже уже с ним.") }}</p>
-  <pre class="snippet"><code>{{ issued }}</code></pre>
+  <pre class="snippet" data-copy><code>{{ issued }}</code></pre>
 </div>
 {% endif %}
 
 <div class="grid two">
   <div class="card">
     <h2>{{ _("Адрес") }}</h2>
-    <pre class="snippet"><code>{{ endpoint }}</code></pre>
+    <pre class="snippet" data-copy><code>{{ endpoint }}</code></pre>
     <p class="small muted">
       {{ _("Streamable HTTP, ключ в заголовке") }}
       <span class="mono">Authorization: Bearer &lt;{{ _("ключ") }}&gt;</span>.
@@ -95,7 +95,7 @@
   {% for item in snippets %}
   <details class="formula" {% if loop.first %}open{% endif %}>
     <summary>{{ item.client }} <span class="small muted">— {{ item.where }}</span></summary>
-    <pre class="snippet"><code>{{ item.code }}</code></pre>
+    <pre class="snippet" data-copy><code>{{ item.code }}</code></pre>
   </details>
   {% endfor %}
   <p class="small muted" style="margin-top:12px">

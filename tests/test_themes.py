@@ -27,13 +27,13 @@ def blocks() -> dict[str, set[str]]:
         names = re.findall(r"--([a-z0-9-]+):", match.group("body"))
         if not names:
             continue
-        found.setdefault(match.group("name") or "amber", set()).update(names)
+        found.setdefault(match.group("name") or "finland", set()).update(names)
     return found
 
 
 def test_every_theme_defines_the_same_variables():
     sets = blocks()
-    first = sets["amber"]
+    first = sets["finland"]
     for key in THEME_KEYS:
         assert key in sets, f"темы {key} нет в style.css"
         missing = first - sets[key] - {"rule", "display", "sans", "mono", "rail"}
@@ -75,3 +75,12 @@ def test_old_choices_lead_to_themes_that_exist():
     listed = re.search(r"var LEGACY = \{(.*?)\};", SCRIPT, re.S).group(1)
     for old, new in re.findall(r'(\w+): "([a-z]+)"', listed):
         assert new in themes, f"«{old}» ведёт на несуществующую тему «{new}»"
+
+
+def test_a_visitor_who_never_chose_gets_finland():
+    """Тема по умолчанию одна во всех трёх местах: CSS без скрипта, скрипт
+    в <head> и переключатель. Разъехавшись, они мигали бы двумя темами."""
+    assert ':root, :root[data-theme="finland"] {' in CSS
+    assert ':root, :root[data-theme="amber"]' not in CSS
+    assert ': "finland";' in SCRIPT and 'return "finland";' in SCRIPT
+    assert THEME_KEYS[0] == "finland"

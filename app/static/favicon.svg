@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="знак портала">
-  <!-- Тот же знак на плашке: во вкладке браузера он должен читаться на любом фоне. -->
-  <rect width="200" height="200" fill="#f4c430"/>
-  <g fill="none" stroke="#111" stroke-width="14" stroke-linecap="square" stroke-linejoin="miter">
-    <path d="M74 32 q-26 0 -26 26 v20 q0 16 -20 22 q20 6 20 22 v20 q0 26 26 26"/>
-    <path d="M126 32 q26 0 26 26 v20 q0 16 20 22 q-20 6 -20 22 v20 q0 26 -26 26"/>
-    <path d="M84 72 l30 28 -30 28"/>
+  <!-- Тот же знак на плашке в цветах темы по умолчанию: во вкладке браузера он
+       должен читаться на любом фоне. Обводка толще, чем в рейке, — иначе
+       на 16 пикселях она тает. -->
+  <rect width="200" height="200" fill="#002f6c"/>
+  <g transform="translate(13 38) scale(0.62)" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M100 20 q-32 0 -32 32 v22 q0 18 -24 26 q24 8 24 26 v22 q0 32 32 32"/>
+    <path d="M180 20 q32 0 32 32 v22 q0 18 24 26 q-24 8 -24 26 v22 q0 32 -32 32"/>
+    <path d="M104 72 L132 100 L104 128"/>
+    <path d="M148 130 H180"/>
   </g>
 </svg>
