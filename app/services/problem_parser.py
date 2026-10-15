@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Platform, Problem
@@ -130,10 +130,26 @@ async def search_problems(
     query: str,
     platform: Platform | None = None,
     limit: int = 40,
+    *,
+    tag: str | None = None,
+    difficulty: str | None = None,
+    min_rating: int | None = None,
+    max_rating: int | None = None,
 ) -> list[Problem]:
     stmt = select(Problem)
     if platform:
         stmt = stmt.where(Problem.platform == platform)
+    if tag and tag.strip():
+        # Метки лежат JSON-списком строк. Ищем метку целиком, в кавычках:
+        # иначе «dp» нашёлся бы и внутри «dp on trees», и внутри чужих слов.
+        needle = '%"' + tag.strip().lower() + '"%'
+        stmt = stmt.where(func.lower(cast(Problem.tags, String)).like(needle))
+    if difficulty and difficulty.strip():
+        stmt = stmt.where(func.lower(Problem.difficulty) == difficulty.strip().lower())
+    if min_rating is not None:
+        stmt = stmt.where(Problem.rating >= min_rating)
+    if max_rating is not None:
+        stmt = stmt.where(Problem.rating <= max_rating)
     query = query.strip()
     if query:
         pattern = f"%{query.lower()}%"

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "teacher/_tasks_tabs.html" import tasks_tabs %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ _("Списки задач") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
+{{ tasks_tabs("sets") }}
 <h1>{{ _("Списки задач") }}</h1>
 <p class="sub">{{ _("Подборка задач для задания.") }}</p>
 

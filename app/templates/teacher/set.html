@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "teacher/_tasks_tabs.html" import tasks_tabs %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ set.title }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
+{{ tasks_tabs("sets") }}
 <h1>{{ set.title }}</h1>
 <p class="sub">{{ set.description or _("Без описания") }} · {{ _("%(count)s задач") % {"count": set.items | length} }}</p>
 

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -29,6 +30,12 @@ class Section:
     title: str
     path: str
     hint: str
+    # До какого дня в рейке висит плашка «новое». Дата, а не флаг в базе:
+    # плашка снимается сама, и никому не нужно помнить, что её пора убрать.
+    new_until: date | None = None
+
+    def is_new(self, today: date) -> bool:
+        return self.new_until is not None and today < self.new_until
 
 
 # Что вообще можно закрыть. Добавить раздел — добавить строку сюда.
@@ -39,6 +46,10 @@ SECTIONS: tuple[Section, ...] = (
             N_("Недели курса с конспектами, практиками и домашними заданиями")),
     Section("grades", N_("Оценки"), "/grades",
             N_("Своя строка ведомости: посещаемость, оценки за работы и комментарии")),
+    Section("ai", N_("ИИ"), "/ai",
+            N_("Подключение нейросети к порталу по MCP. Закрытый раздел "
+               "отключает и ключи этой роли"),
+            new_until=date(2026, 10, 22)),
 )
 
 SECTION_BY_KEY = {section.key: section for section in SECTIONS}
@@ -130,8 +141,17 @@ def features_context(request) -> dict:
     """Общий контекст шаблонов: что показывать и чьими глазами."""
     nav = getattr(request.state, "nav", None) or EMPTY_NAV
     as_student = request.cookies.get("view_as") == "student"
+    # Шаблоны импортируют этот модуль, поэтому пояс берём у них только здесь.
+    from app.templating import LOCAL_TZ
+
+    today = utcnow().astimezone(LOCAL_TZ).date()
     return {
         "sections_on": nav["sections_on"],
+        # Плашка «новое» — только у открытых разделов: у закрытого её некуда вешать.
+        "sections_new": {
+            section.key for section in SECTIONS
+            if section.key in nav["sections_on"] and section.is_new(today)
+        },
         "pending_reviews": nav.get("pending_reviews", 0),
         # Читаем куку прямо здесь: это взгляд, а не данные, запрос к базе не нужен.
         "as_student": as_student,

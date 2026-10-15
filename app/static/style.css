@@ -438,7 +438,7 @@ main a:not([class]):hover { background: var(--ink); color: var(--bg); text-decor
 .icon.xl { width: 2em; height: 2em; stroke-width: 1.8; }
 
 /* ---------- метки капсом (общий приём) ---------- */
-.lbl, h2, th, label, .badge, .stat .label, .eyebrow, .feed-day, .ticker-label, .brand-text, .nav a, .tabbar a, .legend, .progress-line, .hm-legend, .heatmap-months, .heatmap-weekdays {
+.lbl, h2, th, label, .badge, .stat .label, .eyebrow, .feed-day, .ticker-label, .brand-text, .nav a, .tabbar a, .nav-more > summary, .legend, .progress-line, .hm-legend, .heatmap-months, .heatmap-weekdays {
   font-family: var(--sans); font-weight: 600; text-transform: uppercase; letter-spacing: .1em;
 }
 
@@ -471,20 +471,35 @@ body.with-rail { padding-left: var(--rail); }
 .only-dark { display: var(--dark-logo); }
 
 .rail .nav { display: flex; flex-direction: column; }
-.nav a, .tabbar a {
+/* Пункты прокручиваются, знак и подвал стоят на месте. Пока рейка была
+   сплошной, всё, что не влезало по высоте, обрезалось — вместе с выходом. */
+.rail .nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.nav a, .tabbar a, .nav-more > summary {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 13px 4px 11px; color: var(--inv-text); font-size: 9.5px; letter-spacing: .06em;
   border-bottom: 1px solid var(--line-soft); opacity: .78;
 }
-.nav a .icon, .tabbar a .icon { width: 20px; height: 20px; }
+.nav a .icon, .tabbar a .icon, .nav-more > summary .icon { width: 20px; height: 20px; }
 /* Подпись переносится: в английском и французском слова длиннее русских
    и «ANNOUNCEMENTS» иначе вылезает за рейку. */
-.nav a span, .tabbar a span { text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
-.nav a:hover, .tabbar a:hover { opacity: 1; text-decoration: none; }
-.nav a.active, .tabbar a.active { opacity: 1; background: var(--inv-text); color: var(--inv-bg); }
+.nav a span, .tabbar a span, .nav-more > summary span { text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
+.nav a:hover, .tabbar a:hover, .nav-more > summary:hover { opacity: 1; text-decoration: none; }
+.nav a.active, .tabbar a.active, .nav-more.active > summary, .nav-more[open] > summary {
+  opacity: 1; background: var(--inv-text); color: var(--inv-bg); }
 .nav-count { display: inline-block; min-width: 16px; padding: 0 4px; font-size: 9px; line-height: 15px;
   background: var(--err); color: var(--err-text); font-weight: 800; }
 .nav a.active .nav-count, .tabbar a.active .nav-count { background: var(--inv-bg); color: var(--inv-text); }
+/* Плашка «новое» у свежего раздела. Сидит в углу пункта, а не строкой под
+   подписью: в нижней панели телефона на третью строку нет места. */
+.nav a, .tabbar a, .nav-more > summary { position: relative; }
+.nav-new { position: absolute; top: 4px; right: 3px; padding: 0 3px; font-size: 7.5px; line-height: 12px;
+  font-weight: 800; letter-spacing: .04em; background: var(--inv-text); color: var(--inv-bg); }
+.nav a.active .nav-new, .tabbar a.active .nav-new,
+.nav-more.active > summary .nav-new, .nav-more[open] > summary .nav-new { background: var(--inv-bg); color: var(--inv-text); }
+/* В нижней панели телефона пункт шириной в иконку, и слово закрыло бы её —
+   там вместо слова квадратик у правого плеча иконки. */
+.tabbar .nav-new { top: 6px; right: calc(50% - 17px); width: 8px; height: 8px; padding: 0;
+  font-size: 0; }
 .rail-foot { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0 16px; border-top: var(--rule) solid var(--inv-text); }
 .rail .whoami .avatar { width: 36px; height: 36px; }
 .rail-btn { background: transparent; border: none; box-shadow: none; color: var(--inv-text); padding: 6px; opacity: .8; }
@@ -506,6 +521,70 @@ body.with-rail { padding-left: var(--rail); }
 .rail-foot .lang[open] > summary { opacity: 1; }
 .rail-foot .lang > summary { font-size: 12px; }
 .rail-foot form { display: flex; }
+
+/* ---------- «Ещё» в рейке ---------- */
+.nav-more > summary { list-style: none; cursor: pointer; user-select: none; }
+.nav-more > summary::-webkit-details-marker { display: none; }
+/* Меню привязано к окну, а не к пункту: список пунктов прокручивается
+   и обрезал бы всё, что торчит за край рейки. */
+.nav-more-menu {
+  position: fixed; left: calc(var(--rail) + 8px); bottom: 12px; z-index: 40;
+  display: flex; flex-direction: column; min-width: 230px; max-height: calc(100vh - 24px); overflow: auto;
+  background: var(--bg); color: var(--ink); border: var(--rule) solid var(--ink);
+}
+.nav-more-group {
+  margin: 0; padding: 10px 14px 4px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.nav .nav-more-menu a, .tabbar .nav-more-menu a {
+  flex-direction: row; align-items: center; gap: 10px; padding: 9px 14px;
+  border-bottom: none; opacity: 1; color: var(--ink);
+  font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 500;
+}
+.nav .nav-more-menu a span, .tabbar .nav-more-menu a span { text-align: left; }
+.nav .nav-more-menu a:hover, .tabbar .nav-more-menu a:hover { background: var(--ink); color: var(--bg); }
+.nav .nav-more-menu a.active, .tabbar .nav-more-menu a.active { background: var(--ink); color: var(--bg); font-weight: 700; }
+.nav-more-menu a .badge { margin-left: auto; font-size: 9px; padding: 1px 6px; }
+
+/* ---------- меню аватарки ---------- */
+.rail-menu { position: relative; }
+.rail-menu > summary { list-style: none; cursor: pointer; display: flex; padding: 0; }
+.rail-menu > summary::-webkit-details-marker { display: none; }
+.rail-menu > summary .avatar { width: 36px; height: 36px; }
+/* Круглая рамка с зазором — знак, что аватарка нажимается и за ней меню,
+   а не просто картинка. Тенью, а не border: рамка не съедает место у
+   инициалов и не сдвигает строй рейки. */
+.rail-menu > summary .avatar {
+  box-shadow: 0 0 0 2px var(--inv-bg), 0 0 0 4px var(--inv-text);
+  transition: box-shadow .12s;
+}
+.rail-menu > summary:hover .avatar, .rail-menu[open] > summary .avatar {
+  box-shadow: 0 0 0 2px var(--inv-bg), 0 0 0 5px var(--inv-text);
+}
+.mobile-bar .avatar { background: var(--inv-text); color: var(--inv-bg); }
+.mobile-bar .rail-menu > summary .avatar { width: 32px; height: 32px; }
+/* На телефоне меню раскрывается вниз от правого края, а вложенные тема
+   и язык — прямо в нём: сбоку от узкого экрана места нет. */
+.rail-menu.down .rail-menu-panel { left: auto; right: 0; top: calc(100% + 10px); bottom: auto; min-width: 240px; }
+.rail-menu.down .lang-menu { position: static; min-width: 0; max-height: 50vh; border: 0; border-top: 1px solid var(--line-soft); }
+.rail-menu-panel {
+  position: absolute; left: calc(100% + 14px); bottom: 0; z-index: 40;
+  display: flex; flex-direction: column; min-width: 220px;
+  background: var(--bg); color: var(--ink); border: var(--rule) solid var(--ink);
+}
+.rail-menu-name { margin: 0; padding: 12px 14px 8px; font-weight: 800; border-bottom: 1px solid var(--line-soft); }
+.rail-menu-panel > a, .rail-menu-panel form button, .rail-menu-panel .lang.in-menu > summary {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 14px;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none; opacity: 1;
+  color: var(--ink); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; text-align: left;
+  height: auto; justify-content: flex-start;
+}
+.rail-menu-panel > a:hover, .rail-menu-panel form button:hover,
+.rail-menu-panel .lang.in-menu > summary:hover, .rail-menu-panel .lang.in-menu[open] > summary {
+  background: var(--ink); color: var(--bg); text-decoration: none; transform: none;
+}
+.rail-menu-panel form { display: block; }
+.rail-menu-panel .lang-code { margin-left: auto; font-weight: 700; font-size: 12px; }
 
 /* ---------- выбор языка ---------- */
 /* <details> вместо меню на скриптах: открывается силами браузера. */
@@ -568,7 +647,8 @@ body.with-rail { padding-left: var(--rail); }
 .lang.auth { display: inline-block; margin: 0 0 24px; }
 .lang.auth > summary { display: inline-block; }
 .lang.auth .lang-menu { bottom: auto; top: calc(100% + 8px); left: 0; }
-.mobile-tools { display: flex; align-items: center; gap: 6px; }
+/* Аватарка — у правого края: меню раскрывается от него вниз и влево. */
+.mobile-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .tabbar { display: none; }
 .mobile-bar { display: none; }
 
@@ -1085,6 +1165,14 @@ details.formula ul { margin: 8px 0 0; padding-left: 20px; color: var(--text-2); 
    Адаптив
    ============================================================ */
 @media (max-width: 900px) { .col-extra { display: none; } }
+/* Невысокое окно ноутбука: пункты рейки плотнее, подпись под знаком прячется.
+   Прокрутка остаётся страховкой, но на обычных экранах до неё не доходит. */
+@media (min-width: 761px) and (max-height: 820px) {
+  .rail .brand { padding: 10px 3px; }
+  .rail .brand-text { display: none; }
+  .nav a, .nav-more > summary { padding: 9px 4px 8px; gap: 4px; }
+  .rail-foot { padding: 10px 0 12px; }
+}
 @media (max-width: 760px) {
   body.with-rail { padding-left: 0; padding-bottom: 70px; }
   .rail { display: none; }
@@ -1103,6 +1191,10 @@ details.formula ul { margin: 8px 0 0; padding-left: 20px; color: var(--text-2); 
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: var(--inv-bg); padding: 0 0 env(safe-area-inset-bottom); border-top: var(--rule) solid var(--inv-text); }
   .tabbar a { flex: 1; min-width: 0; padding: 9px 2px 7px; border-bottom: none; border-right: 1px solid var(--line-soft); font-size: 8px; letter-spacing: .04em; }
   .tabbar a:last-child { border-right: none; }
+  .tabbar .nav-more { flex: 1; min-width: 0; display: flex; }
+  .tabbar .nav-more > summary { flex: 1; min-width: 0; padding: 9px 2px 7px; border-bottom: none; font-size: 8px; letter-spacing: .04em; }
+  .tabbar .nav-more > summary span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tabbar .nav-more-menu { left: 8px; right: 8px; bottom: calc(66px + env(safe-area-inset-bottom)); }
   .tabbar a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .ticker { padding: 8px 14px; gap: 10px; }
   .ticker-label { display: none; }
@@ -1247,3 +1339,25 @@ input.narrow { max-width: 90px; }
 .dot.excused { background: repeating-linear-gradient(
     45deg, var(--ink), var(--ink) 2px, var(--panel) 2px, var(--panel) 5px); }
 .dot.none { border-color: var(--line-soft); }
+
+/* Раздел «ИИ»: адрес, ключ и настройки клиентов — выделяются целиком одним
+   щелчком, чтобы скопировать без скрипта. */
+pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family: var(--mono); font-size: 12px;
+  background: var(--inv-bg); color: var(--inv-text); user-select: all; -webkit-user-select: all; }
+.token-list, .tool-list { list-style: none; margin: 0; padding: 0; }
+.token-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft); }
+.tool-list li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft); }
+/* Подпись — своей строкой под названием: в одну строку с именем она
+   переносилась бы посередине и читалась как продолжение бейджа. */
+.tool-list .tool-hint { flex-basis: 100%; }
+
+/* Вкладки внутри раздела: «Задачи» собирают списки, свои задачи и каталог. */
+.subnav { display: flex; flex-wrap: wrap; gap: 0; margin: 0 0 18px; border-bottom: var(--rule) solid var(--ink); }
+.subnav a {
+  padding: 8px 14px; color: var(--text); font-family: var(--sans); font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.subnav a:hover { text-decoration: none; background: var(--ink); color: var(--bg); }
+.subnav a.active { background: var(--ink); color: var(--bg); }

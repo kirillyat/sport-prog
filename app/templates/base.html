@@ -35,42 +35,115 @@
 {% include "_icons.html" %}
 
 {% set path = request.url.path if request else "" %}
-{% macro navlink(href, name, label, extra="", exact=False, count=0) -%}
-  {% set is_active = (path == href) if exact
-     else ((path == href) or (href != '/' and path.startswith(href))) %}
-  <a href="{{ href }}" class="{{ 'active' if is_active }} {{ extra }}" title="{{ label }}">
+{% macro is_under(href) -%}
+  {{- 'y' if path == href or (href != '/' and path.startswith(href ~ '/')) -}}
+{%- endmacro %}
+{% macro navlink(href, name, label, extra="", exact=False, count=0, new=False, also=()) -%}
+  {% set ns = namespace(on=(path == href) if exact else is_under(href) == 'y') %}
+  {% for prefix in also %}{% if is_under(prefix) == 'y' %}{% set ns.on = True %}{% endif %}{% endfor %}
+  <a href="{{ href }}" class="{{ 'active' if ns.on }} {{ extra }}" title="{{ label }}">
     {{ icon(name) }}<span>{{ label }}</span>
     {% if count %}<span class="nav-count" title="{{ _("ждут проверки") }}">{{ count }}</span>{% endif %}
+    {% if new %}<span class="nav-new">{{ _("новое") }}</span>{% endif %}
   </a>
 {%- endmacro %}
 {#
-  Рейка зависит от роли. У преподавателя свои страницы лежали за «Жюри», то
-  есть в два клика от любого места, а первым пунктом стояли чужие задания.
-  Поэтому у него в рейке его собственная работа, а личные страницы —
-  под аватаркой внизу.
+  «Ещё» — разделы, которые нужны не каждый день. Раскрывается через
+  <details>, как выбор языка: без скрипта. Пункт подсвечен, если открыта
+  страница из него, и несёт плашку «новое», если она есть у кого-то внутри, —
+  иначе свежий раздел за кнопкой никто бы не заметил.
+  groups — список пар (заголовок, [(адрес, иконка, подпись, новое), …]).
 #}
+{% macro navmore(groups) -%}
+  {% set ns = namespace(on=False, new=False) %}
+  {% for _title, items in groups %}{% for href, _name, _label, is_new in items %}
+    {% if is_under(href) == 'y' %}{% set ns.on = True %}{% endif %}
+    {% if is_new %}{% set ns.new = True %}{% endif %}
+  {% endfor %}{% endfor %}
+  <details class="nav-more popup {{ 'active' if ns.on }}">
+    <summary title="{{ _("Ещё") }}">
+      {{ icon("more") }}<span>{{ _("Ещё") }}</span>
+      {% if ns.new %}<span class="nav-new">{{ _("новое") }}</span>{% endif %}
+    </summary>
+    <div class="nav-more-menu">
+      {% for title, items in groups if items %}
+      <p class="nav-more-group">{{ title }}</p>
+      {% for href, name, label, is_new in items %}
+      <a href="{{ href }}" class="{{ 'active' if is_under(href) == 'y' }}">
+        {{ icon(name) }}<span>{{ label }}</span>
+        {% if is_new %}<span class="badge">{{ _("новое") }}</span>{% endif %}
+      </a>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </details>
+{%- endmacro %}
+{#
+  Рейка зависит от роли. У преподавателя в ней его работа на каждый день —
+  включая списки задач и судью, которые раньше жили только карточками на
+  панели. Разделы, сделанные для студентов, и редкие настройки — под «Ещё»:
+  одиннадцать пунктов в столбик на экране ноутбука не помещались, и подвал
+  с выходом уезжал за край.
+#}
+{#
+  Меню под аватаркой: всё про самого человека, а не про портал. Одно на
+  рейку и на верхнюю полоску телефона — там рейки нет, а аккаунты площадок,
+  выход и вид глазами студента нужны и с телефона.
+#}
+{% macro account_menu(extra="") -%}
+<details class="rail-menu popup {{ extra }}">
+  <summary title="{{ user.display_name }} — {{ _("меню") }}">{{ avatar(user) }}</summary>
+  <div class="rail-menu-panel">
+    <p class="rail-menu-name">{{ user.display_name }}</p>
+    <a href="/me">{{ icon("user") }}<span>{{ _("Профиль") }}</span></a>
+    <a href="/accounts">{{ icon("link") }}<span>{{ _("LeetCode и Codeforces") }}</span></a>
+    {% if user.is_teacher %}
+    <form method="post" action="/view/{{ 'teacher' if as_student else 'student' }}">
+      <input type="hidden" name="next" value="{{ path }}">
+      <button type="submit">{{ icon("shield" if as_student else "users") }}<span>{{
+        _("Вид преподавателя") if as_student else _("Глазами студента") }}</span></button>
+    </form>
+    {% endif %}
+    {{ theme_pick("in-menu", _("Оформление")) }}
+    {{ lang_switch(path, "in-menu", _("Язык")) }}
+    <form method="post" action="/logout">
+      <button type="submit">{{ icon("logout") }}<span>{{ _("Выйти") }}</span></button>
+    </form>
+  </div>
+</details>
+{%- endmacro %}
 {% macro navitems() -%}
   {# Преподаватель может смотреть портал глазами студента — тогда и рейка его. #}
   {% if teacher_view %}
     {{ navlink("/teacher", "shield", _("Панель"), "teacher-link", exact=True) }}
     {{ navlink("/teacher/groups", "users", _("Группы")) }}
     {{ navlink("/teacher/assignments", "tasks", _("Задания")) }}
+    {{ navlink("/teacher/sets", "code", _("Задачи"), also=("/teacher/tasks", "/teacher/problems")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
-    {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
-    {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
-    {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
-    {{ navlink("/feed", "activity", _("Лента")) }}
-    {{ navlink("/leaderboard", "trophy", _("Табло")) }}
+    {{ navlink("/teacher/judge", "cpu", _("Судья")) }}
+    {% set for_students = [] %}
+    {% if "materials" in sections_on %}{% set for_students = for_students + [("/materials", "book", _("Материалы"), False)] %}{% endif %}
+    {% if course_available and "course" in sections_on %}{% set for_students = for_students + [("/course", "layers", _("Курс"), False)] %}{% endif %}
+    {% if "ai" in sections_on %}{% set for_students = for_students + [("/ai", "spark", _("ИИ"), "ai" in sections_new)] %}{% endif %}
+    {% set for_students = for_students + [
+         ("/announcements", "megaphone", _("Анонсы"), False),
+         ("/feed", "activity", _("Лента"), False),
+         ("/leaderboard", "trophy", _("Табло"), False)] %}
+    {{ navmore([
+         (_("Разделы"), for_students),
+         (_("Управление"), [
+           ("/teacher/students", "user", _("Студенты"), False),
+           ("/teacher/features", "shield", _("Видимость разделов"), False)])]) }}
   {% else %}
-    {{ navlink("/", "tasks", _("Задания")) }}
+    {{ navlink("/", "tasks", _("Задания"), exact=True, also=("/assignments", "/tasks")) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
+    {% if "ai" in sections_on %}{{ navlink("/ai", "spark", _("ИИ"), new="ai" in sections_new) }}{% endif %}
     {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
     {{ navlink("/feed", "activity", _("Лента")) }}
     {{ navlink("/leaderboard", "trophy", _("Лидерборд")) }}
-    {{ navlink("/accounts", "link", _("Аккаунты")) }}
   {% endif %}
 {%- endmacro %}
 
@@ -94,25 +167,22 @@
     <span class="brand-text">{{ settings.app_short_name }}</span>
   </a>
   <nav class="nav">{{ navitems() }}</nav>
+  {#
+    Подвал — одна аватарка, а профиль, оформление, язык и выход в её меню:
+    пять кнопок в столбик съедали четверть высоты экрана ноутбука. Возврат
+    к интерфейсу преподавателя остаётся на виду, пока он смотрит глазами
+    студента: иначе легко забыть, что видишь портал не своим.
+  #}
   <div class="rail-foot">
-    <a class="whoami" href="/me" title="{{ user.display_name }} — {{ _("профиль") }}">
-      {{ avatar(user) }}
-    </a>
-    {% if user.is_teacher %}
-    <form method="post" action="/view/{{ 'teacher' if as_student else 'student' }}">
+    {% if user.is_teacher and as_student %}
+    <form method="post" action="/view/teacher">
       <input type="hidden" name="next" value="{{ path }}">
-      <button class="rail-btn" type="submit"
-              title="{{ _('Вернуться к интерфейсу преподавателя') if as_student
-                        else _('Посмотреть портал глазами студента') }}">
-        {{ icon("user" if not as_student else "shield") }}
+      <button class="rail-btn" type="submit" title="{{ _('Вернуться к интерфейсу преподавателя') }}">
+        {{ icon("shield") }}
       </button>
     </form>
     {% endif %}
-    {{ theme_pick() }}
-    {{ lang_switch(path) }}
-    <form method="post" action="/logout">
-      <button class="rail-btn" type="submit" title="{{ _("Выйти") }}">{{ icon("logout") }}</button>
-    </form>
+    {{ account_menu() }}
   </div>
 </aside>
 
@@ -132,10 +202,7 @@
     {% endif %}
     <span>{{ settings.app_short_name }}</span>
   </a>
-  <span class="mobile-tools">
-    {{ lang_switch(path, "up") }}
-    {{ theme_pick("up") }}
-  </span>
+  <span class="mobile-tools">{{ account_menu("down") }}</span>
   </div>
   {% endif %}
   {% if user and ticker %}
@@ -171,6 +238,7 @@
 <script src="/static/i18n.js?v={{ asset_version }}" defer></script>
 <script src="/static/countdown.js?v={{ asset_version }}" defer></script>
 <script src="/static/theme.js?v={{ asset_version }}" defer></script>
+<script src="/static/menus.js?v={{ asset_version }}" defer></script>
 {% if settings.telegram_enabled %}<script src="/static/telegram-login.js?v={{ asset_version }}" defer></script>{% endif %}
 {# Скрипты страницы: редактор кода подключается только там, где он нужен. #}
 {% block scripts %}{% endblock %}

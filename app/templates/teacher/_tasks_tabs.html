@@ -1,0 +1,16 @@
+{#
+  Вкладки раздела «Задачи». Списки, свои задачи и каталог раньше были
+  тремя карточками на панели — и до каждой было два щелчка. Теперь это
+  один пункт рейки, а здесь переход между его частями.
+#}
+{% macro tasks_tabs(current) -%}
+<nav class="subnav">
+  {% for key, href, label in [
+       ("sets", "/teacher/sets", _("Списки задач")),
+       ("tasks", "/teacher/tasks", _("Свои задачи")),
+       ("catalog", "/teacher/problems", _("Каталог")),
+       ("unlinked", "/teacher/problems/unlinked", _("Вне каталога"))] %}
+  <a href="{{ href }}" class="{{ 'active' if key == current }}">{{ label }}</a>
+  {% endfor %}
+</nav>
+{%- endmacro %}

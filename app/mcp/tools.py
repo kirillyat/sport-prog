@@ -1,0 +1,1095 @@
+"""Инструменты портала для нейросетей.
+
+Каждый — тонкая обёртка над сервисами, которыми пользуются и страницы:
+доступ к заданию — `may_see_assignment`, зачёт — `Cell.counts`, создание
+списка — `problem_sets.create`. Своих правил здесь нет; если для инструмента
+не нашлось сервиса, сначала выносится сервис, и страница переходит на него же.
+
+Докстрока функции — это описание, которое читает модель. Пишем его как
+подсказку коллеге: что вернёт, когда звать, чем заканчивается вызов.
+
+Студенту — только своё и только чтение: свои задания, задачи из них, свой
+зачёт, объявления. Ни чужих решений, ни закрытых тестов, ни правок.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import case, func, select
+
+from app.config import settings
+from app.i18n import mark as N_
+from app.mcp.registry import STUDENT, TEACHER, Context, ToolError, tool
+from app.models import (
+    Assignment,
+    Group,
+    GroupMembership,
+    Platform,
+    Problem,
+    ProblemSet,
+    ProblemSetItem,
+    Submission,
+    Task,
+    TaskTest,
+    User,
+    utcnow,
+)
+from app.notify import portal_url
+from app.routers.announcements import list_visible
+from app.services import assignments as assignments_service
+from app.services import problem_sets, solutions
+from app.services import tasks as tasks_service
+from app.services.problem_parser import parse_problem_list, search_problems
+from app.services.progress import (
+    assignments_for_user,
+    compute_progress,
+    groups_for_user,
+    may_see_assignment,
+    participants_for_assignment,
+    problems_for_set,
+)
+from app.templating import LOCAL_TZ
+
+# Сколько кода решений отдаём за один вызов. Контрольная на 30 человек и
+# 5 задач — это 150 решений; целиком они не влезут в окно модели, и ответ
+# оборвётся посередине. Лучше честно сказать «сузь выборку».
+MAX_CODE_CHARS = 200_000
+
+
+class Params(BaseModel):
+    # Лишний параметр — почти всегда опечатка модели. Пусть узнает о ней сразу.
+    model_config = ConfigDict(extra="forbid")
+
+
+class NoParams(Params):
+    pass
+
+
+# ---------------------------------------------------------------- вывод
+
+
+def _when(value: datetime | None) -> str | None:
+    """Время в поясе портала: преподаватель думает «до 23:59 по Москве», а не в UTC."""
+    if value is None:
+        return None
+    return value.astimezone(LOCAL_TZ).isoformat(timespec="minutes")
+
+
+def _moment(value: datetime | None) -> datetime | None:
+    """Время от модели. Без пояса — местное время портала, как в форме на сайте."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=LOCAL_TZ)
+    return value.astimezone(UTC)
+
+
+def _ref(problem: Problem) -> str:
+    """Запись задачи, которую понимает разбор списка: её можно отдать обратно."""
+    if problem.platform == Platform.codeforces:
+        return f"cf:{problem.external_id}"
+    if problem.platform == Platform.local:
+        return f"task:{problem.slug}"
+    return f"lc:{problem.slug}"
+
+
+def _problem(problem: Problem) -> dict:
+    return {
+        "ref": _ref(problem),
+        "platform": problem.platform.value,
+        "title": problem.title,
+        "url": portal_url(problem.url) if problem.url.startswith("/") else problem.url,
+        "difficulty": problem.difficulty,
+        "rating": problem.rating,
+        "tags": problem.tags or [],
+        "paid_only": problem.is_paid_only,
+    }
+
+
+async def _group_titles(ctx: Context, group_ids) -> dict[int, str]:
+    """Названия групп одним запросом.
+
+    Не через `assignment.group`: у только что выданного задания связь не
+    загружена, а ленивая подгрузка в асинхронной сессии падает.
+    """
+    ids = {group_id for group_id in group_ids if group_id is not None}
+    if not ids:
+        return {}
+    rows = await ctx.session.execute(select(Group.id, Group.title).where(Group.id.in_(ids)))
+    return dict(rows.all())
+
+
+def _target(group_id: int | None, user_id: int | None, groups: dict[int, str]) -> str:
+    if group_id is not None:
+        return groups.get(group_id, "")
+    return "лично" if user_id is not None else "все студенты"
+
+
+def _phase(assignment: Assignment) -> str:
+    now = utcnow()
+    if assignment.assigned_at > now:
+        return "not_started"
+    if assignment.deadline is not None and assignment.deadline < now:
+        return "closed"
+    return "open"
+
+
+def _assignment(assignment: Assignment, groups: dict[int, str], *, teacher: bool) -> dict:
+    path = f"/teacher/assignments/{assignment.id}" if teacher else f"/assignments/{assignment.id}"
+    return {
+        "id": assignment.id,
+        "title": assignment.title,
+        "description": assignment.description,
+        "for": _target(assignment.group_id, assignment.user_id, groups),
+        "group_id": assignment.group_id,
+        "problem_set_id": assignment.problem_set_id,
+        "starts_at": _when(assignment.assigned_at),
+        "deadline": _when(assignment.deadline),
+        "phase": _phase(assignment),
+        "requires_solution_code": assignment.requires_solution,
+        "url": portal_url(path),
+    }
+
+
+async def _describe(ctx: Context, assignments, *, teacher: bool) -> list[dict]:
+    assignments = list(assignments)
+    groups = await _group_titles(ctx, (a.group_id for a in assignments))
+    return [_assignment(a, groups, teacher=teacher) for a in assignments]
+
+
+async def _resolve(ctx: Context, raw: str) -> Problem:
+    found = await parse_problem_list(ctx.session, raw.strip())
+    if not found.problems:
+        raise ToolError(
+            f"Задачи {raw!r} нет в каталоге портала. Пиши ссылку, слаг LeetCode, "
+            "код Codeforces вроде 4A или task:слаг своей задачи."
+        )
+    return found.problems[0]
+
+
+async def _assignment_for(ctx: Context, assignment_id: int) -> Assignment:
+    assignment = await ctx.session.get(Assignment, assignment_id)
+    # Чужое задание для студента неотличимо от несуществующего.
+    if assignment is None or not await may_see_assignment(ctx.session, ctx.user, assignment):
+        raise ToolError(f"Задание {assignment_id} не найдено")
+    return assignment
+
+
+async def _my_problem_ids(ctx: Context) -> set[int]:
+    """Задачи из заданий, которые студенту видны, — тот же круг, что на главной."""
+    set_ids = {a.problem_set_id for a in await assignments_for_user(ctx.session, ctx.user)}
+    if not set_ids:
+        return set()
+    rows = await ctx.session.execute(
+        select(ProblemSetItem.problem_id).where(ProblemSetItem.problem_set_id.in_(set_ids))
+    )
+    return set(rows.scalars())
+
+
+async def _usage(ctx: Context, entries) -> list[dict]:
+    groups = await _group_titles(
+        ctx, (a.group_id for _, assignments in entries for a in assignments)
+    )
+    return [
+        {
+            "problem_set_id": problem_set.id,
+            "problem_set": problem_set.title,
+            "assignments": [
+                {
+                    "id": assignment.id,
+                    "title": assignment.title,
+                    "for": _target(assignment.group_id, assignment.user_id, groups),
+                    "starts_at": _when(assignment.assigned_at),
+                }
+                for assignment in assignments
+            ],
+        }
+        for problem_set, assignments in entries
+    ]
+
+
+# ---------------------------------------------------------------- всем
+
+
+@tool(
+    "whoami",
+    title=N_("Кто я"),
+    hint=N_("имя, роль и группы"),
+    roles=STUDENT,
+)
+async def whoami(ctx: Context, args: NoParams) -> dict:
+    """Кто подключён к порталу: имя, роль, группы и разрешает ли ключ изменения.
+
+    Позови первым, если не знаешь, с кем работаешь: от роли зависит, какие
+    инструменты есть. Время на портале — в поясе, указанном в `timezone`.
+    """
+    groups = await groups_for_user(ctx.session, ctx.user)
+    return {
+        "id": ctx.user.id,
+        "name": ctx.user.display_name,
+        "role": ctx.user.role.value,
+        "groups": [{"id": group.id, "title": group.title} for group in groups],
+        "can_write": ctx.can_write,
+        "portal": settings.base_url,
+        "timezone": settings.display_timezone,
+    }
+
+
+class AssignmentsParams(Params):
+    group_id: int | None = Field(
+        None, description="Только задания этой группы (для преподавателя)."
+    )
+
+
+@tool(
+    "list_assignments",
+    title=N_("Задания"),
+    hint=N_("задания, сроки и сколько засчитано"),
+    roles=STUDENT,
+)
+async def list_assignments(ctx: Context, args: AssignmentsParams) -> dict:
+    """Задания: название, кому, начало, дедлайн, фаза (not_started / open / closed).
+
+    Студенту — свои задания и сколько задач уже засчитано. Преподавателю —
+    все задания портала, можно сузить до группы. Подробности одного задания —
+    `get_assignment`.
+    """
+    if not ctx.user.is_teacher:
+        mine = await assignments_for_user(ctx.session, ctx.user)
+        items = await _describe(ctx, mine, teacher=False)
+        for item, assignment in zip(items, mine, strict=True):
+            progress = await compute_progress(ctx.session, assignment, [ctx.user])
+            item.update(
+                solved=progress.solved_count(ctx.user.id), total=progress.total_problems
+            )
+        return {"assignments": items}
+
+    stmt = select(Assignment).order_by(Assignment.assigned_at.desc())
+    if args.group_id is not None:
+        stmt = stmt.where(Assignment.group_id == args.group_id)
+    found = list((await ctx.session.execute(stmt)).scalars())
+    sizes = dict(
+        (
+            await ctx.session.execute(
+                select(ProblemSetItem.problem_set_id, func.count()).group_by(
+                    ProblemSetItem.problem_set_id
+                )
+            )
+        ).all()
+    )
+    items = await _describe(ctx, found, teacher=True)
+    for item, assignment in zip(items, found, strict=True):
+        item["problems"] = sizes.get(assignment.problem_set_id, 0)
+    return {"assignments": items}
+
+
+class AssignmentParams(Params):
+    assignment_id: int = Field(description="Номер задания из `list_assignments`.")
+
+
+@tool(
+    "get_assignment",
+    title=N_("Задание целиком"),
+    hint=N_("задачи задания и статус каждой"),
+    roles=STUDENT,
+)
+async def get_assignment(ctx: Context, args: AssignmentParams) -> dict:
+    """Одно задание: условия выдачи и задачи со ссылками.
+
+    Студенту — по каждой задаче его статус: solved_in_time (засчитано, если
+    `counts`), solved_late (после дедлайна, не засчитывается), solved_before
+    (решена до выдачи, не засчитывается), not_solved; и нужен ли ещё код.
+    Преподавателю — сколько участников закрыло каждую задачу; по людям —
+    `get_assignment_progress`.
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    teacher = ctx.user.is_teacher
+    out = (await _describe(ctx, [assignment], teacher=teacher))[0]
+
+    if not teacher:
+        progress = await compute_progress(ctx.session, assignment, [ctx.user])
+        problems = []
+        for problem in progress.problems:
+            cell = progress.cell(ctx.user.id, problem.id)
+            problems.append(
+                {
+                    **_problem(problem),
+                    "status": cell.status.value,
+                    "counts": cell.counts,
+                    "code_review": cell.review.value if cell.review else None,
+                    "code_missing": cell.code_missing,
+                }
+            )
+        out.update(
+            solved=progress.solved_count(ctx.user.id),
+            total=progress.total_problems,
+            problems=problems,
+        )
+        return out
+
+    participants = [
+        u for u in await participants_for_assignment(ctx.session, assignment) if not u.is_teacher
+    ]
+    progress = await compute_progress(ctx.session, assignment, participants)
+    out.update(
+        participants=len(participants),
+        problems=[
+            {**_problem(problem), "solved_by": progress.problem_solved_count(problem.id)}
+            for problem in progress.problems
+        ],
+    )
+    return out
+
+
+class ProblemParams(Params):
+    problem: str = Field(
+        description="Ссылка на задачу, слаг LeetCode (two-sum), код Codeforces (cf:4A) "
+        "или своя задача (task:слаг)."
+    )
+
+
+@tool(
+    "get_problem",
+    title=N_("Условие задачи"),
+    hint=N_("условие, лимиты и открытые тесты"),
+    roles=STUDENT,
+)
+async def get_problem(ctx: Context, args: ProblemParams) -> dict:
+    """Задача: площадка, сложность, метки, ссылка. У своих задач портала — ещё
+    условие в markdown, лимиты и открытые тесты.
+
+    Закрытые тесты не отдаются никому — только их число. Студенту доступны
+    задачи из его заданий; преподаватель видит ещё, в каких списках и
+    заданиях задача уже стояла.
+    """
+    problem = await _resolve(ctx, args.problem)
+    if not ctx.user.is_teacher and problem.id not in await _my_problem_ids(ctx):
+        raise ToolError("Этой задачи нет в твоих заданиях")
+
+    out = _problem(problem)
+    if problem.platform == Platform.local:
+        task = await ctx.session.scalar(select(Task).where(Task.problem_id == problem.id))
+        if task is not None:
+            tests = await tasks_service.tests_for(ctx.session, task)
+            out.update(
+                statement=task.statement,
+                time_limit_ms=task.time_limit_ms,
+                memory_limit_mb=task.memory_limit_mb,
+                # Закрытые тесты не покидают портал: ни ввода, ни ответа.
+                open_tests=[
+                    {"input": test.stdin, "output": test.expected}
+                    for test in tests
+                    if test.is_open
+                ],
+                closed_tests=sum(1 for test in tests if not test.is_open),
+            )
+    if ctx.user.is_teacher:
+        usage = await problem_sets.used_in(ctx.session, [problem.id])
+        out["used_in"] = await _usage(ctx, usage.get(problem.id, []))
+    return out
+
+
+class AnnouncementsParams(Params):
+    include_past: bool = Field(False, description="Показать и прошедшие события.")
+
+
+@tool(
+    "list_announcements",
+    title=N_("Анонсы"),
+    hint=N_("анонсы контестов и новости"),
+    roles=STUDENT,
+)
+async def list_announcements(ctx: Context, args: AnnouncementsParams) -> dict:
+    """Объявления: контесты, сборы, новости — то же, что в разделе «Анонсы».
+
+    `state`: upcoming — ещё не началось, live — идёт, past — прошло,
+    plain — без даты.
+    """
+    now = utcnow()
+    visible = await list_visible(ctx.session, ctx.user)
+    groups = await _group_titles(ctx, (item.group_id for item in visible))
+    items = []
+    for item in visible:
+        state = item.state(now)
+        if state == "past" and not args.include_past:
+            continue
+        items.append(
+            {
+                "id": item.id,
+                "title": item.title,
+                "body": item.body,
+                "url": item.url,
+                "starts_at": _when(item.starts_at),
+                "ends_at": _when(item.ends_at),
+                "state": state,
+                "for": groups.get(item.group_id, "") if item.group_id else "все",
+                "pinned": item.pinned,
+            }
+        )
+    return {"announcements": items}
+
+
+# ---------------------------------------------------------------- преподавателю: задачи
+
+
+class SearchParams(Params):
+    query: str = Field("", description="Часть названия, слага или кода задачи.")
+    platform: Literal["leetcode", "codeforces", "local"] | None = None
+    tag: str | None = Field(
+        None,
+        description="Метка целиком, как на площадке: «binary search», «dp», "
+        "«Two Pointers». Регистр не важен.",
+    )
+    difficulty: Literal["Easy", "Medium", "Hard"] | None = Field(
+        None, description="Сложность LeetCode."
+    )
+    min_rating: int | None = Field(None, description="Рейтинг Codeforces от.")
+    max_rating: int | None = Field(None, description="Рейтинг Codeforces до.")
+    limit: int = Field(30, ge=1, le=100)
+
+
+@tool(
+    "search_problems",
+    title=N_("Поиск по каталогу задач"),
+    hint=N_("по меткам, сложности и рейтингу"),
+    roles=TEACHER,
+)
+async def search_catalog(ctx: Context, args: SearchParams) -> dict:
+    """Ищет в каталоге портала (LeetCode, Codeforces и свои задачи) по названию,
+    метке, сложности и рейтингу.
+
+    В список задания попадает только то, что есть в каталоге, поэтому
+    подбирая задачи, проверяй их здесь или через `preview_problem_list`.
+    `used_in` — в каких списках задача уже стоит: повтор того, что группа
+    уже решала, на контрольной ничего не проверит. Платные задачи LeetCode
+    помечены `paid_only` — у студентов без подписки они не откроются.
+    """
+    found = await search_problems(
+        ctx.session,
+        args.query,
+        Platform(args.platform) if args.platform else None,
+        args.limit,
+        tag=args.tag,
+        difficulty=args.difficulty,
+        min_rating=args.min_rating,
+        max_rating=args.max_rating,
+    )
+    usage = await problem_sets.used_in(ctx.session, [p.id for p in found])
+    return {
+        "problems": [
+            {
+                **_problem(problem),
+                "used_in": [entry[0].title for entry in usage.get(problem.id, [])],
+            }
+            for problem in found
+        ]
+    }
+
+
+class ProblemListParams(Params):
+    problems: list[str] = Field(
+        min_length=1,
+        max_length=100,
+        description="По задаче на элемент: ссылка LeetCode или Codeforces, слаг "
+        "LeetCode, cf:1352G, task:слаг.",
+    )
+
+
+@tool(
+    "preview_problem_list",
+    title=N_("Проверить список задач"),
+    hint=N_("что не распознано и что группа уже решала"),
+    roles=TEACHER,
+)
+async def preview_problem_list(ctx: Context, args: ProblemListParams) -> dict:
+    """Пробный разбор списка задач — ничего не создаёт.
+
+    Покажет, какие строки портал узнал, какие нет, где задачи уже стояли
+    (списки и задания, когда выдавались) и есть ли повторы. Зови перед
+    `create_problem_set`, а итог покажи человеку: нераспознанное не попадёт
+    в список, а повтор старой задачи он, возможно, не заметил.
+    """
+    resolved: list[tuple[str, Problem]] = []
+    unresolved: list[str] = []
+    for line in args.problems:
+        found = await parse_problem_list(ctx.session, line)
+        if found.problems:
+            resolved.append((line, found.problems[0]))
+        elif line.strip():
+            unresolved.append(line)
+
+    usage = await problem_sets.used_in(ctx.session, [problem.id for _, problem in resolved])
+    seen: set[int] = set()
+    items = []
+    for line, problem in resolved:
+        items.append(
+            {
+                "input": line,
+                **_problem(problem),
+                "duplicate": problem.id in seen,
+                "used_in": await _usage(ctx, usage.get(problem.id, [])),
+            }
+        )
+        seen.add(problem.id)
+    out: dict = {"resolved": items, "unresolved": unresolved}
+    if unresolved:
+        out["hint"] = (
+            "Нераспознанных задач нет в каталоге. Проверь слаг или код; новые задачи "
+            "площадок появляются после обновления каталога (кнопка на панели "
+            "преподавателя, раз в сутки — сама)."
+        )
+    return out
+
+
+@tool(
+    "list_own_tasks",
+    title=N_("Свои задачи портала"),
+    hint=N_("лимиты и число тестов"),
+    roles=TEACHER,
+)
+async def list_own_tasks(ctx: Context, args: NoParams) -> dict:
+    """Свои задачи портала (с проверкой судьёй): ссылка task:слаг, лимиты, число
+    открытых и закрытых тестов. Загружаются архивом на странице «Свои задачи»."""
+    test_counts = select(
+        TaskTest.task_id,
+        func.sum(case((TaskTest.is_open, 1), else_=0)).label("open"),
+        func.count().label("total"),
+    ).group_by(TaskTest.task_id)
+    counts = {row.task_id: row for row in (await ctx.session.execute(test_counts)).all()}
+    rows = await ctx.session.execute(
+        select(Task, Problem).join(Problem, Problem.id == Task.problem_id).order_by(Task.created_at)
+    )
+    items = []
+    for task, problem in rows.all():
+        row = counts.get(task.id)
+        open_tests = int(row.open or 0) if row else 0
+        items.append(
+            {
+                **_problem(problem),
+                "time_limit_ms": task.time_limit_ms,
+                "memory_limit_mb": task.memory_limit_mb,
+                "open_tests": open_tests,
+                "closed_tests": (row.total - open_tests) if row else 0,
+            }
+        )
+    return {"tasks": items}
+
+
+# ---------------------------------------------------------------- преподавателю: списки
+
+
+class SetsParams(Params):
+    query: str = Field("", description="Часть названия списка.")
+
+
+@tool(
+    "list_problem_sets",
+    title=N_("Списки задач"),
+    hint=N_("списки и где они выданы"),
+    roles=TEACHER,
+)
+async def list_problem_sets(ctx: Context, args: SetsParams) -> dict:
+    """Списки задач портала: сколько задач и в скольких заданиях выдан.
+
+    Посмотри перед созданием нового — может, нужный уже есть.
+    """
+    stmt = select(ProblemSet).order_by(ProblemSet.created_at.desc())
+    if args.query.strip():
+        stmt = stmt.where(func.lower(ProblemSet.title).like(f"%{args.query.strip().lower()}%"))
+    sets = list((await ctx.session.execute(stmt)).scalars())
+    issued = dict(
+        (
+            await ctx.session.execute(
+                select(Assignment.problem_set_id, func.count()).group_by(Assignment.problem_set_id)
+            )
+        ).all()
+    )
+    sizes = dict(
+        (
+            await ctx.session.execute(
+                select(ProblemSetItem.problem_set_id, func.count()).group_by(
+                    ProblemSetItem.problem_set_id
+                )
+            )
+        ).all()
+    )
+    return {
+        "problem_sets": [
+            {
+                "id": problem_set.id,
+                "title": problem_set.title,
+                "description": problem_set.description,
+                "problems": sizes.get(problem_set.id, 0),
+                "assignments": issued.get(problem_set.id, 0),
+                "created_at": _when(problem_set.created_at),
+            }
+            for problem_set in sets
+        ]
+    }
+
+
+class SetParams(Params):
+    problem_set_id: int
+
+
+@tool(
+    "get_problem_set",
+    title=N_("Список задач целиком"),
+    hint=N_("задачи списка и задания по нему"),
+    roles=TEACHER,
+)
+async def get_problem_set(ctx: Context, args: SetParams) -> dict:
+    """Один список: задачи по порядку и задания, в которых он выдан."""
+    problem_set = await ctx.session.get(ProblemSet, args.problem_set_id)
+    if problem_set is None:
+        raise ToolError(f"Списка {args.problem_set_id} нет")
+    issued = (
+        await ctx.session.execute(
+            select(Assignment).where(Assignment.problem_set_id == problem_set.id)
+        )
+    ).scalars()
+    return {
+        "id": problem_set.id,
+        "title": problem_set.title,
+        "description": problem_set.description,
+        "url": portal_url(f"/teacher/sets/{problem_set.id}"),
+        "problems": [
+            _problem(problem) for problem in await problems_for_set(ctx.session, problem_set.id)
+        ],
+        "assignments": await _describe(ctx, issued, teacher=True),
+    }
+
+
+class CreateSetParams(Params):
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field("", max_length=2000)
+    problems: list[str] = Field(
+        min_length=1,
+        max_length=100,
+        description="Задачи по порядку, в тех же записях, что у `preview_problem_list`.",
+    )
+
+
+@tool(
+    "create_problem_set",
+    title=N_("Создать список задач"),
+    hint=N_("студенты не видят его до выдачи"),
+    roles=TEACHER,
+    writes=True,
+)
+async def create_problem_set(ctx: Context, args: CreateSetParams) -> dict:
+    """Создаёт список задач. Студенты его не видят, пока по нему не выдано задание.
+
+    Сначала проверь задачи через `preview_problem_list` и согласуй список с
+    человеком. Нераспознанные строки в список не попадут — они вернутся в
+    `unresolved`.
+    """
+    if not args.title.strip():
+        raise ToolError("Пустое название")
+    problem_set, result = await problem_sets.create(
+        ctx.session, ctx.user, args.title, args.description, "\n".join(args.problems)
+    )
+    return {
+        "id": problem_set.id,
+        "url": portal_url(f"/teacher/sets/{problem_set.id}"),
+        "added": [_ref(problem) for problem in result.problems],
+        "unresolved": result.unresolved,
+    }
+
+
+class AddToSetParams(Params):
+    problem_set_id: int
+    problems: list[str] = Field(min_length=1, max_length=100)
+
+
+@tool(
+    "add_problems_to_set",
+    title=N_("Добавить задачи в список"),
+    hint=N_("дописывает в конец списка"),
+    roles=TEACHER,
+    writes=True,
+)
+async def add_problems_to_set(ctx: Context, args: AddToSetParams) -> dict:
+    """Дописывает задачи в конец списка; уже стоящие пропускаются.
+
+    Если список уже выдан, новые задачи сразу появятся у студентов в этих
+    заданиях — скажи об этом человеку до вызова.
+    """
+    problem_set = await ctx.session.get(ProblemSet, args.problem_set_id)
+    if problem_set is None:
+        raise ToolError(f"Списка {args.problem_set_id} нет")
+    added, unresolved = await problem_sets.add(ctx.session, problem_set, "\n".join(args.problems))
+    return {"added": [_ref(problem) for problem in added], "unresolved": unresolved}
+
+
+# ---------------------------------------------------------------- преподавателю: группы и задания
+
+
+class GroupsParams(Params):
+    include_archived: bool = False
+
+
+@tool(
+    "list_groups",
+    title=N_("Группы"),
+    hint=N_("размер и коды вступления"),
+    roles=TEACHER,
+)
+async def list_groups(ctx: Context, args: GroupsParams) -> dict:
+    """Группы: номер, название, сколько человек, код вступления."""
+    stmt = select(Group).order_by(Group.title)
+    if not args.include_archived:
+        stmt = stmt.where(Group.is_archived.is_(False))
+    groups = list((await ctx.session.execute(stmt)).scalars())
+    sizes = dict(
+        (
+            await ctx.session.execute(
+                select(GroupMembership.group_id, func.count()).group_by(GroupMembership.group_id)
+            )
+        ).all()
+    )
+    return {
+        "groups": [
+            {
+                "id": group.id,
+                "title": group.title,
+                "members": sizes.get(group.id, 0),
+                "join_code": group.join_code,
+                "archived": group.is_archived,
+            }
+            for group in groups
+        ]
+    }
+
+
+class GroupParams(Params):
+    group_id: int
+
+
+@tool(
+    "get_group",
+    title=N_("Состав группы"),
+    hint=N_("участники и задания группы"),
+    roles=TEACHER,
+)
+async def get_group(ctx: Context, args: GroupParams) -> dict:
+    """Группа: участники (номер и имя) и выданные ей задания."""
+    group = await ctx.session.get(Group, args.group_id)
+    if group is None:
+        raise ToolError(f"Группы {args.group_id} нет")
+    members = (
+        await ctx.session.execute(
+            select(User)
+            .join(GroupMembership, GroupMembership.user_id == User.id)
+            .where(GroupMembership.group_id == group.id)
+            .order_by(User.display_name)
+        )
+    ).scalars()
+    issued = (
+        await ctx.session.execute(
+            select(Assignment)
+            .where(Assignment.group_id == group.id)
+            .order_by(Assignment.assigned_at.desc())
+        )
+    ).scalars()
+    return {
+        "id": group.id,
+        "title": group.title,
+        "members": [
+            {"id": user.id, "name": user.display_name, "role": user.role.value}
+            for user in members
+        ],
+        "assignments": await _describe(ctx, issued, teacher=True),
+    }
+
+
+@tool(
+    "get_assignment_progress",
+    title=N_("Матрица задания"),
+    hint=N_("кто сколько решил"),
+    roles=TEACHER,
+)
+async def get_assignment_progress(ctx: Context, args: AssignmentParams) -> dict:
+    """Матрица задания: по каждому участнику — сколько засчитано и статус каждой задачи.
+
+    Считает так же, как матрица на сайте, табло и выгрузка CSV: засчитано
+    (`counts`) — решено в срок, код прислан, если его требуют, и не отклонён.
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    participants = [
+        u for u in await participants_for_assignment(ctx.session, assignment) if not u.is_teacher
+    ]
+    progress = await compute_progress(ctx.session, assignment, participants)
+    rows = []
+    for user in participants:
+        cells = []
+        for problem in progress.problems:
+            cell = progress.cell(user.id, problem.id)
+            cells.append(
+                {
+                    "ref": _ref(problem),
+                    "status": cell.status.value,
+                    "counts": cell.counts,
+                    "solved_at": _when(cell.solved_at),
+                    "code_review": cell.review.value if cell.review else None,
+                    "code_missing": cell.code_missing,
+                }
+            )
+        rows.append(
+            {
+                "student_id": user.id,
+                "student": user.display_name,
+                "solved": progress.solved_count(user.id),
+                "problems": cells,
+            }
+        )
+    return {
+        **(await _describe(ctx, [assignment], teacher=True))[0],
+        "total": progress.total_problems,
+        "students": rows,
+    }
+
+
+class SolutionsParams(Params):
+    assignment_id: int
+    problem: str | None = Field(None, description="Только эта задача задания.")
+    student_id: int | None = Field(None, description="Только этот студент.")
+
+
+@tool(
+    "get_assignment_solutions",
+    title=N_("Решения студентов"),
+    hint=N_("код — для проверки и поиска списывания"),
+    roles=TEACHER,
+)
+async def get_assignment_solutions(ctx: Context, args: SolutionsParams) -> dict:
+    """Код решений студентов по заданию — для проверки и поиска списывания.
+
+    По каждой задаче и студенту одно решение: последнее принятое после выдачи
+    задания, а если принятого нет — последнее присланное. Источник `upload` —
+    код, присланный на портал к задаче с площадки; `submission` — посылка
+    (своя задача портала или исходник, подтянутый с площадки). `attempts` —
+    сколько посылок было, `late` — после дедлайна.
+
+    Ищешь списывание — сравнивай решения одной задачи между собой: одинаковые
+    редкие имена, порядок действий, общие ошибки, время сдачи подряд.
+    Похожесть — повод посмотреть, а не приговор: у короткой задачи хорошие
+    решения похожи сами по себе. Если ответ обрезан (`truncated`), сужай
+    выборку параметрами `problem` или `student_id`.
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    participants = [
+        u for u in await participants_for_assignment(ctx.session, assignment) if not u.is_teacher
+    ]
+    if args.student_id is not None:
+        participants = [u for u in participants if u.id == args.student_id]
+        if not participants:
+            raise ToolError(f"Студента {args.student_id} нет среди участников задания")
+    problems = await problems_for_set(ctx.session, assignment.problem_set_id)
+    if args.problem:
+        wanted = await _resolve(ctx, args.problem)
+        problems = [p for p in problems if p.id == wanted.id]
+        if not problems:
+            raise ToolError("Этой задачи нет в задании")
+
+    user_ids = [u.id for u in participants]
+    problem_ids = [p.id for p in problems]
+    uploads = await solutions.for_assignment(ctx.session, assignment.id, user_ids)
+
+    latest: dict[tuple[int, int], Submission] = {}
+    attempts: dict[tuple[int, int], int] = {}
+    if user_ids and problem_ids:
+        rows = await ctx.session.execute(
+            select(Submission)
+            .where(
+                Submission.user_id.in_(user_ids),
+                Submission.problem_id.in_(problem_ids),
+                Submission.submitted_at >= assignment.assigned_at,
+            )
+            .order_by(Submission.submitted_at)
+        )
+        for sub in rows.scalars():
+            key = (sub.user_id, sub.problem_id)
+            attempts[key] = attempts.get(key, 0) + 1
+            if not sub.code:
+                continue
+            current = latest.get(key)
+            # Принятое важнее непринятого, среди равных — более позднее.
+            if current is None or sub.is_accepted or not current.is_accepted:
+                latest[key] = sub
+
+    budget = MAX_CODE_CHARS
+    truncated = False
+    out = []
+    for problem in problems:
+        entries = []
+        for user in participants:
+            key = (user.id, problem.id)
+            upload, sub = uploads.get(key), latest.get(key)
+            if upload is None and sub is None:
+                continue
+            if upload is not None:
+                entry = {
+                    "source": "upload",
+                    "code": upload.code,
+                    "submitted_at": upload.submitted_at,
+                    "review": upload.status.value,
+                    "language": None,
+                    "accepted": None,
+                }
+            else:
+                entry = {
+                    "source": "submission",
+                    "code": sub.code,
+                    "submitted_at": sub.submitted_at,
+                    "review": None,
+                    "language": sub.language,
+                    "accepted": sub.is_accepted,
+                }
+            code = entry.pop("code") or ""
+            submitted_at = entry.pop("submitted_at")
+            entry = {
+                "student_id": user.id,
+                "student": user.display_name,
+                **entry,
+                "submitted_at": _when(submitted_at),
+                "late": assignment.deadline is not None and submitted_at > assignment.deadline,
+                "attempts": attempts.get(key, 0),
+            }
+            if len(code) <= budget:
+                entry["code"] = code
+                budget -= len(code)
+            else:
+                entry["code"] = None
+                truncated = True
+            entries.append(entry)
+        out.append({**_problem(problem), "solutions": entries})
+
+    result: dict = {"assignment_id": assignment.id, "problems": out, "truncated": truncated}
+    if truncated:
+        result["hint"] = (
+            "Код части решений не поместился (code = null). Запроси по одной задаче "
+            "параметром problem или по студенту параметром student_id."
+        )
+    return result
+
+
+class CreateAssignmentParams(Params):
+    title: str = Field(min_length=1, max_length=200)
+    problem_set_id: int
+    group_ids: list[int] = Field(
+        default_factory=list,
+        description="Кому: по заданию на каждую группу. Пусто — только вместе с for_everyone.",
+    )
+    for_everyone: bool = Field(
+        False, description="Выдать всем студентам портала, без групп. Нужно сказать явно."
+    )
+    description: str = Field("", max_length=2000)
+    starts_at: datetime | None = Field(
+        None,
+        description="Начало, ISO 8601. Без пояса — местное время портала. Пусто — сейчас.",
+    )
+    deadline: datetime | None = Field(
+        None, description="Дедлайн, ISO 8601. Без пояса — местное время портала."
+    )
+    requires_solution: bool = Field(
+        False,
+        description="Требовать код решения задач с площадок: без него зачёта нет.",
+    )
+    count_prior_solves: bool = Field(
+        False, description="Засчитывать задачи, решённые до выдачи задания."
+    )
+
+
+@tool(
+    "create_assignment",
+    title=N_("Выдать задание"),
+    hint=N_("студенты сразу видят его, в Telegram уходит сообщение"),
+    roles=TEACHER,
+    writes=True,
+    notifies=True,
+)
+async def create_assignment(ctx: Context, args: CreateAssignmentParams) -> dict:
+    """Выдаёт список задач группам — студенты сразу видят задание, а в Telegram
+    уходит сообщение. Отменить рассылку нельзя.
+
+    Перед вызовом покажи человеку название, список, группы, начало и дедлайн
+    и дождись явного «да». После выдачи меняются только название, описание и
+    дедлайн (вперёд) — на сайте.
+    """
+    if not args.group_ids and not args.for_everyone:
+        raise ToolError(
+            "Не указано, кому выдать: передай group_ids (номера из list_groups) "
+            "или for_everyone=true, если задание действительно для всех."
+        )
+    try:
+        created, delivered = await assignments_service.issue(
+            ctx.session,
+            ctx.user,
+            title=args.title,
+            problem_set_id=args.problem_set_id,
+            group_ids=[] if args.for_everyone else args.group_ids,
+            description=args.description,
+            starts_at=_moment(args.starts_at),
+            deadline=_moment(args.deadline),
+            count_prior_solves=args.count_prior_solves,
+            requires_solution=args.requires_solution,
+        )
+    except assignments_service.AssignmentError as exc:
+        raise ToolError(str(exc)) from exc
+    return {
+        "assignments": await _describe(ctx, created, teacher=True),
+        "telegram_messages": delivered,
+    }
+
+
+# ---------------------------------------------------------------- подсказка модели
+
+
+STUDENT_GUIDE = """\
+Портал тренировок по программированию. Ты подключён от имени студента и
+видишь только его: его задания, задачи из них, его зачёт и объявления.
+Изменить через этот сервер ничего нельзя — решения сдаются на сайте.
+
+Начни с list_assignments: что выдано, до какого срока и сколько засчитано.
+Подробности задания — get_assignment, условие задачи — get_problem.
+Задача засчитана (counts), если решена после выдачи и до дедлайна, а если
+задание требует код — код прислан и не отклонён. Закрытых тестов нет ни у
+кого, кроме портала. Время — в поясе из whoami.
+"""
+
+TEACHER_GUIDE = """\
+Портал тренировок по программированию. Ты подключён от имени преподавателя.
+
+Подготовка семинара или контрольной:
+1. list_problem_sets — может, подходящий список уже есть.
+2. search_problems — подбор по меткам, сложности LeetCode, рейтингу Codeforces.
+   В список попадает только то, что есть в каталоге портала.
+3. preview_problem_list — пробный разбор: что узнано, что нет, где задача уже
+   стояла. Покажи итог человеку: повтор задачи, которую группа решала, он мог
+   не заметить.
+4. create_problem_set — после согласия человека.
+5. list_groups, затем create_assignment — только после явного «да»: студенты
+   сразу видят задание, в Telegram уходит сообщение.
+
+Проверка: get_assignment_progress — кто сколько решил (так же, как матрица
+и табло на сайте); get_assignment_solutions — код решений для проверки и
+поиска списывания. Похожесть решений — повод посмотреть, а не приговор.
+
+Записи задач: ссылка, слаг LeetCode (two-sum), cf:4A, task:слаг своей задачи.
+Время без пояса — местное время портала (см. whoami).
+"""
+
+READ_ONLY_NOTE = """
+Ключ выпущен только на чтение: создать список или выдать задание нельзя.
+Нужно — выпусти на странице «ИИ» ключ с разрешением на изменения.
+"""
+
+
+def instructions(ctx: Context) -> str:
+    if not ctx.user.is_teacher:
+        return STUDENT_GUIDE
+    return TEACHER_GUIDE + ("" if ctx.can_write else READ_ONLY_NOTE)

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "teacher/_tasks_tabs.html" import tasks_tabs %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ _("Поиск задач") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
+{{ tasks_tabs("catalog") }}
 <h1>{{ _("Каталог задач") }}</h1>
 <p class="sub">{{ _("Найди задачу и скопируй идентификатор.") }}</p>
 

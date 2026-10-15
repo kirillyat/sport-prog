@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "teacher/_tasks_tabs.html" import tasks_tabs %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ _("Задачи вне каталога") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
+{{ tasks_tabs("unlinked") }}
 <h1>{{ _("Задачи вне каталога") }}</h1>
 <p class="sub">
   {{ _("Задачи вне каталога — обычно свежие контесты.") }}

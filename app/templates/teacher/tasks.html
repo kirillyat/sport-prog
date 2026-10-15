@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "teacher/_tasks_tabs.html" import tasks_tabs %}
 {% from "_ui.html" import empty %}
 {% block title %}{{ _("Свои задачи") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
+{{ tasks_tabs("tasks") }}
 <h1>{{ _("Свои задачи") }}</h1>
 <p class="sub">{{ _("Условие и тесты на портале — для контрольной.") }}</p>
 

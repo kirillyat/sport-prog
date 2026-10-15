@@ -4,9 +4,9 @@
   устройствами незачем. Раскрывается через <details>, как и выбор языка;
   скрипт нужен только чтобы применить и запомнить выбор.
 #}
-{% macro theme_pick(extra="") -%}
-<details class="lang theme {{ extra }}">
-  <summary title="{{ _("Оформление") }}">{{ icon("palette") }}</summary>
+{% macro theme_pick(extra="", label="") -%}
+<details class="lang theme popup {{ extra }}">
+  <summary title="{{ _("Оформление") }}">{{ icon("palette") }}{% if label %}<span>{{ label }}</span>{% endif %}</summary>
   <div class="lang-menu theme-menu">
     {% for group, items in themes %}
     {% if group %}<p class="theme-group">{{ _(group) }}</p>{% endif %}

@@ -3,9 +3,10 @@
   без единой строчки скрипта. Форма на каждый язык, потому что выбор меняет
   куку, а это POST.
 #}
-{% macro lang_switch(path="/", extra="") -%}
-<details class="lang {{ extra }}">
-  <summary title="{{ _("Язык интерфейса") }}">{{ language()|upper }}</summary>
+{% macro lang_switch(path="/", extra="", label="") -%}
+<details class="lang popup {{ extra }}">
+  <summary title="{{ _("Язык интерфейса") }}">{% if label %}{{ icon("globe") }}<span>{{ label }}</span>
+    <span class="lang-code">{{ language()|upper }}</span>{% else %}{{ language()|upper }}{% endif %}</summary>
   <div class="lang-menu">
     {% for code, name in languages.items() %}
     <form method="post" action="/view/lang">

@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["app", "app.platforms", "app.routers", "app.services"]
+packages = ["app", "app.mcp", "app.platforms", "app.routers", "app.services"]
 
 [dependency-groups]
 dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]

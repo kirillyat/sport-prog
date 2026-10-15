@@ -17,8 +17,10 @@ from app.config import settings
 from app.deps import Forbidden, RedirectToLogin, section_required
 from app.i18n import LANGUAGE_COOKIE, pick_language, set_language
 from app.i18n import translate as _
+from app.mcp import server as mcp_server
 from app.routers import (
     accounts,
+    ai,
     announcements,
     auth,
     course,
@@ -124,6 +126,10 @@ app.include_router(ingest.router)
 app.include_router(view.router)
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
+app.include_router(ai.router, dependencies=[Depends(section_required("ai"))])
+# Раздел для MCP проверяется внутри: ключ приходит заголовком, а не кукой,
+# и закрытому разделу нужен ответ JSON-RPC, а не страница ошибки.
+app.include_router(mcp_server.router)
 
 
 @app.middleware("http")

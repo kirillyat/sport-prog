@@ -616,6 +616,31 @@ class LoginToken(Base):
     )
 
 
+class ApiToken(Base):
+    """Ключ, с которым нейросеть ходит в портал по MCP от имени человека.
+
+    Хранится только хэш: сам ключ показывается один раз при выпуске, как
+    пароль. Утёкшую базу нельзя превратить в доступ к порталу.
+
+    Роль в ключе не записана — она берётся у владельца при каждом запросе.
+    Иначе ключ, выпущенный преподавателем, пережил бы снятие роли.
+    """
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # Начало ключа — чтобы человек узнал свой в списке, не видя целиком.
+    hint: Mapped[str] = mapped_column(String(16))
+    # Ключ на одно чтение по умолчанию: агент, который сам решил «выдать
+    # задание группе», — не то, что ждёшь от помощника по подбору задач.
+    can_write: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column()
+
+
 class SyncState(Base):
     """Служебные отметки: когда в последний раз обновляли каталог задач."""
 

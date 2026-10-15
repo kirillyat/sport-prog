@@ -793,6 +793,74 @@ async def test_rail_differs_for_teacher_and_student(session, client):
     assert 'href="/announcements"' in rail
 
 
+def _rail(page: str) -> tuple[str, str]:
+    """Пункты рейки на виду и то, что спрятано под «Ещё»."""
+    nav = page.split('<nav class="nav">', 1)[1].split("</nav>", 1)[0]
+    if 'class="nav-more-menu"' not in nav:
+        return nav, ""
+    shown, more = nav.split('class="nav-more-menu"', 1)
+    return shown, more
+
+
+async def test_teacher_rail_shows_daily_work_and_hides_the_showcase(session, client):
+    """Одиннадцать пунктов в столбик не помещались на экране ноутбука.
+    На виду — работа преподавателя, включая списки задач и судью, которые
+    раньше были только карточками на панели; витрина для студентов — под «Ещё»."""
+    await _login(client, "Кирилл", teacher=True)
+    shown, more = _rail((await client.get("/teacher")).text)
+    for href in ("/teacher/groups", "/teacher/assignments", "/teacher/sets",
+                 "/teacher/reviews", "/teacher/judge"):
+        assert f'href="{href}"' in shown, href
+    for href in ("/announcements", "/feed", "/leaderboard", "/teacher/features"):
+        assert f'href="{href}"' in more and f'href="{href}"' not in shown, href
+
+
+async def test_tasks_item_stays_lit_across_its_tabs(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    for path in ("/teacher/sets", "/teacher/tasks", "/teacher/problems"):
+        shown, _ = _rail((await client.get(path)).text)
+        assert 'href="/teacher/sets" class="active' in shown, path
+
+
+async def test_student_rail_has_nothing_hidden(session, client):
+    """У студента пунктов меньше — им незачем прятаться под «Ещё»."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/logout")
+    await _login(client, "Аня")
+    shown, more = _rail((await client.get("/")).text)
+    assert more == "" and 'href="/feed"' in shown
+
+
+async def test_platform_accounts_live_under_the_avatar(session, client):
+    """Аккаунты площадок — про самого человека, а не про портал, поэтому они
+    в меню аватарки. Меню есть и на телефоне: там рейки нет, а без него
+    студенту было бы некуда нажать."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/logout")
+    await _login(client, "Аня")
+    page = (await client.get("/")).text
+    shown, _ = _rail(page)
+    assert 'href="/accounts"' not in shown
+    menus = page.split('class="rail-menu-panel"')[1:]
+    assert len(menus) == 2                      # рейка и верхняя полоска телефона
+    assert all('href="/accounts"' in menu.split("</details>", 1)[0] for menu in menus)
+    mobile = page.split('class="mobile-bar"', 1)[1]
+    assert 'class="rail-menu popup down"' in mobile
+
+
+async def test_sign_out_and_settings_live_in_the_avatar_menu(session, client):
+    await _login(client, "Кирилл", teacher=True)
+    page = (await client.get("/teacher")).text
+    menu = page.split('class="rail-menu-panel"', 1)[1].split("</details>\n  </div>", 1)[0]
+    assert 'action="/logout"' in menu and 'action="/view/student"' in menu
+    assert 'href="/me"' in menu
+
+    # Глядя глазами студента, дорогу назад не прячем в меню.
+    await client.post("/view/student", data={"next": "/"})
+    foot = (await client.get("/")).text.split('class="rail-foot"', 1)[1]
+    assert foot.index('action="/view/teacher"') < foot.index('class="rail-menu')
+
+
 async def test_pending_reviews_show_up_in_the_rail(session, client, tmp_path, monkeypatch):
     """Счётчик проверки — единственный способ узнать о работе, не заходя в раздел."""
     from app.models import ReviewStatus, SolutionUpload

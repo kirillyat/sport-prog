@@ -34,13 +34,13 @@ from app.models import (
     utcnow,
 )
 from app.routers.leaderboard import PERIODS
-from app.services import export, features, judge, solutions
+from app.services import assignments, export, features, judge, problem_sets, solutions
 from app.services import tasks as tasks_service
 from app.services.catalog import get_state, problem_count, set_state, sync_catalog
 from app.services.deadlines import extend_deadline
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
-from app.services.problem_parser import parse_problem_list, search_problems
+from app.services.problem_parser import search_problems
 from app.services.progress import compute_progress, participants_for_assignment
 from app.services.sync import (
     relink_orphan_submissions,
@@ -673,31 +673,17 @@ async def create_set(
     description: str = Form(""),
     problems_text: str = Form(""),
 ):
-    title = title.strip()
-    if not title:
+    if not title.strip():
         return _redirect("/teacher/sets", error=_("Пустое название"))
 
-    problem_set = ProblemSet(
-        title=title, description=description.strip() or None, created_by_id=user.id
+    problem_set, result = await problem_sets.create(
+        session, user, title, description, problems_text
     )
-    session.add(problem_set)
-    await session.commit()
-    await session.refresh(problem_set)
-
-    if problems_text.strip():
-        result = await parse_problem_list(session, problems_text)
-        for position, problem in enumerate(result.problems):
-            session.add(
-                ProblemSetItem(
-                    problem_set_id=problem_set.id, problem_id=problem.id, position=position
-                )
-            )
-        await session.commit()
-        if result.unresolved:
-            return _redirect(
-                f"/teacher/sets/{problem_set.id}",
-                error=_("Не распознано: %(list)s") % {"list": ", ".join(result.unresolved[:5])},
-            )
+    if result.unresolved:
+        return _redirect(
+            f"/teacher/sets/{problem_set.id}",
+            error=_("Не распознано: %(list)s") % {"list": ", ".join(result.unresolved[:5])},
+        )
     return _redirect(f"/teacher/sets/{problem_set.id}", message=_("Список создан"))
 
 
@@ -722,27 +708,13 @@ async def add_problems(
     if problem_set is None:
         return _redirect("/teacher/sets", error=_("Список не найден"))
 
-    existing = {item.problem_id for item in problem_set.items}
-    next_position = max((item.position for item in problem_set.items), default=-1) + 1
-
-    result = await parse_problem_list(session, problems_text)
-    added = 0
-    for problem in result.problems:
-        if problem.id in existing:
-            continue
-        session.add(
-            ProblemSetItem(
-                problem_set_id=set_id, problem_id=problem.id, position=next_position + added
-            )
-        )
-        added += 1
-    await session.commit()
-
-    if result.unresolved:
+    added_problems, unresolved = await problem_sets.add(session, problem_set, problems_text)
+    added = len(added_problems)
+    if unresolved:
         return _redirect(
             f"/teacher/sets/{set_id}",
             error=_("Добавлено %(count)s. Не распознано: %(list)s")
-            % {"count": added, "list": ", ".join(result.unresolved[:5])},
+            % {"count": added, "list": ", ".join(unresolved[:5])},
         )
     return _redirect(
         f"/teacher/sets/{set_id}", message=_("Добавлено задач: %(count)s") % {"count": added}
@@ -837,60 +809,26 @@ async def create_assignment(
     count_prior_solves: bool = Form(False),
     requires_solution: bool = Form(False),
 ):
-    """Все правила задаются здесь: потом меняются название, описание и срок вперёд.
-
-    Несколько групп — несколько заданий, по одному на группу, а не одно на
-    всех. Табло, напоминания и матрица живут по группам, и у каждой группы
-    своё задание можно продлить или удалить, не задевая соседей.
-    """
-    title = title.strip()
-    if not title:
-        return _redirect("/teacher/assignments", error=_("Пустое название"))
-    if await session.get(ProblemSet, problem_set_id) is None:
-        return _redirect("/teacher/assignments", error=_("Список задач не найден"))
-
+    """Все правила задаются здесь: потом меняются название, описание и срок вперёд."""
     try:
-        # dict.fromkeys убирает повторы и сохраняет порядок галочек.
-        group_ids = list(dict.fromkeys(int(raw) for raw in group_id or [] if raw.strip()))
+        group_ids = [int(raw) for raw in group_id or [] if raw.strip()]
     except ValueError:
         return _redirect("/teacher/assignments", error=_("Группа не найдена"))
-    for target_group in group_ids:
-        if await session.get(Group, target_group) is None:
-            return _redirect("/teacher/assignments", error=_("Группа не найдена"))
-
-    start = parse_local_input(starts_at) or utcnow()
-    end = parse_local_input(deadline)
-    if end is not None and end <= start:
-        return _redirect("/teacher/assignments", error=_("Дедлайн раньше начала"))
-
-    # Ни одной группы — задание всем, как и раньше при пустом «Кому».
-    created = [
-        Assignment(
+    try:
+        created, delivered = await assignments.issue(
+            session,
+            user,
             title=title,
-            description=description.strip() or None,
             problem_set_id=problem_set_id,
-            group_id=target_group,
-            assigned_at=start,
-            deadline=end,
-            created_by_id=user.id,
+            group_ids=group_ids,
+            description=description,
+            starts_at=parse_local_input(starts_at),
+            deadline=parse_local_input(deadline),
             count_prior_solves=count_prior_solves,
             requires_solution=requires_solution,
         )
-        for target_group in (group_ids or [None])
-    ]
-    session.add_all(created)
-    await session.commit()
-    for assignment in created:
-        await session.refresh(assignment)
-    # После refresh связи не загружены — считаем задачи отдельным запросом.
-    problems = await session.scalar(
-        select(func.count()).select_from(ProblemSetItem).where(
-            ProblemSetItem.problem_set_id == problem_set_id
-        )
-    )
-    delivered = 0
-    for assignment in created:
-        delivered += await notify.notify_assignment(assignment, int(problems or 0), session)
+    except assignments.AssignmentError as exc:
+        return _redirect("/teacher/assignments", error=str(exc))
 
     if len(created) > 1:
         return _redirect(

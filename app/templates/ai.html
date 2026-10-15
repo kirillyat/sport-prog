@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ _("ИИ") }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{ _("нейросети") }}</p>
+    <h1>{{ _("Подключить свою нейросеть") }}</h1>
+    <p class="sub">
+      {% if teacher_page %}
+      {{ _("Подключи нейросеть по MCP — Claude Code, Cursor, Codex или другую. Она подберёт задачи, соберёт список, выдаст задание и поможет проверить решения.") }}
+      {% else %}
+      {{ _("Подключи нейросеть по MCP — Claude Code, Cursor, Codex или другую. Она увидит твои задания, условия задач и что уже засчитано — только твоё и только для чтения.") }}
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{% if preview %}
+<div class="card callout">
+  <h2>{{ _("Так раздел видит студент") }}</h2>
+  <p class="small" style="margin-bottom:0">
+    {{ _("Ключ в этом режиме не выпускается: он получил бы права преподавателя. Чтобы проверить MCP студента целиком, войди тестовым студентом.") }}
+  </p>
+</div>
+{% endif %}
+
+{% if issued %}
+<div class="card callout">
+  <h2>{{ _("Новый ключ") }}</h2>
+  <p class="small">{{ _("Скопируй сейчас — второй раз ключ не покажем. Настройки ниже уже с ним.") }}</p>
+  <pre class="snippet"><code>{{ issued }}</code></pre>
+</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="card">
+    <h2>{{ _("Адрес") }}</h2>
+    <pre class="snippet"><code>{{ endpoint }}</code></pre>
+    <p class="small muted">
+      {{ _("Streamable HTTP, ключ в заголовке") }}
+      <span class="mono">Authorization: Bearer &lt;{{ _("ключ") }}&gt;</span>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>{{ _("Ключи") }}</h2>
+    {% if preview %}
+    <p class="small muted">{{ _("Студент выпускает только ключи для чтения.") }}</p>
+    {% else %}
+    {% if tokens %}
+    <ul class="token-list">
+      {% for token in tokens %}
+      <li>
+        <div>
+          <strong>{{ token.name }}</strong>
+          <span class="badge mono">{{ token.hint }}…</span>
+          {% if token.can_write %}<span class="badge warn">{{ _("может менять") }}</span>{% endif %}
+          <br><span class="small muted">
+            {{ _("выпущен") }} {{ token.created_at | dt }}
+            · {% if token.last_used_at %}{{ _("использовался") }} {{ token.last_used_at | ago }}{% else %}{{ _("ещё не использовался") }}{% endif %}
+          </span>
+        </div>
+        <form method="post" action="/ai/tokens/{{ token.id }}/revoke">
+          <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Отозвать") }}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="small muted">{{ _("Ключей пока нет. Заведи по ключу на каждую программу — так ненужный легко отозвать.") }}</p>
+    {% endif %}
+
+    {% if tokens | length < max_tokens %}
+    <form method="post" action="/ai/tokens" style="margin-top:12px">
+      <div class="field">
+        <label for="token-name">{{ _("Для чего ключ") }}</label>
+        <input type="text" id="token-name" name="name" maxlength="80" placeholder="{{ _("например, Cursor на рабочем компьютере") }}">
+      </div>
+      {% if teacher_page %}
+      <label class="check">
+        <input type="checkbox" name="can_write" value="true">
+        {{ _("разрешить создавать списки задач и выдавать задания") }}
+      </label>
+      <p class="small muted">{{ _("Без галочки нейросеть только читает. Выданное задание студенты видят сразу, и им уходит сообщение в Telegram.") }}</p>
+      {% endif %}
+      <button type="submit">{{ icon("plus") }} {{ _("Выпустить ключ") }}</button>
+    </form>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>{{ _("Как подключить") }}</h2>
+  {% for item in snippets %}
+  <details class="formula" {% if loop.first %}open{% endif %}>
+    <summary>{{ item.client }} <span class="small muted">— {{ item.where }}</span></summary>
+    <pre class="snippet"><code>{{ item.code }}</code></pre>
+  </details>
+  {% endfor %}
+  <p class="small muted" style="margin-top:12px">
+    {{ _("ChatGPT и claude.ai в браузере пока не подключаются — нужна программа на компьютере.") }}
+  </p>
+</div>
+
+<div class="card">
+  <h2>{{ _("Что нейросеть сможет") }}</h2>
+  <ul class="tool-list">
+    {% for tool in tools %}
+    <li>
+      <span>{{ _(tool.title) }}</span>
+      <span class="mono small muted">{{ tool.name }}</span>
+      {% if tool.writes %}<span class="badge warn">{{ _("меняет портал") }}</span>{% endif %}
+      <span class="tool-hint small muted">{{ _(tool.hint) }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="small">
+    <strong>{{ _("Чего нейросеть не сможет:") }}</strong>
+    {% if teacher_page %}
+    {{ _("получить закрытые тесты, изменить или удалить выданное задание.") }}
+    {% else %}
+    {{ _("увидеть чужие задания и решения, получить закрытые тесты, сдать решение или что-то изменить.") }}
+    {% endif %}
+  </p>
+  <p class="small muted">
+    {{ _("Например, спроси:") }}
+    {% if teacher_page %}
+    «{{ _("Подбери 6 задач на бинпоиск для семинара — 2 простые, 3 средние, 1 сложную — из тех, что группа ещё не решала") }}»
+    {% else %}
+    «{{ _("Что мне осталось сдать на этой неделе и до какого срока?") }}»
+    {% endif %}
+  </p>
+</div>
+{% endblock %}
