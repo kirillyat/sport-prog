@@ -43,6 +43,7 @@ from app.services import (
     llm,
     problem_sets,
     solutions,
+    timeline,
 )
 from app.services import tasks as tasks_service
 from app.services.catalog import get_state, problem_count, set_state, sync_catalog
@@ -56,7 +57,7 @@ from app.services.sync import (
     sync_all,
     sync_users_in_background,
 )
-from app.templating import parse_local_input, templates
+from app.templating import LOCAL_TZ, parse_local_input, templates
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -982,6 +983,17 @@ async def assignment_matrix(
             for problem_id in problem_ids
         }
 
+    # Когда решали: посылки участников по времени окна задания.
+    built = await timeline.build(
+        session, assignment, participants, progress.problems, LOCAL_TZ
+    )
+    chart = share = solves_on_time = None
+    if built is not None:
+        when, in_time = built
+        chart = timeline.layout(when, LOCAL_TZ)
+        share = when.last_day_share(in_time)
+        solves_on_time = len(in_time)
+
     return templates.TemplateResponse(
         request,
         "teacher/assignment.html",
@@ -989,6 +1001,9 @@ async def assignment_matrix(
             "user": user,
             "assignment": assignment,
             "progress": progress,
+            "chart": chart,
+            "last_day_share": share,
+            "solves_on_time": solves_on_time,
             "files": files,
             "files_by_problem": files_by_problem,
             "uploads": uploads,

@@ -154,6 +154,85 @@
                           "/teacher/groups", _("К группам")) }}</div>
 {% endif %}
 
+{#
+  Когда решали. Нижняя часть столбика — первые решения задач (то, что идёт
+  в зачёт), верхняя — остальные посылки. Скрипта нет: подсказка при наведении
+  — <title> у столбика, а цифры целиком — в таблице под графиком.
+#}
+{% macro column(x, y, w, h, kind, rounded) -%}
+  {%- if h > 0 -%}
+    {%- set r = [4, h, w / 2] | min if rounded else 0 -%}
+    <path class="{{ kind }}" d="M{{ x|round(1) }},{{ (y + h)|round(1) }} V{{ (y + r)|round(1) }}
+      Q{{ x|round(1) }},{{ y|round(1) }} {{ (x + r)|round(1) }},{{ y|round(1) }}
+      H{{ (x + w - r)|round(1) }} Q{{ (x + w)|round(1) }},{{ y|round(1) }} {{ (x + w)|round(1) }},{{ (y + r)|round(1) }}
+      V{{ (y + h)|round(1) }} Z"/>
+  {%- endif -%}
+{%- endmacro %}
+{% set hourly = chart and chart.bars and (chart.bars[0].bin.end - chart.bars[0].bin.start).days == 0 %}
+{% macro span(item) -%}
+  {%- if hourly %}{{ item.start | dt("%d.%m %H:%M") }}–{{ item.end | dt("%H:%M") }}
+  {%- else %}{{ item.start | dt("%d.%m") }}{% if (item.end - item.start).days > 1 %}–{{ item.last_day | dt("%d.%m") }}{% endif %}{% endif -%}
+{%- endmacro %}
+{% if chart %}
+<h2>{{ icon("activity") }} {{ _("Когда решали") }}</h2>
+<div class="card timeline-card">
+  {% if last_day_share is not none %}
+  <p class="timeline-lead">
+    <strong>{{ last_day_share }}%</strong>
+    {{ _("решений в срок пришли в последние сутки перед дедлайном") }}
+    <span class="muted">({{ _("всего решений в срок: %(count)s") % {"count": solves_on_time} }})</span>
+  </p>
+  {% endif %}
+  <svg class="timeline" viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+       role="img" aria-label="{{ _('Посылки по времени: первые решения и остальные попытки') }}">
+    {% if chart.after_deadline_x is not none %}
+    <rect class="after-deadline" x="{{ chart.after_deadline_x|round(1) }}" y="0"
+          width="{{ (chart.width - 8 - chart.after_deadline_x)|round(1) }}" height="{{ chart.bottom|round(1) }}"/>
+    {% endif %}
+    {% for y, value in chart.y_ticks %}
+    <line class="grid" x1="{{ chart.left }}" x2="{{ chart.width - 8 }}" y1="{{ y|round(1) }}" y2="{{ y|round(1) }}"/>
+    <text class="tick" x="{{ chart.left - 6 }}" y="{{ (y + 4)|round(1) }}" text-anchor="end">{{ value }}</text>
+    {% endfor %}
+    {% for bar in chart.bars %}
+    {% if bar.bin.total %}
+    <g class="bar">
+      <title>{{ span(bar.bin) }}: {{ _("первых решений") }} {{ bar.bin.solves }}, {{ _("других посылок") }} {{ bar.bin.others }}</title>
+      <rect class="hit" x="{{ (bar.x - 2)|round(1) }}" y="0" width="{{ (bar.width + 4)|round(1) }}" height="{{ chart.bottom|round(1) }}"/>
+      {{ column(bar.x, bar.solves_y, bar.width, bar.solves_h, "solves", not bar.bin.others) }}
+      {{ column(bar.x, bar.others_y, bar.width, bar.others_h, "others", true) }}
+    </g>
+    {% endif %}
+    {% endfor %}
+    {% for x, day, anchor in chart.x_labels %}
+    <text class="tick" x="{{ x|round(1) }}" y="{{ (chart.bottom + 18)|round(1) }}" text-anchor="{{ anchor }}">{{ day | dt("%d.%m") }}</text>
+    {% endfor %}
+    {% if chart.deadline_x is not none %}
+    <line class="deadline" x1="{{ chart.deadline_x|round(1) }}" x2="{{ chart.deadline_x|round(1) }}" y1="6" y2="{{ chart.bottom|round(1) }}"/>
+    <text class="deadline-label" x="{{ (chart.deadline_x - 5)|round(1) }}" y="12" text-anchor="end">{{ _("дедлайн") }}</text>
+    {% endif %}
+  </svg>
+  <div class="legend">
+    <span class="item"><i class="swatch solves"></i> {{ _("первое решение задачи") }}</span>
+    <span class="item"><i class="swatch others"></i> {{ _("другие посылки") }}</span>
+    {% if chart.after_deadline_x is not none %}<span class="item"><i class="swatch after"></i> {{ _("после дедлайна") }}</span>{% endif %}
+  </div>
+  <details class="formula">
+    <summary>{{ _("Таблицей") }}</summary>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>{{ _("Когда") }}</th><th>{{ _("Первых решений") }}</th><th>{{ _("Других посылок") }}</th></tr></thead>
+      <tbody>
+        {% for bar in chart.bars if bar.bin.total %}
+        <tr><td class="small">{{ span(bar.bin) }}</td><td>{{ bar.bin.solves }}</td><td>{{ bar.bin.others }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</div>
+{% endif %}
+
+
 <h2>{{ icon("layers") }} {{ _("Задачи") }}</h2>
 <div class="card table-wrap" style="padding:6px">
   <table>

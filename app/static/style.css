@@ -1393,3 +1393,23 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   .copyable .code-box { padding-left: 14px; padding-right: 104px; text-align: left; }
   .copyable pre.snippet { padding-right: 96px; }
 }
+
+/* «Когда решали» на странице задания. Цвета — от темы: первые решения —
+   цвет текста, остальные посылки — он же, разбавленный фоном карточки. */
+.timeline-card { --solves: var(--ink); --others: color-mix(in srgb, var(--ink) 35%, var(--panel)); }
+.timeline { display: block; width: 100%; height: auto; margin: 6px 0 0; }
+.timeline .grid { stroke: var(--line-soft); stroke-width: 1; }
+.timeline .tick { font-size: 11px; fill: var(--muted); font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.timeline .solves { fill: var(--solves); }
+.timeline .others { fill: var(--others); }
+.timeline .hit { fill: transparent; }
+.timeline .bar:hover .hit { fill: color-mix(in srgb, var(--ink) 8%, transparent); }
+.timeline .deadline { stroke: var(--text); stroke-width: 2; }
+.timeline .deadline-label { font-size: 11px; font-weight: 700; fill: var(--text); font-family: var(--sans); }
+.timeline .after-deadline { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
+.timeline-lead { margin: 0 0 4px; }
+.timeline-lead strong { font-size: 22px; }
+.legend .swatch { display: inline-block; width: 12px; height: 12px; }
+.legend .swatch.solves { background: var(--solves); }
+.legend .swatch.others { background: var(--others); }
+.legend .swatch.after { background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px solid var(--line-soft); }
