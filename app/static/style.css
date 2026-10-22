@@ -1489,12 +1489,10 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 :root[data-theme="halloween"] {
   --garland: "🎃 🦇 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃";
   --corner: "🦇";
-  --brand-badge: "🎃";
 }
 :root[data-theme="newyear"] {
   --garland: "🎄 ❄️ 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄";
   --corner: "🎅";
-  --brand-badge: "🎄";
 }
 :root[data-theme="halloween"] main::before,
 :root[data-theme="newyear"] main::before {
@@ -1503,14 +1501,6 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   overflow: hidden; white-space: nowrap; text-align: center;
   font-size: 18px; line-height: 1.2; letter-spacing: .3em;
   pointer-events: none; user-select: none; -webkit-user-select: none;
-}
-:root[data-theme="halloween"] .rail .brand,
-:root[data-theme="newyear"] .rail .brand { position: relative; }
-:root[data-theme="halloween"] .rail .brand::after,
-:root[data-theme="newyear"] .rail .brand::after {
-  content: var(--brand-badge); font-family: var(--emoji);
-  position: absolute; top: 4px; right: 6px; font-size: 15px; line-height: 1;
-  pointer-events: none;
 }
 :root[data-theme="halloween"] .rail-foot::before,
 :root[data-theme="newyear"] .rail-foot::before {
@@ -1671,6 +1661,6 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 /* Высококонтрастный режим Windows и подобные: браузер сам убирает фоны,
    и от украшений остались бы обрывки. Там — без них. */
 @media (forced-colors: active) {
-  main::before, .rail .brand::after, .rail-foot::before,
+  main::before, .rail-foot::before,
   body::before, body::after, .shell::after, .season-btn { display: none !important; }
 }
