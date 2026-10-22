@@ -433,6 +433,63 @@
   --dark-logo: block;
 }
 
+/* Закат восьмидесятых: неоновая малина и бирюза на ночном фиолетовом.
+   Солнце и сетку до горизонта рисуют псевдоэлементы ниже, без скриптов. */
+:root[data-theme="synthwave"] {
+  color-scheme: dark;
+  --bg: #14061f;
+  --panel: #14061f;
+  --panel-2: #241038;
+  --ink: #ff4fb0;
+  --text: #f7e8ff;
+  --text-2: #dcc6f0;
+  --muted: #a78bc6;
+  --line: #ff4fb0;
+  --line-soft: rgba(255, 255, 255, .26);
+  --inv-bg: #ff4fb0;
+  --inv-text: #14061f;
+  --accent: #36e8ee;
+  --err: #ff6b6b;
+  --err-text: #14061f;
+  --code-key: #ff4fb0;
+  --code-str: #36e8ee;
+  --code-com: #a78bc6;
+  --code-num: #ffd319;
+  --field-bg: #241038;
+  --field-text: #f7e8ff;
+  --placeholder: #8a6fa8;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
+/* Полярная ночь: зелень сияния и фиолетовый отсвет — пара к «Финляндии». */
+:root[data-theme="aurora"] {
+  color-scheme: dark;
+  --bg: #04121c;
+  --panel: #04121c;
+  --panel-2: #0a2331;
+  --ink: #6dffa8;
+  --text: #e2f6ee;
+  --text-2: #bfe3d6;
+  --muted: #7fa89c;
+  --line: #6dffa8;
+  --line-soft: rgba(255, 255, 255, .26);
+  --inv-bg: #6dffa8;
+  --inv-text: #04121c;
+  --accent: #c99bff;
+  --err: #ff7b7b;
+  --err-text: #04121c;
+  --code-key: #6dffa8;
+  --code-str: #c99bff;
+  --code-com: #7fa89c;
+  --code-num: #ffd166;
+  --field-bg: #0a2331;
+  --field-text: #e2f6ee;
+  --placeholder: #5f8579;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
 /* ---------- праздничные темы ----------
    Живут в свои даты (app/services/seasons.py): в меню появляются только
    тогда, а сохранённый выбор после праздника не действует. */
@@ -805,6 +862,8 @@ body.with-rail { padding-left: var(--rail); }
 .sw-valentine   { --sw-a: #fff0f5; --sw-b: #c2185b; }
 .sw-cosmos      { --sw-a: #070a1d; --sw-b: #8ecbff; }
 .sw-matrix      { --sw-a: #020703; --sw-b: #00ff41; }
+.sw-synthwave   { --sw-a: #14061f; --sw-b: #ff4fb0; }
+.sw-aurora      { --sw-a: #04121c; --sw-b: #6dffa8; }
 
 /* На странице входа рейки нет — переключатель стоит сам по себе. */
 .lang.auth { display: inline-block; margin: 0 0 24px; }
@@ -1855,6 +1914,110 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   pointer-events: none; opacity: .5;
 }
 
+/* ---------- «Синтвейв» ----------
+   Три слоя под содержимым, по порядку отрисовки: небо, солнце, земля
+   с сеткой. Земля непрозрачная и закрывает низ солнца — получается закат.
+   Горизонт на 64% высоты окна. */
+:root[data-theme="synthwave"] body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, #14061f 0%, #2a0c47 38%, #5c1665 58%, #8a2a6e 64%);
+}
+/* Солнце в полоску: прорези — маской, поэтому сквозь них видно небо,
+   а не полосы фона. Книзу прорези шире, как на обложках кассет. */
+:root[data-theme="synthwave"] .shell::before {
+  content: ""; position: fixed; z-index: -1; pointer-events: none;
+  left: 50%; top: calc(64vh - 36vmin); width: 44vmin; height: 44vmin; margin-left: -22vmin;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, #ffe066 0%, #ff9a3c 42%, #ff4fb0 82%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 46%, transparent 46% 48.5%, #000 48.5% 55%, transparent 55% 58.5%, #000 58.5% 64%, transparent 64% 68.5%, #000 68.5% 73%, transparent 73% 78.5%, #000 78.5%);
+  mask-image: linear-gradient(to bottom, #000 0 46%, transparent 46% 48.5%, #000 48.5% 55%, transparent 55% 58.5%, #000 58.5% 64%, transparent 64% 68.5%, #000 68.5% 73%, transparent 73% 78.5%, #000 78.5%);
+  filter: drop-shadow(0 0 28px rgba(255, 79, 176, .55));
+  opacity: .6;
+}
+/* Текст вне карточек бывает и над солнцем — тёмная тень держит его
+   читаемым; на тёмном фоне её не видно. */
+:root[data-theme="synthwave"] main { text-shadow: 0 1px 3px rgba(20, 6, 31, .95), 0 0 1px rgba(20, 6, 31, .95); }
+/* Земля — плоскость, наклонённая к горизонту. Едет навстречу сдвигом на
+   одну клетку по кругу: двигается слой целиком (transform), а не картинка
+   внутри, — браузер не перерисовывает её каждый кадр. Верхний край уходит
+   за горизонт на клетку, чтобы при сдвиге там не открывался просвет. */
+:root[data-theme="synthwave"] body::after {
+  content: ""; position: fixed; z-index: -1; pointer-events: none;
+  left: -60vw; right: -60vw; top: 64vh; height: 140vh;
+  background-color: #14061f;
+  background-image:
+    linear-gradient(to bottom, #14061f 0, rgba(20, 6, 31, 0) 18%),
+    linear-gradient(to right, rgba(255, 79, 176, .75) 0 2px, transparent 2px),
+    linear-gradient(to bottom, rgba(255, 79, 176, .75) 0 2px, transparent 2px);
+  background-size: 100% 100%, 60px 60px, 60px 60px;
+  background-position: 0 0, center 0, 0 0;
+  transform-origin: 50% 0;
+  transform: perspective(320px) rotateX(62deg) translateY(-60px);
+  animation: grid-run 1.4s linear infinite;
+  box-shadow: 0 -2px 18px rgba(255, 79, 176, .7);
+}
+@keyframes grid-run {
+  from { transform: perspective(320px) rotateX(62deg) translateY(-60px); }
+  to { transform: perspective(320px) rotateX(62deg) translateY(0); }
+}
+
+/* ---------- «Северное сияние» ----------
+   Две размытые завесы — зелёная и фиолетовая — медленно колышутся
+   навстречу друг другу; движется слой целиком, без перерисовки. Под ними
+   редкие неподвижные звёзды. Всё под содержимым. */
+:root[data-theme="aurora"] .shell::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 37px 61px, rgba(255, 255, 255, .7), transparent),
+    radial-gradient(1px 1px at 151px 23px, rgba(255, 255, 255, .55), transparent),
+    radial-gradient(1.5px 1.5px at 229px 187px, rgba(255, 255, 255, .75), transparent),
+    radial-gradient(1px 1px at 97px 241px, rgba(255, 255, 255, .5), transparent);
+  background-size: 280px 280px;
+}
+:root[data-theme="aurora"] body::before,
+:root[data-theme="aurora"] body::after {
+  content: ""; position: fixed; z-index: -1; pointer-events: none;
+  left: -15vw; right: -15vw;
+  /* Лучи — тёмные вертикальные прорези поверх цвета; форма завесы —
+     маской из двух эллипсов. Размытие лёгкое, чтобы лучи не пропали. */
+  filter: blur(2.5px);
+  will-change: transform, opacity;
+}
+:root[data-theme="aurora"] body::before {
+  top: 4vh; height: 58vh;
+  background:
+    repeating-linear-gradient(90deg, rgba(4, 18, 28, 0) 0 4px, rgba(4, 18, 28, .65) 4px 7px, rgba(4, 18, 28, 0) 7px 15px, rgba(4, 18, 28, .45) 15px 17px, rgba(4, 18, 28, 0) 17px 23px),
+    linear-gradient(to bottom, transparent 0%, rgba(201, 155, 255, .28) 22%, rgba(109, 255, 168, .5) 62%, rgba(150, 255, 200, .9) 76%, transparent 90%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 34% 48% at 26% 56%, #000 35%, transparent 72%),
+    radial-gradient(ellipse 30% 42% at 70% 44%, #000 30%, transparent 70%);
+  mask-image:
+    radial-gradient(ellipse 34% 48% at 26% 56%, #000 35%, transparent 72%),
+    radial-gradient(ellipse 30% 42% at 70% 44%, #000 30%, transparent 70%);
+  transform-origin: 50% 100%;
+  animation: aurora-sway 17s ease-in-out infinite alternate;
+}
+:root[data-theme="aurora"] body::after {
+  top: -6vh; height: 52vh;
+  background:
+    repeating-linear-gradient(90deg, rgba(4, 18, 28, 0) 0 5px, rgba(4, 18, 28, .6) 5px 8px, rgba(4, 18, 28, 0) 8px 19px),
+    linear-gradient(to bottom, transparent 0%, rgba(255, 120, 200, .2) 25%, rgba(201, 155, 255, .55) 60%, rgba(120, 230, 255, .5) 78%, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse 38% 46% at 52% 52%, #000 30%, transparent 72%);
+  mask-image: radial-gradient(ellipse 38% 46% at 52% 52%, #000 30%, transparent 72%);
+  transform-origin: 50% 100%;
+  animation: aurora-sway-back 23s ease-in-out infinite alternate;
+}
+@keyframes aurora-sway {
+  0%   { transform: translateX(-4vw) skewX(-14deg) scaleY(.95); opacity: .7; }
+  50%  { transform: translateX(1vw) skewX(6deg) scaleY(1.12); opacity: 1; }
+  100% { transform: translateX(5vw) skewX(-4deg) scaleY(1); opacity: .8; }
+}
+@keyframes aurora-sway-back {
+  0%   { transform: translateX(5vw) skewX(12deg) scaleY(1.05); opacity: .55; }
+  50%  { transform: translateX(0) skewX(-8deg) scaleY(.9); opacity: .9; }
+  100% { transform: translateX(-5vw) skewX(6deg) scaleY(1.1); opacity: .7; }
+}
+
 /* Значок праздника у аватарки: тем, у кого выбрана своя тема. Нажатие
    включает праздничную тему. Появляется только скриптом — без него
    выбирать тему всё равно нечем. */
@@ -1885,6 +2048,9 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   :root[data-theme="valentine"] body::before,
   :root[data-theme="valentine"] body::after { display: none; }
   :root[data-theme="matrix"] main h1::after { animation: none; }
+  :root[data-theme="synthwave"] body::after { animation: none; transform: perspective(320px) rotateX(62deg); }
+  :root[data-theme="aurora"] body::before,
+  :root[data-theme="aurora"] body::after { animation: none; }
   :root[data-theme="cosmos"] body::before,
   :root[data-theme="cosmos"] main::before { animation: none; }
   :root[data-theme="cosmos"] body::after,
@@ -1896,13 +2062,13 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   .season-btn:not([hidden]) { animation: none; }
 }
 @media print {
-  main::before, .rail-foot::before, body::before, body::after, .shell::after,
+  main::before, .rail-foot::before, body::before, body::after, .shell::before, .shell::after,
   .matrix-rain { display: none !important; }
 }
 /* Высококонтрастный режим Windows и подобные: браузер сам убирает фоны,
    и от украшений остались бы обрывки. Там — без них. */
 @media (forced-colors: active) {
   main::before, .rail-foot::before,
-  body::before, body::after, .shell::after, .season-btn,
+  body::before, body::after, .shell::before, .shell::after, .season-btn,
   .matrix-rain { display: none !important; }
 }

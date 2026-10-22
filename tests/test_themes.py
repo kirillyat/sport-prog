@@ -110,3 +110,16 @@ def test_the_matrix_rain_belongs_to_its_theme_only():
     assert '=== "matrix"' in RAIN
     # Печать и высококонтрастный режим Windows — без холста.
     assert CSS.count(".matrix-rain { display: none !important; }") == 2
+
+
+def test_living_backgrounds_vanish_in_print_and_high_contrast():
+    """Фоны тем рисуют псевдоэлементы. В печати они пачкали бы лист, а в
+    высококонтрастном режиме Windows от них остались бы обрывки; новый
+    псевдоэлемент, не добавленный в оба списка, там и вылезет."""
+    used = set(re.findall(r'\[data-theme="[a-z]+"\] ((?:body|\.shell)::(?:before|after))', CSS))
+    assert used, "фонов тем не нашлось — поменялись селекторы?"
+    for media in ("@media print", "@media (forced-colors: active)"):
+        block = CSS[CSS.index(media):]
+        block = block[:block.index("}\n}") + 3]
+        for pseudo in used:
+            assert pseudo in block, f"{pseudo} не скрыт в {media}"

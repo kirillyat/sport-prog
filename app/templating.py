@@ -279,6 +279,8 @@ THEMES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         ("ice", N_("Лёд")),
         ("magenta", N_("Магента")),
         ("matrix", N_("Матрица")),
+        ("synthwave", N_("Синтвейв")),
+        ("aurora", N_("Северное сияние")),
     )),
 )
 
