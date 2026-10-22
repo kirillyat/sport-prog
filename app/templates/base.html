@@ -19,10 +19,10 @@
         t = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" }[t] || t;
         // Праздничная тема действует только в свой праздник; без выбора
         // в праздник ставится она. Тот же порядок решений — в theme.js.
-        if (["halloween", "newyear", "valentine"].indexOf(t) >= 0 && t !== season) t = null;
+        if (["halloween", "newyear", "valentine", "cosmos"].indexOf(t) >= 0 && t !== season) t = null;
         if (!t && season) t = season;
         // По умолчанию — «Финляндия», поэтому без выбора атрибут не ставим.
-        if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "matrix", "halloween", "newyear", "valentine"].indexOf(t) >= 0)
+        if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "matrix", "halloween", "newyear", "valentine", "cosmos"].indexOf(t) >= 0)
           document.documentElement.dataset.theme = t;
       } catch (e) {}
     })();

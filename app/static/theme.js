@@ -6,10 +6,10 @@
 
   var KEY = "sport-theme";
   // Порядок неважен — важно, что список тот же, что в CSS и в меню.
-  var THEMES = ["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "matrix", "halloween", "newyear", "valentine"];
+  var THEMES = ["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "matrix", "halloween", "newyear", "valentine", "cosmos"];
   // Праздничные темы (app/services/seasons.py): действуют только в свой
   // праздник, который сервер отмечает у <html data-season>.
-  var SEASONAL = ["halloween", "newyear", "valentine"];
+  var SEASONAL = ["halloween", "newyear", "valentine", "cosmos"];
   var season = document.documentElement.getAttribute("data-season") || "";
   // Старые значения переключателя «светлая/тёмная»: у людей они уже
   // сохранены, и терять их выбор из-за переименования незачем.

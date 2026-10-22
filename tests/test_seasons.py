@@ -25,6 +25,11 @@ from app.services import seasons
     (date(2027, 2, 14), "valentine"),
     (date(2027, 2, 15), "valentine"),
     (date(2027, 2, 16), None),
+    (date(2027, 4, 4), None),
+    (date(2027, 4, 5), "cosmos"),
+    (date(2027, 4, 12), "cosmos"),
+    (date(2027, 4, 19), "cosmos"),
+    (date(2027, 4, 20), None),
 ])
 def test_holidays_have_their_dates_inclusive(day, key):
     season = seasons.current(day)
