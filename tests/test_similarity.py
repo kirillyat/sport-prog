@@ -254,13 +254,37 @@ async def test_a_copy_from_another_group_is_found(session):
     from app.services import similarity as service
 
     mine, _ = await _two_groups(session, {"Аня": ORIGINAL, "Вера": OWN_WAY}, {"Борис": DISGUISED})
-    [report] = await service.for_assignment(session, mine)
+    [report] = await service.for_assignment(session, mine, across_groups=True)
     [match] = report.matches
     assert {match.first.display_name, match.second.display_name} == {"Аня", "Борис"}
     assert match.across
-    # Внутри одной группы этой пары не видно — потому и нужен режим «с другими».
-    [alone] = await service.for_assignment(session, mine, across_groups=False)
+    # По умолчанию — только своя группа: там этой пары не видно.
+    [alone] = await service.for_assignment(session, mine)
     assert alone.matches == []
+
+
+# Копия с двумя дописанными строками — около 71 %.
+PADDED = ORIGINAL + "\nif n == 0:\n    print(-1)\n" + "\nprint(len(nums), file=sys.stderr)\n"
+
+
+def test_the_padded_copy_sits_between_the_two_thresholds():
+    from app.services import similarity as service
+
+    score = similarity(fingerprint(ORIGINAL), fingerprint(PADDED))
+    assert service.THRESHOLD <= score < service.ACROSS_THRESHOLD
+
+
+async def test_across_groups_needs_more_similarity_than_inside_one(session):
+    """Шире воронка — выше порог: между группами случайных совпадений больше."""
+    from app.services import similarity as service
+
+    mine, _ = await _two_groups(
+        session, {"Аня": ORIGINAL, "Вера": PADDED}, {"Борис": PADDED, "Глеб": OWN_WAY}
+    )
+    [report] = await service.for_assignment(session, mine, across_groups=True)
+    pairs = {frozenset((m.first.display_name, m.second.display_name)) for m in report.matches}
+    assert frozenset(("Аня", "Вера")) in pairs           # своя группа: 71 % ≥ 70
+    assert frozenset(("Аня", "Борис")) not in pairs      # разные группы: 71 % < 80
 
 
 async def test_pairs_inside_another_group_stay_on_its_page(session):

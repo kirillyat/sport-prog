@@ -35,8 +35,12 @@ from app.services.progress import participants_for_assignment, problems_for_set
 
 K = 5
 MIN_TOKENS = 30
-# Ниже — обычное сходство решений одной задачи, показывать незачем.
-THRESHOLD = 0.6
+# Ниже — обычное сходство решений одной задачи, показывать незачем: при 60 %
+# отчёт шумел, у простых задач столько совпадает и у честных решений.
+THRESHOLD = 0.7
+# Между группами порог выше: решений в сравнении больше — и случайных
+# совпадений тоже, а воронку расширяют, чтобы поймать явное.
+ACROSS_THRESHOLD = 0.8
 NEARLY_SAME = 0.9
 # Редкие имена ищем, только когда есть с чем сравнить: у двоих решений
 # любое общее имя «встречается только у них».
@@ -251,7 +255,7 @@ async def for_assignment(
     assignment: Assignment,
     problem_id: int | None = None,
     *,
-    across_groups: bool = True,
+    across_groups: bool = False,
 ) -> list[ProblemReport]:
     """Похожие решения по каждой задаче задания — для страницы и для MCP.
 
@@ -259,8 +263,9 @@ async def for_assignment(
     С `across_groups` к решениям группы добавляются решения той же задачи из
     других заданий: контрольную часто выдают нескольким группам сразу, и
     списывают через группу. Показываем пары, где хотя бы один — из этой
-    группы. У кого задача была в двух заданиях, берём решение отсюда: сам
-    с собой человек не сравнивается.
+    группы; пара из разных групп — от `ACROSS_THRESHOLD`. У кого задача была
+    в двух заданиях, берём решение отсюда: сам с собой человек не
+    сравнивается.
     """
     here = await _students(session, assignment)
     problems = await problems_for_set(session, assignment.problem_set_id)
@@ -304,12 +309,16 @@ async def for_assignment(
             short=result.short,
             others=involved,
             matches=[
-                Match(
-                    users[p.first], users[p.second],
-                    pool[p.first][0], pool[p.second][0], p,
-                    pool[p.first][1], pool[p.second][1],
+                match
+                for match in (
+                    Match(
+                        users[p.first], users[p.second],
+                        pool[p.first][0], pool[p.second][0], p,
+                        pool[p.first][1], pool[p.second][1],
+                    )
+                    for p in result.pairs
                 )
-                for p in result.pairs
+                if not match.across or match.pair.score >= ACROSS_THRESHOLD
             ],
         ))
     return reports

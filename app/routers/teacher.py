@@ -1085,14 +1085,14 @@ async def similar_solutions(
     session: SessionDep,
     user: TeacherUser,
     assignment_id: int,
-    scope: str = "all",
+    scope: str = "group",
 ):
     """Похожие решения по задачам задания — отчёт после контрольной.
-    `scope=group` — только внутри группы, иначе ещё и с другими группами."""
+    По умолчанию — внутри группы; `scope=all` — ещё и с другими группами."""
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
         return _redirect("/teacher/assignments", error=_("Задание не найдено"))
-    across = scope != "group"
+    across = scope == "all"
     reports = await similarity.for_assignment(session, assignment, across_groups=across)
     return templates.TemplateResponse(
         request,
@@ -1103,6 +1103,7 @@ async def similar_solutions(
             "reports": reports,
             "across": across,
             "threshold": round(similarity.THRESHOLD * 100),
+            "across_threshold": round(similarity.ACROSS_THRESHOLD * 100),
             "min_tokens": similarity.MIN_TOKENS,
         },
     )

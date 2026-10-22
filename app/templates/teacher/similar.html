@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% from "_ui.html" import two_names %}
-{# Откуда решение, если не из этого задания: группа или название задания. #}
+{# Откуда решение, если не из этого задания: тихая подпись, а не значок —
+   значков на странице и так хватает, глаз должен цепляться за проценты. #}
 {% macro origin(source) -%}
-<span class="badge" title="{{ source.title }}">{{ source.group.title if source.group else source.title }}</span>
+<span class="muted small" title="{{ source.title }}">({{ source.group.title if source.group else source.title }})</span>
 {%- endmacro %}
 {% block title %}{{ _("Похожие решения") }} — {{ assignment.title }} — {{ settings.app_name }}{% endblock %}
 {#
@@ -20,12 +21,12 @@
 </div>
 
 <div class="row" style="gap:8px; margin:0 0 14px">
-  <a class="btn small {{ 'ghost' if not across }}" href="?scope=all">{{ icon("users") }} {{ _("И с другими группами") }}</a>
   <a class="btn small {{ 'ghost' if across }}" href="?scope=group">{{ icon("user") }} {{ _("Только эта группа") }}</a>
+  <a class="btn small {{ 'ghost' if not across }}" href="?scope=all">{{ icon("users") }} {{ _("С другими группами") }}</a>
 </div>
 {% if across %}
 <p class="small" style="margin:0 0 10px">
-  {{ _("Каждую задачу сравниваем и с решениями той же задачи из других заданий — других групп или прошлых лет. Показаны пары, где хотя бы один — из этой группы; пары целиком внутри другой группы — на странице её задания.") }}
+  {{ _("Задачу сравниваем и с решениями той же задачи из других заданий — других групп или прошлых лет. Пара из разных групп — от %(n)s%%: решений больше, и случайных совпадений тоже. Пары целиком внутри другой группы — на странице её задания.") % {"n": across_threshold} }}
 </p>
 {% endif %}
 
@@ -56,7 +57,6 @@
             <span class="muted">·</span>
             <a href="/u/{{ match.second.id }}">{{ two_names(match.second) }}</a>
             {%- if match.across and match.second_from.id != assignment.id %} {{ origin(match.second_from) }}{% endif %}
-            {% if match.across %}<span class="badge warn">{{ _("между группами") }}</span>{% endif %}
             <div class="small muted">
               {{ match.first_solution.submitted_at | dt }} · {{ match.second_solution.submitted_at | dt }}
             </div>

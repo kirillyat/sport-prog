@@ -995,9 +995,9 @@ class SimilarParams(Params):
     assignment_id: int
     problem: str | None = Field(None, description="Только эта задача задания.")
     across_groups: bool = Field(
-        True,
+        False,
         description="Сравнивать и с решениями той же задачи из других заданий "
-        "(других групп, прошлых лет). false — только внутри группы.",
+        "(других групп, прошлых лет). По умолчанию — только внутри группы.",
     )
 
 
@@ -1017,10 +1017,11 @@ async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
     только у этих двоих: улика сильнее процентов. Короткие решения (`short`)
     не сравниваются — у простой задачи хорошие решения похожи сами по себе.
 
-    С `across_groups` (по умолчанию) задача сравнивается и с решениями из
-    других заданий — контрольную часто выдают нескольким группам сразу. В
-    отчёт идут пары, где хотя бы один — из этого задания; `across` — пара из
-    разных групп, у студента `group` и `assignment_id` — откуда решение.
+    По умолчанию — внутри группы. С `across_groups` задача сравнивается и с
+    решениями из других заданий — контрольную часто выдают нескольким группам
+    сразу. В отчёт идут пары, где хотя бы один — из этого задания; `across` —
+    пара из разных групп (её порог выше — `threshold_across`), у студента
+    `group` и `assignment_id` — откуда решение.
 
     Это повод посмотреть, а не приговор. Код пары — get_assignment_solutions
     с параметрами problem и student_id (того задания, откуда решение); ссылку
@@ -1039,6 +1040,7 @@ async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
     return {
         "assignment_id": assignment.id,
         "threshold": round(similarity.THRESHOLD * 100),
+        "threshold_across": round(similarity.ACROSS_THRESHOLD * 100),
         "page_url": portal_url(base),
         "problems": [
             {
