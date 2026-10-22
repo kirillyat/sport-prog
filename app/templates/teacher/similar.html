@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% from "_ui.html" import two_names %}
+{# Откуда решение, если не из этого задания: группа или название задания. #}
+{% macro origin(source) -%}
+<span class="badge" title="{{ source.title }}">{{ source.group.title if source.group else source.title }}</span>
+{%- endmacro %}
 {% block title %}{{ _("Похожие решения") }} — {{ assignment.title }} — {{ settings.app_name }}{% endblock %}
 {#
   Отчёт для преподавателя после контрольной. Проценты — повод открыть два
@@ -15,6 +19,16 @@
   </div>
 </div>
 
+<div class="row" style="gap:8px; margin:0 0 14px">
+  <a class="btn small {{ 'ghost' if not across }}" href="?scope=all">{{ icon("users") }} {{ _("И с другими группами") }}</a>
+  <a class="btn small {{ 'ghost' if across }}" href="?scope=group">{{ icon("user") }} {{ _("Только эта группа") }}</a>
+</div>
+{% if across %}
+<p class="small" style="margin:0 0 10px">
+  {{ _("Каждую задачу сравниваем и с решениями той же задачи из других заданий — других групп или прошлых лет. Показаны пары, где хотя бы один — из этой группы; пары целиком внутри другой группы — на странице её задания.") }}
+</p>
+{% endif %}
+
 <p class="small muted" style="margin:0 0 18px">
   {{ icon("alert") }} {{ _("Похожесть — повод посмотреть, а не приговор: у простой задачи хорошие решения похожи сами по себе. Сильнее процентов говорят общие редкие имена — те, что из всей группы есть только у этих двоих.") }}
 </p>
@@ -24,6 +38,7 @@
   <h2>{{ loop.index }}. {{ report.problem.title }}</h2>
   <p class="small muted">
     {{ _("сравнили решений: %(n)s") % {"n": report.compared} }}
+    {%- if report.others %} · {{ _("и с решениями из:") }} {% for other in report.others %}{{ origin(other) }}{{ " " if not loop.last }}{% endfor %}{% endif %}
     {%- if report.short %} · {{ _("коротких (меньше %(n)s элементов) не сравнивали: %(count)s") % {"n": min_tokens, "count": report.short} }}{% endif %}
   </p>
   {% if report.matches %}
@@ -37,8 +52,11 @@
           </td>
           <td>
             <a href="/u/{{ match.first.id }}">{{ two_names(match.first) }}</a>
+            {%- if match.across and match.first_from.id != assignment.id %} {{ origin(match.first_from) }}{% endif %}
             <span class="muted">·</span>
             <a href="/u/{{ match.second.id }}">{{ two_names(match.second) }}</a>
+            {%- if match.across and match.second_from.id != assignment.id %} {{ origin(match.second_from) }}{% endif %}
+            {% if match.across %}<span class="badge warn">{{ _("между группами") }}</span>{% endif %}
             <div class="small muted">
               {{ match.first_solution.submitted_at | dt }} · {{ match.second_solution.submitted_at | dt }}
             </div>

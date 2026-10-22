@@ -1081,13 +1081,19 @@ async def delete_message(
 
 @router.get("/assignments/{assignment_id}/similar")
 async def similar_solutions(
-    request: Request, session: SessionDep, user: TeacherUser, assignment_id: int
+    request: Request,
+    session: SessionDep,
+    user: TeacherUser,
+    assignment_id: int,
+    scope: str = "all",
 ):
-    """Похожие решения по задачам задания — отчёт после контрольной."""
+    """Похожие решения по задачам задания — отчёт после контрольной.
+    `scope=group` — только внутри группы, иначе ещё и с другими группами."""
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
         return _redirect("/teacher/assignments", error=_("Задание не найдено"))
-    reports = await similarity.for_assignment(session, assignment)
+    across = scope != "group"
+    reports = await similarity.for_assignment(session, assignment, across_groups=across)
     return templates.TemplateResponse(
         request,
         "teacher/similar.html",
@@ -1095,6 +1101,7 @@ async def similar_solutions(
             "user": user,
             "assignment": assignment,
             "reports": reports,
+            "across": across,
             "threshold": round(similarity.THRESHOLD * 100),
             "min_tokens": similarity.MIN_TOKENS,
         },
@@ -1122,7 +1129,8 @@ async def similar_pair(
     if assignment is None:
         return _redirect("/teacher/assignments", error=_("Задание не найдено"))
     back = f"/teacher/assignments/{assignment_id}/similar"
-    reports = await similarity.for_assignment(session, assignment, problem_id)
+    # С другими группами — это все пары, и внутри группы тоже.
+    reports = await similarity.for_assignment(session, assignment, problem_id, across_groups=True)
     match = next(
         (
             m for r in reports for m in r.matches
@@ -1141,8 +1149,10 @@ async def similar_pair(
             "problem": reports[0].problem,
             "match": match,
             "sides": [
-                (match.first, match.first_solution, _highlighted(match.first_solution)),
-                (match.second, match.second_solution, _highlighted(match.second_solution)),
+                (match.first, match.first_solution, _highlighted(match.first_solution),
+                 match.first_from),
+                (match.second, match.second_solution, _highlighted(match.second_solution),
+                 match.second_from),
             ],
         },
     )

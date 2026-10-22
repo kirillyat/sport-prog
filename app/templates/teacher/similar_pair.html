@@ -18,11 +18,12 @@
 </div>
 
 <div class="grid two similar-sides">
-  {% for student, found, code in sides %}
+  {% for student, found, code, source in sides %}
   <div>
     <p class="row" style="gap:9px; margin:0 0 8px">
       {{ avatar(student, "sm") }}
       <a href="/u/{{ student.id }}"><strong>{{ two_names(student) }}</strong></a>
+      {% if source.id != assignment.id %}<span class="badge" title="{{ source.title }}">{{ source.group.title if source.group else source.title }}</span>{% endif %}
     </p>
     <p class="small muted" style="margin:0 0 8px">
       {{ found.submitted_at | dt }}

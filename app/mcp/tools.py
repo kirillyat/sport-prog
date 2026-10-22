@@ -994,6 +994,11 @@ async def get_assignment_solutions(ctx: Context, args: SolutionsParams) -> dict:
 class SimilarParams(Params):
     assignment_id: int
     problem: str | None = Field(None, description="Только эта задача задания.")
+    across_groups: bool = Field(
+        True,
+        description="Сравнивать и с решениями той же задачи из других заданий "
+        "(других групп, прошлых лет). false — только внутри группы.",
+    )
 
 
 @tool(
@@ -1012,15 +1017,22 @@ async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
     только у этих двоих: улика сильнее процентов. Короткие решения (`short`)
     не сравниваются — у простой задачи хорошие решения похожи сами по себе.
 
+    С `across_groups` (по умолчанию) задача сравнивается и с решениями из
+    других заданий — контрольную часто выдают нескольким группам сразу. В
+    отчёт идут пары, где хотя бы один — из этого задания; `across` — пара из
+    разных групп, у студента `group` и `assignment_id` — откуда решение.
+
     Это повод посмотреть, а не приговор. Код пары — get_assignment_solutions
-    с параметрами problem и student_id; ссылку `compare_url` дай преподавателю,
-    чтобы он посмотрел решения рядом.
+    с параметрами problem и student_id (того задания, откуда решение); ссылку
+    `compare_url` дай преподавателю, чтобы он посмотрел решения рядом.
     """
     assignment = await _assignment_for(ctx, args.assignment_id)
     problem_id = None
     if args.problem:
         problem_id = (await _resolve(ctx, args.problem)).id
-    reports = await similarity.for_assignment(ctx.session, assignment, problem_id)
+    reports = await similarity.for_assignment(
+        ctx.session, assignment, problem_id, across_groups=args.across_groups
+    )
     if problem_id is not None and not reports:
         raise ToolError("Этой задачи нет в задании")
     base = f"/teacher/assignments/{assignment.id}/similar"
@@ -1033,17 +1045,27 @@ async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
                 **_problem(report.problem),
                 "compared": report.compared,
                 "short": report.short,
+                "also_compared_with": [
+                    {"assignment_id": a.id, "title": a.title,
+                     "group": a.group.title if a.group else None}
+                    for a in report.others
+                ],
                 "pairs": [
                     {
                         "students": [
                             {"id": m.first.id, "name": m.first.display_name,
                              "official_name": m.first.official_name,
+                             "assignment_id": m.first_from.id,
+                             "group": m.first_from.group.title if m.first_from.group else None,
                              "submitted_at": _when(m.first_solution.submitted_at)},
                             {"id": m.second.id, "name": m.second.display_name,
                              "official_name": m.second.official_name,
+                             "assignment_id": m.second_from.id,
+                             "group": m.second_from.group.title if m.second_from.group else None,
                              "submitted_at": _when(m.second_solution.submitted_at)},
                         ],
                         "similarity": m.pair.percent,
+                        "across": m.across,
                         "shared_names": m.pair.shared_names,
                         "compare_url": portal_url(
                             f"{base}/{report.problem.id}?a={m.first.id}&b={m.second.id}"

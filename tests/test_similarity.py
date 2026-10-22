@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from app.models import (
     Assignment,
     Group,
@@ -152,6 +154,9 @@ async def _setup(session):
                    code=ORIGINAL, submitted_at=now),
     ])
     await session.commit()
+    # Страница в тестах читает ту же сессию, что и тест, — группа задания
+    # должна быть уже загружена, как после обычного запроса к базе.
+    await session.refresh(assignment, ["group"])
     return assignment, problem, teacher, anya, boris
 
 
@@ -192,10 +197,13 @@ async def test_the_ai_gets_the_same_pairs_as_the_page(session, client):
         "jsonrpc": "2.0", "id": 1, "method": "tools/call",
         "params": {"name": "find_similar_solutions", "arguments": {"assignment_id": assignment.id}},
     })
-    found = response.json()["result"]["structuredContent"]
+    result = response.json()["result"]
+    assert not result.get("isError"), result["content"][0]["text"]
+    found = result["structuredContent"]
     [pair] = found["problems"][0]["pairs"]
     assert {s["name"] for s in pair["students"]} == {"Аня", "Борис"}
     assert pair["similarity"] >= 90
+    assert pair["across"] is False                       # одна группа
     assert "/similar/" in pair["compare_url"]
 
     _, student_key = await api_tokens.issue(session, anya, "тест", can_write=False)
@@ -204,3 +212,83 @@ async def test_the_ai_gets_the_same_pairs_as_the_page(session, client):
         "params": {"name": "find_similar_solutions", "arguments": {"assignment_id": assignment.id}},
     })
     assert refused.json()["result"]["isError"]
+
+
+# ---------------------------------------------------------------- между группами
+
+
+async def _two_groups(session, codes_a: dict[str, str], codes_b: dict[str, str]):
+    """Одна контрольная выдана двум группам: два задания по одному списку."""
+    session.add(User(display_name="Кирилл", role=Role.teacher))
+    problem = Problem(platform=Platform.leetcode, external_id="1", slug="two-sum",
+                      title="Two Sum", url="https://leetcode.com/problems/two-sum/")
+    problem_set = ProblemSet(title="Контрольная")
+    session.add_all([problem, problem_set])
+    await session.commit()
+    session.add(ProblemSetItem(problem_set_id=problem_set.id, problem_id=problem.id))
+    found = {}
+    for title, codes in (("ПМИ-1", codes_a), ("ПМИ-2", codes_b)):
+        group = Group(title=title, join_code=title.replace("-", ""))
+        session.add(group)
+        await session.commit()
+        assignment = Assignment(title="Контрольная 1", problem_set_id=problem_set.id,
+                                group_id=group.id, assigned_at=utcnow() - timedelta(days=1))
+        session.add(assignment)
+        await session.commit()
+        for name, code in codes.items():
+            student = User(display_name=name)
+            session.add(student)
+            await session.commit()
+            session.add_all([
+                GroupMembership(group_id=group.id, user_id=student.id),
+                SolutionUpload(assignment_id=assignment.id, problem_id=problem.id,
+                               user_id=student.id, code=code),
+            ])
+        await session.commit()
+        found[title] = assignment
+    return found["ПМИ-1"], found["ПМИ-2"]
+
+
+async def test_a_copy_from_another_group_is_found(session):
+    """Контрольную выдали двум группам — списывают и через группу."""
+    from app.services import similarity as service
+
+    mine, _ = await _two_groups(session, {"Аня": ORIGINAL, "Вера": OWN_WAY}, {"Борис": DISGUISED})
+    [report] = await service.for_assignment(session, mine)
+    [match] = report.matches
+    assert {match.first.display_name, match.second.display_name} == {"Аня", "Борис"}
+    assert match.across
+    # Внутри одной группы этой пары не видно — потому и нужен режим «с другими».
+    [alone] = await service.for_assignment(session, mine, across_groups=False)
+    assert alone.matches == []
+
+
+async def test_pairs_inside_another_group_stay_on_its_page(session):
+    from app.services import similarity as service
+
+    mine, theirs = await _two_groups(
+        session, {"Аня": OWN_WAY}, {"Борис": ORIGINAL, "Глеб": DISGUISED}
+    )
+    [report] = await service.for_assignment(session, mine)
+    assert report.matches == []
+    [their_report] = await service.for_assignment(session, theirs)
+    assert len(their_report.matches) == 1 and not their_report.matches[0].across
+
+
+async def test_a_student_with_the_problem_in_two_assignments_is_not_compared_with_himself(
+    session,
+):
+    """Задача была в домашке и в контрольной: своё же решение — не списывание."""
+    from app.services import similarity as service
+
+    mine, theirs = await _two_groups(session, {"Аня": ORIGINAL, "Вера": OWN_WAY}, {})
+    anya = await session.scalar(select(User).where(User.display_name == "Аня"))
+    group_b = await session.get(Group, theirs.group_id)
+    session.add_all([
+        GroupMembership(group_id=group_b.id, user_id=anya.id),
+        SolutionUpload(assignment_id=theirs.id, problem_id=(await session.scalar(
+            select(Problem.id))), user_id=anya.id, code=ORIGINAL),
+    ])
+    await session.commit()
+    [report] = await service.for_assignment(session, mine)
+    assert report.matches == []

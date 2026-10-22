@@ -26,9 +26,10 @@ import re
 from dataclasses import dataclass, field
 from itertools import combinations
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Assignment, Problem, User
+from app.models import Assignment, Problem, ProblemSetItem, User, utcnow
 from app.services import solutions
 from app.services.progress import participants_for_assignment, problems_for_set
 
@@ -160,8 +161,14 @@ class Comparison:
     short: int
 
 
-def compare(prints: dict[int, Fingerprint]) -> Comparison:
-    """Пары решений не ниже порога — сначала самые похожие."""
+def compare(prints: dict[int, Fingerprint], focus: set[int] | None = None) -> Comparison:
+    """Пары решений не ниже порога — сначала самые похожие.
+
+    `focus` — только пары, где хотя бы один из этих людей: сравниваем группу
+    с другими, а пары целиком внутри другой группы — на её странице. Редкие
+    имена при этом считаются по всем решениям: чем их больше, тем весомее
+    «есть только у этих двоих».
+    """
     long_enough = {key: fp for key, fp in prints.items() if fp.tokens >= MIN_TOKENS}
     seen_in: dict[str, int] = {}
     for fp in long_enough.values():
@@ -170,6 +177,8 @@ def compare(prints: dict[int, Fingerprint]) -> Comparison:
 
     pairs = []
     for (a, fa), (b, fb) in combinations(sorted(long_enough.items()), 2):
+        if focus is not None and a not in focus and b not in focus:
+            continue
         score = similarity(fa, fb)
         if score < THRESHOLD:
             continue
@@ -178,7 +187,9 @@ def compare(prints: dict[int, Fingerprint]) -> Comparison:
             shared = sorted(n for n in fa.names & fb.names if seen_in[n] == 2)[:MAX_NAMES]
         pairs.append(Pair(a, b, score, shared))
     pairs.sort(key=lambda p: (-p.score, -len(p.shared_names)))
-    return Comparison(pairs=pairs, compared=len(long_enough), short=len(prints) - len(long_enough))
+    compared = len(long_enough) if focus is None else len(focus & set(long_enough))
+    short = (len(prints) if focus is None else len(focus & set(prints))) - compared
+    return Comparison(pairs=pairs, compared=compared, short=short)
 
 
 # ---------------------------------------------------------------- по заданию
@@ -191,6 +202,13 @@ class Match:
     first_solution: solutions.Picked
     second_solution: solutions.Picked
     pair: Pair
+    # Из какого задания каждое решение: у пары из разных групп — разные.
+    first_from: Assignment
+    second_from: Assignment
+
+    @property
+    def across(self) -> bool:
+        return self.first_from.id != self.second_from.id
 
 
 @dataclass(slots=True)
@@ -199,43 +217,98 @@ class ProblemReport:
     compared: int
     short: int
     matches: list[Match] = field(default_factory=list)
+    # Другие задания с этой задачей, чьи решения вошли в сравнение.
+    others: list[Assignment] = field(default_factory=list)
+
+
+async def _students(session: AsyncSession, assignment: Assignment) -> list[User]:
+    # Решения преподавателя не сравниваем — он прорешивает задачи заранее.
+    return [u for u in await participants_for_assignment(session, assignment) if not u.is_teacher]
+
+
+async def _other_assignments(
+    session: AsyncSession, assignment: Assignment, problem_ids: list[int]
+) -> list[Assignment]:
+    """Задания с теми же задачами — других групп, по тому же списку или по
+    другому, где задача тоже стоит. Только начавшиеся: в будущих решать
+    ещё нечего."""
+    rows = await session.execute(
+        select(Assignment)
+        .join(ProblemSetItem, ProblemSetItem.problem_set_id == Assignment.problem_set_id)
+        .where(
+            ProblemSetItem.problem_id.in_(problem_ids),
+            Assignment.id != assignment.id,
+            Assignment.assigned_at <= utcnow(),
+        )
+        .distinct()
+        .order_by(Assignment.assigned_at)
+    )
+    return list(rows.scalars())
 
 
 async def for_assignment(
-    session: AsyncSession, assignment: Assignment, problem_id: int | None = None
+    session: AsyncSession,
+    assignment: Assignment,
+    problem_id: int | None = None,
+    *,
+    across_groups: bool = True,
 ) -> list[ProblemReport]:
     """Похожие решения по каждой задаче задания — для страницы и для MCP.
 
-    Решения те же, что видит проверяющий (`solutions.picked_for_assignment`);
-    решения преподавателя не сравниваем — он прорешивает задачи заранее.
+    Решения те же, что видит проверяющий (`solutions.picked_for_assignment`).
+    С `across_groups` к решениям группы добавляются решения той же задачи из
+    других заданий: контрольную часто выдают нескольким группам сразу, и
+    списывают через группу. Показываем пары, где хотя бы один — из этой
+    группы. У кого задача была в двух заданиях, берём решение отсюда: сам
+    с собой человек не сравнивается.
     """
-    students = [
-        u for u in await participants_for_assignment(session, assignment) if not u.is_teacher
-    ]
-    by_id = {u.id: u for u in students}
+    here = await _students(session, assignment)
     problems = await problems_for_set(session, assignment.problem_set_id)
     if problem_id is not None:
         problems = [p for p in problems if p.id == problem_id]
-    picked = await solutions.picked_for_assignment(
-        session, assignment, list(by_id), [p.id for p in problems]
-    )
+    problem_ids = [p.id for p in problems]
 
+    # (assignment, students, picked) — сначала своё задание: его решения главнее.
+    sources = [(assignment, here, await solutions.picked_for_assignment(
+        session, assignment, [u.id for u in here], problem_ids
+    ))]
+    if across_groups and problem_ids:
+        for other in await _other_assignments(session, assignment, problem_ids):
+            students = await _students(session, other)
+            if not students:
+                continue
+            sources.append((other, students, await solutions.picked_for_assignment(
+                session, other, [u.id for u in students], problem_ids
+            )))
+
+    users = {u.id: u for _, students, _ in sources for u in students}
+    focus = {u.id for u in here}
     reports = []
     for problem in problems:
-        mine = {
-            user_id: found
-            for (user_id, pid), found in picked.items()
-            if pid == problem.id and found.code
-        }
-        result = compare({
-            user_id: fingerprint(found.code, found.language) for user_id, found in mine.items()
-        })
+        pool: dict[int, tuple[solutions.Picked, Assignment]] = {}
+        involved: list[Assignment] = []
+        for source, _, picked in sources:
+            for (user_id, pid), found in picked.items():
+                if pid != problem.id or not found.code or user_id in pool:
+                    continue
+                pool[user_id] = (found, source)
+                if source.id != assignment.id and source not in involved:
+                    involved.append(source)
+        result = compare(
+            {uid: fingerprint(found.code, found.language) for uid, (found, _) in pool.items()},
+            focus=focus,
+        )
         reports.append(ProblemReport(
             problem=problem,
             compared=result.compared,
             short=result.short,
+            others=involved,
             matches=[
-                Match(by_id[p.first], by_id[p.second], mine[p.first], mine[p.second], p)
+                Match(
+                    users[p.first], users[p.second],
+                    pool[p.first][0], pool[p.second][0], p,
+                    pool[p.first][1], pool[p.second][1],
+                )
                 for p in result.pairs
             ],
         ))
