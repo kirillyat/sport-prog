@@ -116,7 +116,10 @@ def test_living_backgrounds_vanish_in_print_and_high_contrast():
     """Фоны тем рисуют псевдоэлементы. В печати они пачкали бы лист, а в
     высококонтрастном режиме Windows от них остались бы обрывки; новый
     псевдоэлемент, не добавленный в оба списка, там и вылезет."""
-    used = set(re.findall(r'\[data-theme="[a-z]+"\] ((?:body|\.shell)::(?:before|after))', CSS))
+    pseudo_of_theme = r'\[data-theme="[a-z]+"\] ((?:body|\.shell|main)::(?:before|after))'
+    used = set(re.findall(pseudo_of_theme, CSS))
+    # И у самого корня страницы: :root[data-theme="…"]::after.
+    used |= {":root" + p for p in re.findall(r'\[data-theme="[a-z]+"\](::(?:before|after))', CSS)}
     assert used, "фонов тем не нашлось — поменялись селекторы?"
     for media in ("@media print", "@media (forced-colors: active)"):
         block = CSS[CSS.index(media):]

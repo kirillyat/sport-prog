@@ -494,30 +494,30 @@
    Живут в свои даты (app/services/seasons.py): в меню появляются только
    тогда, а сохранённый выбор после праздника не действует. */
 
-/* Хэллоуин: тыква на почти чёрном фиолетовом. */
+/* Хэллоуин: свечной янтарь на почти чёрном фиолетовом — тыква без неона. */
 :root[data-theme="halloween"] {
   color-scheme: dark;
   --bg: #120c14;
   --panel: #120c14;
   --panel-2: #1e1422;
-  --ink: #ff7a1a;
-  --text: #f6e7d6;
-  --text-2: #e2c6a6;
-  --muted: #a8907a;
-  --line: #ff7a1a;
-  --line-soft: rgba(255, 255, 255, .26);
-  --inv-bg: #ff7a1a;
+  --ink: #df8f45;
+  --text: #ece3d8;
+  --text-2: #d4c6b4;
+  --muted: #9c8d80;
+  --line: #df8f45;
+  --line-soft: rgba(255, 255, 255, .24);
+  --inv-bg: #df8f45;
   --inv-text: #120c14;
-  --accent: #b98cff;
-  --err: #ff5a5a;
+  --accent: #a995d6;
+  --err: #ff6b5e;
   --err-text: #111111;
-  --code-key: #ff7a1a;
-  --code-str: #b98cff;
-  --code-com: #a8907a;
-  --code-num: #9be37b;
+  --code-key: #df8f45;
+  --code-str: #a995d6;
+  --code-com: #9c8d80;
+  --code-num: #9fc98a;
   --field-bg: #1e1422;
-  --field-text: #f6e7d6;
-  --placeholder: #8a7566;
+  --field-text: #ece3d8;
+  --placeholder: #85776b;
   --light-logo: none;
   --dark-logo: block;
 }
@@ -857,7 +857,7 @@ body.with-rail { padding-left: var(--rail); }
 .sw-neon        { --sw-a: #0b0e07; --sw-b: #c8ff2e; }
 .sw-ice         { --sw-a: #051923; --sw-b: #6fe3ff; }
 .sw-magenta     { --sw-a: #16041a; --sw-b: #ff59d6; }
-.sw-halloween   { --sw-a: #120c14; --sw-b: #ff7a1a; }
+.sw-halloween   { --sw-a: #120c14; --sw-b: #df8f45; }
 .sw-newyear     { --sw-a: #0a3324; --sw-b: #ffd34d; }
 .sw-valentine   { --sw-a: #fff0f5; --sw-b: #c2185b; }
 .sw-cosmos      { --sw-a: #070a1d; --sw-b: #8ecbff; }
@@ -1632,10 +1632,6 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
    Только смайлики в псевдоэлементах: сквозь них кликается, текст они не
    перекрывают, а другая тема снимает их целиком. Гирлянде отдана своя
    строка над содержимым страницы — поверх кнопок она не ляжет. */
-:root[data-theme="halloween"] {
-  --garland: "🎃 🦇 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃";
-  --corner: "🦇";
-}
 :root[data-theme="newyear"] {
   --garland: "🎄 ❄️ 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄";
   --corner: "🎅";
@@ -1668,6 +1664,13 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   font-size: 26px; line-height: 1;
   pointer-events: none; user-select: none; -webkit-user-select: none;
   animation: season-float 6s ease-in-out infinite;
+}
+/* На Хэллоуин в рейке — силуэт мыши цветом иконок, а не цветной смайлик. */
+:root[data-theme="halloween"] .rail-foot::before {
+  content: ""; width: 34px; height: 17px;
+  background: var(--inv-text);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 60'%3E%3Cpath fill='%23000' d='M60 22 C57 16 54 15 52 18 L50 12 L48 19 C40 10 22 4 4 12 C12 16 14 24 12 30 C18 26 24 27 27 33 C31 29 37 30 40 36 C44 32 50 32 53 38 C56 34 58 34 60 40 C62 34 64 34 67 38 C70 32 76 32 80 36 C83 30 89 29 93 33 C96 27 102 26 108 30 C106 24 108 16 116 12 C98 4 80 10 72 19 L70 12 L68 18 C66 15 63 16 60 22 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 60'%3E%3Cpath fill='%23000' d='M60 22 C57 16 54 15 52 18 L50 12 L48 19 C40 10 22 4 4 12 C12 16 14 24 12 30 C18 26 24 27 27 33 C31 29 37 30 40 36 C44 32 50 32 53 38 C56 34 58 34 60 40 C62 34 64 34 67 38 C70 32 76 32 80 36 C83 30 89 29 93 33 C96 27 102 26 108 30 C106 24 108 16 116 12 C98 4 80 10 72 19 L70 12 L68 18 C66 15 63 16 60 22 Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 @keyframes season-float {
   0%, 100% { transform: translateY(0) rotate(-4deg); }
@@ -1725,20 +1728,25 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 @keyframes snow-fall { from { background-position: 0 0; } to { background-position: 40px 280px; } }
 @keyframes snow-fall-slow { from { background-position: 0 0; } to { background-position: -50px 380px; } }
 
-/* Хэллоуин: гирлянда висит на нитке и мерцает тыквенным светом, как свечи.
-   Нитка — тонкая линия по верху строки; смайлики свисают ниже. */
+/* Хэллоуин: вместо строки цветных смайликов — нитка с тёплыми огоньками,
+   которые мерцают, как свечи. Спокойнее и не пестрит. */
 :root[data-theme="halloween"] main::before {
-  padding-top: 8px;
-  background: linear-gradient(transparent 4px, rgba(246, 231, 214, .35) 4px 5px, transparent 5px) repeat-x;
-  filter: drop-shadow(0 0 5px rgba(255, 122, 26, .65));
+  content: "";
+  height: 24px; letter-spacing: 0;
+  background-image:
+    radial-gradient(circle at 18px 15px, #ffc477 0 3px, rgba(223, 143, 69, .45) 4px, transparent 8px),
+    linear-gradient(transparent 5px, rgba(236, 227, 216, .22) 5px 6px, transparent 6px);
+  background-size: 72px 24px, 100% 24px;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 0 4px rgba(223, 143, 69, .55));
   animation: candle-flicker 4.2s ease-in-out infinite;
 }
 @keyframes candle-flicker {
-  0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 122, 26, .65)); opacity: 1; }
-  18% { filter: drop-shadow(0 0 2px rgba(255, 122, 26, .35)); opacity: .82; }
-  22% { filter: drop-shadow(0 0 7px rgba(255, 122, 26, .8)); opacity: 1; }
-  55% { filter: drop-shadow(0 0 4px rgba(255, 122, 26, .55)); opacity: .92; }
-  60% { filter: drop-shadow(0 0 8px rgba(255, 140, 40, .85)); opacity: 1; }
+  0%, 100% { opacity: 1; }
+  18% { opacity: .7; }
+  22% { opacity: 1; }
+  55% { opacity: .82; }
+  60% { opacity: .95; }
 }
 /* Летучие мыши пролетают на фоне и надолго пропадают — заметно, но не
    мельтешит. z-index: -1 кладёт их под содержимое: видно в просветах между
@@ -1746,16 +1754,17 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
    Одна летит слева направо, вторая навстречу и позже. */
 :root[data-theme="halloween"] body::before,
 :root[data-theme="halloween"] body::after {
-  content: "🦇"; position: fixed; z-index: -1; left: 0; top: 0;
-  font-family: var(--emoji); font-size: 72px; line-height: 1; opacity: .32;
-  pointer-events: none; user-select: none; -webkit-user-select: none;
+  content: ""; position: fixed; z-index: -1; left: 0; top: 0;
+  width: 96px; height: 48px; opacity: .75;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 60'%3E%3Cpath fill='%23050308' d='M60 22 C57 16 54 15 52 18 L50 12 L48 19 C40 10 22 4 4 12 C12 16 14 24 12 30 C18 26 24 27 27 33 C31 29 37 30 40 36 C44 32 50 32 53 38 C56 34 58 34 60 40 C62 34 64 34 67 38 C70 32 76 32 80 36 C83 30 89 29 93 33 C96 27 102 26 108 30 C106 24 108 16 116 12 C98 4 80 10 72 19 L70 12 L68 18 C66 15 63 16 60 22 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  pointer-events: none;
   will-change: transform;
 }
 :root[data-theme="halloween"] body::before {
   animation: bat-flight 22s linear infinite;
 }
 :root[data-theme="halloween"] body::after {
-  font-size: 52px; opacity: .24;
+  width: 68px; height: 34px; opacity: .6;
   /* backwards — пока ждёт вылета, мышь уже за краем экрана, а не в углу на знаке. */
   animation: bat-flight-back 31s linear 7s infinite backwards;
 }
@@ -1775,14 +1784,77 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   38%  { transform: translate(-60px, 56vh) scaleX(-1); }
   100% { transform: translate(-60px, 56vh) scaleX(-1); }
 }
-/* Туман у нижнего края экрана — фиолетовая дымка, едва заметная. */
-:root[data-theme="halloween"] .shell::after {
-  content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 140px; z-index: 2;
-  pointer-events: none;
-  background: linear-gradient(to top, rgba(185, 140, 255, .14), transparent);
-  animation: fog-breathe 9s ease-in-out infinite;
+/* Сцена: луна в углу неба и силуэт внизу — холмы, дом с горящими окнами,
+   сухое дерево, кресты и тыквы. Две неподвижные SVG-картинки: рисуются
+   один раз и больше ничего не стоят. z-index: -2 — под мышами, чтобы они
+   пролетали перед луной, а не за ней. На узком экране силуэт прижат
+   вправо — туда, где дом. */
+:root[data-theme="halloween"] .shell::before {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E %3Cdefs%3E %3CradialGradient id='h'%3E%3Cstop offset='.42' stop-color='%23ffd68c' stop-opacity='.32'/%3E%3Cstop offset='1' stop-color='%23ffd68c' stop-opacity='0'/%3E%3C/radialGradient%3E %3CradialGradient id='m' cx='.42' cy='.4'%3E%3Cstop offset='0' stop-color='%23fff3cf'/%3E%3Cstop offset='1' stop-color='%23efc06c'/%3E%3C/radialGradient%3E %3C/defs%3E %3Ccircle cx='100' cy='100' r='100' fill='url(%23h)'/%3E %3Ccircle cx='100' cy='100' r='46' fill='url(%23m)'/%3E %3Cg fill='%23d9a552' fill-opacity='.5'%3E %3Ccircle cx='84' cy='86' r='9'/%3E%3Ccircle cx='117' cy='112' r='12'/%3E%3Ccircle cx='110' cy='76' r='5'/%3E%3Ccircle cx='88' cy='119' r='6'/%3E %3C/g%3E %3C/svg%3E") no-repeat right 5vw top 6vh / clamp(120px, 24vmin, 230px) auto,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 260'%3E %3Cdefs%3E %3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23ff9a3c' stop-opacity='.2'/%3E%3Cstop offset='1' stop-color='%23ff9a3c' stop-opacity='0'/%3E%3C/radialGradient%3E %3C/defs%3E %3Cpath fill='%231c1123' d='M0 200 C120 160 240 150 360 175 C480 200 560 150 700 140 C820 130 900 95 1000 110 C1080 122 1140 150 1200 160 V260 H0 Z'/%3E %3Ccircle cx='928' cy='78' r='80' fill='url(%23g)'/%3E %3Cg fill='%23140b19'%3E %3Crect x='880' y='62' width='96' height='58'/%3E %3Cpolygon points='870,64 928,22 986,64'/%3E %3Crect x='948' y='30' width='26' height='50'/%3E %3Cpolygon points='942,32 961,4 980,32'/%3E %3Crect x='896' y='32' width='10' height='22'/%3E %3C/g%3E %3Cg fill='%23d9a05a'%3E %3Crect x='893' y='78' width='14' height='16'/%3E%3Crect x='921' y='78' width='14' height='16'/%3E%3Crect x='955' y='44' width='12' height='14'/%3E %3C/g%3E %3Cg stroke='%23140b19' stroke-width='2'%3E %3Cpath d='M900 78 v16 M893 86 h14 M928 78 v16 M921 86 h14 M961 44 v14'/%3E %3C/g%3E %3Crect x='946' y='94' width='16' height='26' fill='%230b070e'/%3E %3Cpath fill='%230b070e' d='M0 230 C160 205 300 215 450 222 C620 230 760 210 900 214 C1040 218 1120 228 1200 222 V260 H0 Z'/%3E %3Cpath fill='%230b070e' d='M152 216 L156 150 L140 120 L146 117 L160 141 L161 110 L149 84 L155 81 L168 105 L176 79 L182 81 L172 120 L190 99 L196 103 L172 140 L170 216 Z'/%3E %3Cg fill='%230b070e'%3E %3Cpath d='M372 223 v-22 a11 11 0 0 1 22 0 v22 Z'/%3E %3Crect x='428' y='194' width='5' height='30'/%3E%3Crect x='420' y='202' width='21' height='5'/%3E %3Cpath d='M478 225 v-16 a9 9 0 0 1 18 0 v16 Z'/%3E %3Cg transform='rotate(8 540 210)'%3E%3Crect x='538' y='192' width='4' height='28'/%3E%3Crect x='531' y='199' width='18' height='4'/%3E%3C/g%3E %3C/g%3E %3Cellipse cx='640' cy='219' rx='13' ry='10' fill='%23a9581f'/%3E %3Crect x='638' y='206' width='4' height='5' fill='%233d6b2a'/%3E %3Cg fill='%23120c14'%3E %3Cpolygon points='632,217 636,212 639,218'/%3E%3Cpolygon points='641,218 644,212 648,217'/%3E %3Cpath d='M632 222 Q640 228 648 222 Q640 225 632 222 Z'/%3E %3C/g%3E %3Cellipse cx='672' cy='223' rx='9' ry='7' fill='%238f4818'/%3E %3Crect x='671' y='214' width='3' height='4' fill='%233d6b2a'/%3E %3C/svg%3E") no-repeat right bottom / max(100vw, 1000px) auto;
 }
+/* Туман у нижнего края — клочья дымки плывут вбок. Слой вдвое шире
+   экрана и сдвигается на половину — на одну плитку, поэтому шва нет;
+   двигается слой целиком, без перерисовки. */
+:root[data-theme="halloween"] .shell::after {
+  content: ""; position: fixed; left: 0; bottom: 0; width: 200vw; height: 160px; z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 18% 60% at 20% 100%, rgba(200, 170, 255, .16), transparent 70%),
+    radial-gradient(ellipse 24% 75% at 55% 100%, rgba(185, 140, 255, .13), transparent 70%),
+    radial-gradient(ellipse 15% 50% at 86% 100%, rgba(200, 170, 255, .14), transparent 70%),
+    linear-gradient(to top, rgba(185, 140, 255, .1), transparent);
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  animation: fog-drift 70s linear infinite, fog-breathe 9s ease-in-out infinite;
+}
+@keyframes fog-drift { to { transform: translateX(-50%); } }
 @keyframes fog-breathe { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+/* Тыквенное лицо — глаза и улыбка во весь экран — изредка проступает
+   поверх страницы еле заметным свечением и тает. Поверх, а не под
+   содержимым: под карточками его бы не было видно. Яркость не выше
+   семи сотых — читать не мешает; движется только прозрачность. */
+:root[data-theme="halloween"]::after {
+  content: ""; position: fixed; left: 50%; top: 50%; z-index: 2; pointer-events: none;
+  width: min(86vw, 760px); aspect-ratio: 400 / 270;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 270'%3E %3Cdefs%3E%3Cfilter id='b' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3C/defs%3E %3Cg id='f' fill='%23ff8a1f' fill-rule='evenodd'%3E %3Cpolygon points='80,110 130,40 180,110'/%3E %3Cpolygon points='220,110 270,40 320,110'/%3E %3Cpolygon points='184,152 200,122 216,152'/%3E %3Cpath d='M60 165 Q200 215 340 165 Q300 250 200 256 Q100 250 60 165 Z M150 190 h22 v18 h-22 Z M228 190 h22 v18 h-22 Z M189 230 h22 v22 h-22 Z'/%3E %3C/g%3E %3Cuse href='%23f' filter='url(%23b)'/%3E %3C/svg%3E") center / contain no-repeat;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: pumpkin-face 45s ease-in-out 12s infinite;
+}
+@keyframes pumpkin-face {
+  0%, 80%, 100% { opacity: 0; }
+  87% { opacity: .07; }
+  90% { opacity: .055; }
+  93% { opacity: .07; }
+}
+/* Паучок изредка спускается на нитке у правого края, качается и уползает.
+   Нитка — фон над ним; элемент выше экрана, поэтому она всегда тянется
+   от самого верха. */
+:root[data-theme="halloween"] main::after {
+  content: ""; position: fixed; top: 0; right: 14px; z-index: -1;
+  width: 24px; height: calc(40vh + 24px); opacity: .55;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23cfc4b8' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M15 20 Q8 14 4 18 M15 23 Q7 21 3 26 M15 26 Q8 28 5 34 M16 29 Q11 33 10 38 M25 20 Q32 14 36 18 M25 23 Q33 21 37 26 M25 26 Q32 28 35 34 M24 29 Q29 33 30 38'/%3E%3C/g%3E%3Cg fill='%23cfc4b8'%3E%3Cellipse cx='20' cy='25' rx='6' ry='7'/%3E%3Ccircle cx='20' cy='15' r='4'/%3E%3C/g%3E%3C/svg%3E") no-repeat 50% 100% / 24px 24px,
+    linear-gradient(rgba(236, 227, 216, .35), rgba(236, 227, 216, .35)) no-repeat 50% 0 / 1px calc(100% - 16px);
+  pointer-events: none;
+  transform-origin: 50% 0;
+  will-change: transform;
+  animation: spider-drop 26s ease-in-out 4s infinite backwards;
+}
+@keyframes spider-drop {
+  0%   { transform: translateY(-100%); }
+  12%  { transform: translateY(calc(-22vh - 28px)); }
+  14%  { transform: translateY(calc(-24vh - 28px)); }
+  16%  { transform: translateY(calc(-22vh - 28px)) rotate(0); }
+  21%  { transform: translateY(calc(-22vh - 28px)) rotate(2deg); }
+  26%  { transform: translateY(calc(-22vh - 28px)) rotate(-2deg); }
+  30%  { transform: translateY(calc(-22vh - 28px)) rotate(0); }
+  42%  { transform: translateY(-100%); }
+  100% { transform: translateY(-100%); }
+}
 
 /* День святого Валентина: гирлянда на нитке с розовым отсветом, сердце
    в рейке бьётся, а не качается. */
@@ -2042,6 +2114,8 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   :root[data-theme="halloween"] body::after { display: none; }
   :root[data-theme="halloween"] main::before,
   :root[data-theme="halloween"] .shell::after { animation: none; }
+  :root[data-theme="halloween"] main::after,
+  :root[data-theme="halloween"]::after { display: none; }
   :root[data-theme="newyear"] body::before,
   :root[data-theme="newyear"] body::after { display: none; }
   :root[data-theme="newyear"] main::before { animation: none; }
@@ -2062,13 +2136,13 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   .season-btn:not([hidden]) { animation: none; }
 }
 @media print {
-  main::before, .rail-foot::before, body::before, body::after, .shell::before, .shell::after,
-  .matrix-rain { display: none !important; }
+  main::before, main::after, .rail-foot::before, body::before, body::after, .shell::before, .shell::after,
+  :root::after, .matrix-rain { display: none !important; }
 }
 /* Высококонтрастный режим Windows и подобные: браузер сам убирает фоны,
    и от украшений остались бы обрывки. Там — без них. */
 @media (forced-colors: active) {
-  main::before, .rail-foot::before,
-  body::before, body::after, .shell::before, .shell::after, .season-btn,
+  main::before, main::after, .rail-foot::before,
+  body::before, body::after, .shell::before, .shell::after, :root::after, .season-btn,
   .matrix-rain { display: none !important; }
 }
