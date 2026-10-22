@@ -6,7 +6,11 @@
 
   var KEY = "sport-theme";
   // Порядок неважен — важно, что список тот же, что в CSS и в меню.
-  var THEMES = ["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta"];
+  var THEMES = ["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "halloween", "newyear"];
+  // Праздничные темы (app/services/seasons.py): действуют только в свой
+  // праздник, который сервер отмечает у <html data-season>.
+  var SEASONAL = ["halloween", "newyear"];
+  var season = document.documentElement.getAttribute("data-season") || "";
   // Старые значения переключателя «светлая/тёмная»: у людей они уже
   // сохранены, и терять их выбор из-за переименования незачем.
   var LEGACY = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" };
@@ -21,10 +25,13 @@
         value = window.matchMedia
           && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
       }
-      // Без выбора — тема по умолчанию, та же, что у голого :root в CSS.
-      return THEMES.indexOf(value) >= 0 ? value : "finland";
+      // Праздник прошёл — праздничный выбор больше не действует.
+      if (SEASONAL.indexOf(value) >= 0 && value !== season) value = null;
+      // Без выбора — праздничная тема, если праздник идёт, иначе та же,
+      // что у голого :root в CSS.
+      return THEMES.indexOf(value) >= 0 ? value : (season || "finland");
     } catch (e) {
-      return "finland";
+      return season || "finland";
     }
   }
 
@@ -40,6 +47,12 @@
       } else {
         options[i].removeAttribute("aria-current");
       }
+    }
+
+    // Значок праздника — тем, у кого сейчас не праздничная тема.
+    var invites = document.querySelectorAll("[data-season-btn]");
+    for (var j = 0; j < invites.length; j++) {
+      invites[j].hidden = !season || value === season;
     }
   }
 

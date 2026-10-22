@@ -404,12 +404,75 @@
   --dark-logo: block;
 }
 
+/* ---------- праздничные темы ----------
+   Живут в свои даты (app/services/seasons.py): в меню появляются только
+   тогда, а сохранённый выбор после праздника не действует. */
+
+/* Хэллоуин: тыква на почти чёрном фиолетовом. */
+:root[data-theme="halloween"] {
+  color-scheme: dark;
+  --bg: #120c14;
+  --panel: #120c14;
+  --panel-2: #1e1422;
+  --ink: #ff7a1a;
+  --text: #f6e7d6;
+  --text-2: #e2c6a6;
+  --muted: #a8907a;
+  --line: #ff7a1a;
+  --line-soft: rgba(255, 255, 255, .26);
+  --inv-bg: #ff7a1a;
+  --inv-text: #120c14;
+  --accent: #b98cff;
+  --err: #ff5a5a;
+  --err-text: #111111;
+  --code-key: #ff7a1a;
+  --code-str: #b98cff;
+  --code-com: #a8907a;
+  --code-num: #9be37b;
+  --field-bg: #1e1422;
+  --field-text: #f6e7d6;
+  --placeholder: #8a7566;
+  --light-logo: none;
+  --dark-logo: block;
+}
+/* Новый год: золото и праздничный красный на насыщенной ёлочной зелени. */
+:root[data-theme="newyear"] {
+  color-scheme: dark;
+  --bg: #0a3324;
+  --panel: #0a3324;
+  --panel-2: #10422f;
+  --ink: #ffd34d;
+  --text: #fbf6e9;
+  --text-2: #dfe9e1;
+  --muted: #a9c4b4;
+  --line: #ffd34d;
+  --line-soft: rgba(255, 255, 255, .26);
+  --inv-bg: #ffd34d;
+  --inv-text: #0a3324;
+  --accent: #ff6f7d;
+  --err: #ff8a65;
+  --err-text: #111111;
+  --code-key: #ffd34d;
+  --code-str: #ff6f7d;
+  --code-com: #a9c4b4;
+  --code-num: #7ee0a1;
+  --field-bg: #10422f;
+  --field-text: #fbf6e9;
+  --placeholder: #86a595;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
 :root {
   --rule: 3px;
   --display: "Unbounded", "Arial Black", Impact, sans-serif;
   --sans: "Golos Text", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --mono: "JetBrains Mono", Menlo, Consolas, monospace;
   --rail: 88px;
+  /* Шрифт смайликов-украшений — явно и первым. Без этого Windows берёт для
+     старых символов (❄ ⭐ ✨) одноцветный Segoe UI Symbol вместо цветного
+     Segoe UI Emoji, а Linux — что найдёт. */
+  --emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -481,7 +544,10 @@ body.with-rail { padding-left: var(--rail); }
 .rail .nav { display: flex; flex-direction: column; }
 /* Пункты прокручиваются, знак и подвал стоят на месте. Пока рейка была
    сплошной, всё, что не влезало по высоте, обрезалось — вместе с выходом. */
-.rail .nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.rail .nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+/* Полосы прокрутки не видно, прокрутка колесом и пальцем остаётся. Видимая
+   полоса отнимала у рейки ширину, и «Интеграции» ломались на «ИНТЕГРАЦИ / И». */
+.rail .nav::-webkit-scrollbar { display: none; }
 .nav a, .tabbar a, .nav-more > summary {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 13px 4px 11px; color: var(--inv-text); font-size: 9.5px; letter-spacing: .06em;
@@ -650,6 +716,8 @@ body.with-rail { padding-left: var(--rail); }
 .sw-neon        { --sw-a: #0b0e07; --sw-b: #c8ff2e; }
 .sw-ice         { --sw-a: #051923; --sw-b: #6fe3ff; }
 .sw-magenta     { --sw-a: #16041a; --sw-b: #ff59d6; }
+.sw-halloween   { --sw-a: #120c14; --sw-b: #ff7a1a; }
+.sw-newyear     { --sw-a: #0a3324; --sw-b: #ffd34d; }
 
 /* На странице входа рейки нет — переключатель стоит сам по себе. */
 .lang.auth { display: inline-block; margin: 0 0 24px; }
@@ -1413,3 +1481,196 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 .legend .swatch.solves { background: var(--solves); }
 .legend .swatch.others { background: var(--others); }
 .legend .swatch.after { background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px solid var(--line-soft); }
+
+/* ---------- праздничные украшения ----------
+   Только смайлики в псевдоэлементах: сквозь них кликается, текст они не
+   перекрывают, а другая тема снимает их целиком. Гирлянде отдана своя
+   строка над содержимым страницы — поверх кнопок она не ляжет. */
+:root[data-theme="halloween"] {
+  --garland: "🎃 🦇 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃 🕸️ 👻 🍬 🦇 🎃";
+  --corner: "🦇";
+  --brand-badge: "🎃";
+}
+:root[data-theme="newyear"] {
+  --garland: "🎄 ❄️ 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄";
+  --corner: "🎅";
+  --brand-badge: "🎄";
+}
+:root[data-theme="halloween"] main::before,
+:root[data-theme="newyear"] main::before {
+  content: var(--garland); font-family: var(--emoji);
+  display: block; margin: -14px 0 18px;
+  overflow: hidden; white-space: nowrap; text-align: center;
+  font-size: 18px; line-height: 1.2; letter-spacing: .3em;
+  pointer-events: none; user-select: none; -webkit-user-select: none;
+}
+:root[data-theme="halloween"] .rail .brand,
+:root[data-theme="newyear"] .rail .brand { position: relative; }
+:root[data-theme="halloween"] .rail .brand::after,
+:root[data-theme="newyear"] .rail .brand::after {
+  content: var(--brand-badge); font-family: var(--emoji);
+  position: absolute; top: 4px; right: 6px; font-size: 15px; line-height: 1;
+  pointer-events: none;
+}
+:root[data-theme="halloween"] .rail-foot::before,
+:root[data-theme="newyear"] .rail-foot::before {
+  /* В рейке над аватаркой, а не в углу экрана: там фигурка ложилась
+     на кнопки страницы — «Сдать решение» у задачи. */
+  content: var(--corner); font-family: var(--emoji);
+  font-size: 26px; line-height: 1;
+  pointer-events: none; user-select: none; -webkit-user-select: none;
+  animation: season-float 6s ease-in-out infinite;
+}
+@keyframes season-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-8px) rotate(4deg); }
+}
+
+/* Новый год: вместо строки смайликов — гирлянда из огоньков. Четыре цвета —
+   четыре слоя с одинаковым шагом, сдвинутые на лампочку; сдвиг всех слоёв
+   на шаг по кругу и даёт «бегущие огни». Провод — тонкая линия сверху. */
+:root[data-theme="newyear"] main::before {
+  content: "";
+  height: 28px; margin: -14px 0 18px; letter-spacing: 0;
+  background-image:
+    radial-gradient(circle at 12px 17px, #ff4d5e 0 5px, transparent 6px),
+    radial-gradient(circle at 12px 17px, #ffd34d 0 5px, transparent 6px),
+    radial-gradient(circle at 12px 17px, #3ddc84 0 5px, transparent 6px),
+    radial-gradient(circle at 12px 17px, #4cc9f0 0 5px, transparent 6px),
+    linear-gradient(transparent 8px, rgba(255, 255, 255, .35) 8px 9px, transparent 9px);
+  background-size: 96px 28px, 96px 28px, 96px 28px, 96px 28px, 100% 28px;
+  background-repeat: repeat-x;
+  background-position: 0 0, 24px 0, 48px 0, 72px 0, 0 0;
+  filter: drop-shadow(0 0 4px rgba(255, 211, 77, .55));
+  animation: lights-chase 2s steps(1) infinite;
+}
+@keyframes lights-chase {
+  0%   { background-position: 0 0, 24px 0, 48px 0, 72px 0, 0 0; }
+  25%  { background-position: 24px 0, 48px 0, 72px 0, 96px 0, 0 0; }
+  50%  { background-position: 48px 0, 72px 0, 96px 0, 120px 0, 0 0; }
+  75%  { background-position: 72px 0, 96px 0, 120px 0, 144px 0, 0 0; }
+}
+/* Снег — два слоя редких снежинок, мелкие падают быстрее. Над страницей,
+   но под рейкой и меню, и сквозь него кликается. */
+:root[data-theme="newyear"] body::before,
+:root[data-theme="newyear"] body::after {
+  content: ""; position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  background-repeat: repeat;
+}
+:root[data-theme="newyear"] body::before {
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, .85), transparent),
+    radial-gradient(2px 2px at 140px 90px, rgba(255, 255, 255, .7), transparent),
+    radial-gradient(2px 2px at 230px 170px, rgba(255, 255, 255, .8), transparent),
+    radial-gradient(2px 2px at 80px 220px, rgba(255, 255, 255, .65), transparent);
+  background-size: 280px 280px;
+  animation: snow-fall 14s linear infinite;
+}
+:root[data-theme="newyear"] body::after {
+  background-image:
+    radial-gradient(3px 3px at 60px 60px, rgba(255, 255, 255, .8), transparent),
+    radial-gradient(4px 4px at 250px 140px, rgba(255, 255, 255, .7), transparent),
+    radial-gradient(3px 3px at 170px 300px, rgba(255, 255, 255, .75), transparent);
+  background-size: 380px 380px;
+  animation: snow-fall-slow 24s linear infinite;
+}
+@keyframes snow-fall { from { background-position: 0 0; } to { background-position: 40px 280px; } }
+@keyframes snow-fall-slow { from { background-position: 0 0; } to { background-position: -50px 380px; } }
+
+/* Хэллоуин: гирлянда висит на нитке и мерцает тыквенным светом, как свечи.
+   Нитка — тонкая линия по верху строки; смайлики свисают ниже. */
+:root[data-theme="halloween"] main::before {
+  padding-top: 8px;
+  background: linear-gradient(transparent 4px, rgba(246, 231, 214, .35) 4px 5px, transparent 5px) repeat-x;
+  filter: drop-shadow(0 0 5px rgba(255, 122, 26, .65));
+  animation: candle-flicker 4.2s ease-in-out infinite;
+}
+@keyframes candle-flicker {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 122, 26, .65)); opacity: 1; }
+  18% { filter: drop-shadow(0 0 2px rgba(255, 122, 26, .35)); opacity: .82; }
+  22% { filter: drop-shadow(0 0 7px rgba(255, 122, 26, .8)); opacity: 1; }
+  55% { filter: drop-shadow(0 0 4px rgba(255, 122, 26, .55)); opacity: .92; }
+  60% { filter: drop-shadow(0 0 8px rgba(255, 140, 40, .85)); opacity: 1; }
+}
+/* Летучие мыши пролетают на фоне и надолго пропадают — заметно, но не
+   мельтешит. z-index: -1 кладёт их под содержимое: видно в просветах между
+   карточками, а текст, кнопки, рейку и меню они не перекрывают никогда.
+   Одна летит слева направо, вторая навстречу и позже. */
+:root[data-theme="halloween"] body::before,
+:root[data-theme="halloween"] body::after {
+  content: "🦇"; position: fixed; z-index: -1; left: 0; top: 0;
+  font-family: var(--emoji); font-size: 72px; line-height: 1; opacity: .32;
+  pointer-events: none; user-select: none; -webkit-user-select: none;
+  will-change: transform;
+}
+:root[data-theme="halloween"] body::before {
+  animation: bat-flight 22s linear infinite;
+}
+:root[data-theme="halloween"] body::after {
+  font-size: 52px; opacity: .24;
+  /* backwards — пока ждёт вылета, мышь уже за краем экрана, а не в углу на знаке. */
+  animation: bat-flight-back 31s linear 7s infinite backwards;
+}
+@keyframes bat-flight {
+  0%   { transform: translate(-60px, 22vh) rotate(-8deg); }
+  8%   { transform: translate(25vw, 14vh) rotate(6deg); }
+  16%  { transform: translate(50vw, 24vh) rotate(-6deg); }
+  24%  { transform: translate(75vw, 12vh) rotate(8deg); }
+  32%  { transform: translate(calc(100vw + 60px), 20vh) rotate(-4deg); }
+  100% { transform: translate(calc(100vw + 60px), 20vh); }
+}
+@keyframes bat-flight-back {
+  0%   { transform: translate(calc(100vw + 60px), 58vh) scaleX(-1); }
+  10%  { transform: translate(70vw, 50vh) scaleX(-1) rotate(-6deg); }
+  20%  { transform: translate(40vw, 62vh) scaleX(-1) rotate(6deg); }
+  30%  { transform: translate(10vw, 52vh) scaleX(-1) rotate(-6deg); }
+  38%  { transform: translate(-60px, 56vh) scaleX(-1); }
+  100% { transform: translate(-60px, 56vh) scaleX(-1); }
+}
+/* Туман у нижнего края экрана — фиолетовая дымка, едва заметная. */
+:root[data-theme="halloween"] .shell::after {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 140px; z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(185, 140, 255, .14), transparent);
+  animation: fog-breathe 9s ease-in-out infinite;
+}
+@keyframes fog-breathe { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* Значок праздника у аватарки: тем, у кого выбрана своя тема. Нажатие
+   включает праздничную тему. Появляется только скриптом — без него
+   выбирать тему всё равно нечем. */
+.season-btn { font-family: var(--emoji); font-size: 20px; line-height: 1; opacity: 1; }
+.season-btn:not([hidden]) { animation: season-nudge 3s ease-in-out infinite; }
+@keyframes season-nudge {
+  0%, 80%, 100% { transform: rotate(0); }
+  85% { transform: rotate(-14deg); }
+  90% { transform: rotate(12deg); }
+  95% { transform: rotate(-6deg); }
+}
+.mobile-tools .season-btn { width: 36px; height: 36px; padding: 0; }
+
+@media (max-width: 760px) {
+  :root[data-theme="halloween"] main::before,
+  :root[data-theme="newyear"] main::before { font-size: 15px; margin: -8px 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="halloween"] body::before,
+  :root[data-theme="halloween"] body::after { display: none; }
+  :root[data-theme="halloween"] main::before,
+  :root[data-theme="halloween"] .shell::after { animation: none; }
+  :root[data-theme="newyear"] body::before,
+  :root[data-theme="newyear"] body::after { display: none; }
+  :root[data-theme="newyear"] main::before { animation: none; }
+  :root[data-theme="halloween"] .rail-foot::before,
+  :root[data-theme="newyear"] .rail-foot::before,
+  .season-btn:not([hidden]) { animation: none; }
+}
+@media print {
+  main::before, .rail-foot::before, body::before, body::after, .shell::after { display: none !important; }
+}
+/* Высококонтрастный режим Windows и подобные: браузер сам убирает фоны,
+   и от украшений остались бы обрывки. Там — без них. */
+@media (forced-colors: active) {
+  main::before, .rail .brand::after, .rail-foot::before,
+  body::before, body::after, .shell::after, .season-btn { display: none !important; }
+}

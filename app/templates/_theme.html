@@ -8,6 +8,13 @@
 <details class="lang theme popup {{ extra }}">
   <summary title="{{ _("Оформление") }}">{{ icon("palette") }}{% if label %}<span>{{ label }}</span>{% endif %}</summary>
   <div class="lang-menu theme-menu">
+    {% set season = current_season() %}
+    {% if season %}
+    <p class="theme-group">{{ _("Праздник") }}</p>
+    <button type="button" data-theme-set="{{ season.key }}">
+      <span class="swatch sw-{{ season.key }}"></span>{{ season.emoji }} {{ _(season.title) }}
+    </button>
+    {% endif %}
     {% for group, items in themes %}
     {% if group %}<p class="theme-group">{{ _(group) }}</p>{% endif %}
     {% for key, label in items %}

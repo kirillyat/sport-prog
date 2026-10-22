@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.templating import THEME_KEYS
+from app.templating import ALL_THEME_KEYS, THEME_KEYS
 
 ROOT = Path(__file__).resolve().parent.parent
 CSS = (ROOT / "app/static/style.css").read_text()
@@ -34,9 +34,9 @@ def blocks() -> dict[str, set[str]]:
 def test_every_theme_defines_the_same_variables():
     sets = blocks()
     first = sets["finland"]
-    for key in THEME_KEYS:
+    for key in ALL_THEME_KEYS:
         assert key in sets, f"темы {key} нет в style.css"
-        missing = first - sets[key] - {"rule", "display", "sans", "mono", "rail"}
+        missing = first - sets[key] - {"rule", "display", "sans", "mono", "rail", "emoji"}
         assert not missing, f"в теме {key} не хватает: {sorted(missing)}"
 
 
@@ -51,7 +51,7 @@ def test_the_system_theme_is_gone_but_its_choice_is_not_lost():
 
 def test_the_list_of_themes_matches_everywhere():
     """Список тем повторён в трёх местах — разъехавшись, он ломает выбор молча."""
-    keys = list(THEME_KEYS)
+    keys = list(ALL_THEME_KEYS)
     in_script = re.search(r"var THEMES = \[(.*?)\]", SCRIPT, re.S).group(1)
     assert sorted(re.findall(r'"([a-z]+)"', in_script)) == sorted(keys)
 
@@ -82,5 +82,13 @@ def test_a_visitor_who_never_chose_gets_finland():
     в <head> и переключатель. Разъехавшись, они мигали бы двумя темами."""
     assert ':root, :root[data-theme="finland"] {' in CSS
     assert ':root, :root[data-theme="amber"]' not in CSS
-    assert ': "finland";' in SCRIPT and 'return "finland";' in SCRIPT
+    assert '(season || "finland")' in SCRIPT and 'return season || "finland";' in SCRIPT
     assert THEME_KEYS[0] == "finland"
+
+
+def test_a_holiday_choice_does_not_outlive_its_holiday():
+    """Тыквы в декабре — не праздник, а забытая гирлянда. Сохранённый
+    праздничный выбор после праздника не действует ни в <head>, ни в скрипте."""
+    assert '(t === "halloween" || t === "newyear") && t !== season' in HEAD
+    assert "SEASONAL.indexOf(value) >= 0 && value !== season" in SCRIPT
+    assert "if (!t && season) t = season;" in HEAD

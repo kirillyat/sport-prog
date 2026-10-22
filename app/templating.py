@@ -13,7 +13,7 @@ from app.i18n import LANGUAGES, current_language
 from app.i18n import mark as N_
 from app.i18n import translate as _
 from app.models import SolveStatus
-from app.services import course
+from app.services import course, seasons
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -282,6 +282,14 @@ THEMES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
 )
 
 THEME_KEYS: tuple[str, ...] = tuple(key for _group, items in THEMES for key, _label in items)
+# Праздничные темы в меню не стоят круглый год — только в свои даты
+# (`app/services/seasons.py`). В CSS и в скриптах они есть всегда.
+ALL_THEME_KEYS: tuple[str, ...] = THEME_KEYS + seasons.SEASON_KEYS
+
+
+def current_season() -> seasons.Season | None:
+    """Идёт ли сейчас праздник — по дате в поясе портала."""
+    return seasons.current(datetime.now(UTC).astimezone(LOCAL_TZ).date())
 
 templates.env.globals["icon"] = templates.env.get_template("_icons.html").module.icon
 templates.env.globals["avatar"] = templates.env.get_template("_ui.html").module.avatar
@@ -324,3 +332,4 @@ templates.env.globals["language"] = current_language
 templates.env.globals["settings"] = settings
 templates.env.globals["SolveStatus"] = SolveStatus
 templates.env.globals["now"] = lambda: datetime.now(UTC)
+templates.env.globals["current_season"] = current_season

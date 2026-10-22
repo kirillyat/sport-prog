@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="{{ language() }}">
+{# Праздник решает сервер — по дате в поясе портала; тему выбирает браузер. #}
+{% set season = current_season() %}
+<html lang="{{ language() }}"{% if season %} data-season="{{ season.key }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,13 +11,18 @@
   <script>
     (function () {
       try {
+        var season = document.documentElement.getAttribute("data-season") || "";
         var t = localStorage.getItem("sport-theme");
         // Прежние значения переключателя «светлая/тёмная».
         if (t === "auto") t = window.matchMedia
           && window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "amber";
         t = { light: "amber", dark: "coal", poster: "amber", paper: "parchment", night: "coal", chalk: "brazil", indigo: "oxford", frost: "finland", mint: "amber", terracotta: "mandarin", lilac: "parchment", pine: "brazil", ultramarine: "oxford", plum: "magenta", coffee: "coal" }[t] || t;
+        // Праздничная тема действует только в свой праздник; без выбора
+        // в праздник ставится она. Тот же порядок решений — в theme.js.
+        if ((t === "halloween" || t === "newyear") && t !== season) t = null;
+        if (!t && season) t = season;
         // По умолчанию — «Финляндия», поэтому без выбора атрибут не ставим.
-        if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta"].indexOf(t) >= 0)
+        if (["amber", "parchment", "mandarin", "lime", "finland", "japan", "coal", "sweden", "brazil", "oxford", "neon", "ice", "magenta", "halloween", "newyear"].indexOf(t) >= 0)
           document.documentElement.dataset.theme = t;
       } catch (e) {}
     })();
@@ -182,6 +189,10 @@
       </button>
     </form>
     {% endif %}
+    {% if season %}
+    <button class="rail-btn season-btn" type="button" data-theme-set="{{ season.key }}" data-season-btn hidden
+            title="{{ _("Включить праздничную тему «%(name)s»") % {"name": _(season.title)} }}">{{ season.emoji }}</button>
+    {% endif %}
     {{ account_menu() }}
   </div>
 </aside>
@@ -202,7 +213,13 @@
     {% endif %}
     <span>{{ settings.app_short_name }}</span>
   </a>
-  <span class="mobile-tools">{{ account_menu("down") }}</span>
+  <span class="mobile-tools">
+    {% if season %}
+    <button class="rail-btn season-btn" type="button" data-theme-set="{{ season.key }}" data-season-btn hidden
+            title="{{ _("Включить праздничную тему «%(name)s»") % {"name": _(season.title)} }}">{{ season.emoji }}</button>
+    {% endif %}
+    {{ account_menu("down") }}
+  </span>
   </div>
   {% endif %}
   {% if user and ticker %}
