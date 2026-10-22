@@ -10,12 +10,14 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from app.services.seasons import SEASON_KEYS
 from app.templating import ALL_THEME_KEYS, THEME_KEYS
 
 ROOT = Path(__file__).resolve().parent.parent
 CSS = (ROOT / "app/static/style.css").read_text()
 SCRIPT = (ROOT / "app/static/theme.js").read_text()
 HEAD = (ROOT / "app/templates/base.html").read_text()
+RAIN = (ROOT / "app/static/matrix.js").read_text()
 
 BLOCK = re.compile(r':root(?:\[data-theme="(?P<name>[a-z]+)"\])?\s*\{(?P<body>[^}]*)\}')
 
@@ -57,7 +59,9 @@ def test_the_list_of_themes_matches_everywhere():
 
     in_head = re.search(r'indexOf\(t\)', HEAD)
     assert in_head, "инлайновый скрипт в <head> больше не проверяет тему"
-    listed = re.search(r'\[((?:"[a-z]+",?\s*)+)\]\.indexOf\(t\)', HEAD).group(1)
+    # Список всех тем — тот, после которого ставится атрибут; рядом есть
+    # ещё список праздников с тем же .indexOf(t).
+    listed = re.search(r'\[((?:"[a-z]+",?\s*)+)\]\.indexOf\(t\) >= 0\)', HEAD).group(1)
     assert sorted(re.findall(r'"([a-z]+)"', listed)) == sorted(keys)
 
 
@@ -89,6 +93,20 @@ def test_a_visitor_who_never_chose_gets_finland():
 def test_a_holiday_choice_does_not_outlive_its_holiday():
     """Тыквы в декабре — не праздник, а забытая гирлянда. Сохранённый
     праздничный выбор после праздника не действует ни в <head>, ни в скрипте."""
-    assert '(t === "halloween" || t === "newyear") && t !== season' in HEAD
+    in_head = re.search(r'\[((?:"[a-z]+",?\s*)+)\]\.indexOf\(t\) >= 0 && t !== season', HEAD)
+    assert in_head, "<head> больше не сбрасывает праздничный выбор после праздника"
+    assert sorted(re.findall(r'"([a-z]+)"', in_head.group(1))) == sorted(SEASON_KEYS)
+    in_script = re.search(r"var SEASONAL = \[(.*?)\]", SCRIPT).group(1)
+    assert sorted(re.findall(r'"([a-z]+)"', in_script)) == sorted(SEASON_KEYS)
     assert "SEASONAL.indexOf(value) >= 0 && value !== season" in SCRIPT
     assert "if (!t && season) t = season;" in HEAD
+
+
+def test_the_matrix_rain_belongs_to_its_theme_only():
+    """Дождь из символов заводит скрипт — и только для «Матрицы»; без
+    скрипта на странице тема осталась бы без фона, ради которого её выбирают."""
+    assert "matrix" in THEME_KEYS
+    assert "/static/matrix.js" in HEAD
+    assert '=== "matrix"' in RAIN
+    # Печать и высококонтрастный режим Windows — без холста.
+    assert CSS.count(".matrix-rain { display: none !important; }") == 2

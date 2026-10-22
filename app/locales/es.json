@@ -1010,6 +1010,7 @@
   "картинка не читается": "la imagen no se puede leer",
   "Хэллоуин": "Halloween",
   "Новый год": "Año Nuevo",
+  "День святого Валентина": "San Valentín",
   "явка": "asistencia",
   "работа": "trabajo",
   "домашка": "deberes",
@@ -1078,5 +1079,6 @@
   "Неон": "Neón",
   "Лёд": "Hielo",
   "Магента": "Magenta",
+  "Матрица": "Matrix",
   "минуту|минуты|минут": "minuto|minutos"
 }

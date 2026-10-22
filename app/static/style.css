@@ -404,6 +404,35 @@
   --dark-logo: block;
 }
 
+/* Чёрный экран и зелёный фосфор терминала. Символы на фоне рисует
+   matrix.js — пока выбрана эта тема. */
+:root[data-theme="matrix"] {
+  color-scheme: dark;
+  --bg: #020703;
+  --panel: #020703;
+  --panel-2: #08170c;
+  --ink: #00ff41;
+  --text: #c9f7d3;
+  --text-2: #a6e3b4;
+  --muted: #62ab75;
+  --line: #00ff41;
+  --line-soft: rgba(0, 255, 65, .26);
+  --inv-bg: #00ff41;
+  --inv-text: #020703;
+  --accent: #8cf5ff;
+  --err: #ff5f56;
+  --err-text: #020703;
+  --code-key: #00ff41;
+  --code-str: #8cf5ff;
+  --code-com: #62ab75;
+  --code-num: #e8ff6b;
+  --field-bg: #08170c;
+  --field-text: #c9f7d3;
+  --placeholder: #4b8a5c;
+  --light-logo: none;
+  --dark-logo: block;
+}
+
 /* ---------- праздничные темы ----------
    Живут в свои даты (app/services/seasons.py): в меню появляются только
    тогда, а сохранённый выбор после праздника не действует. */
@@ -461,6 +490,34 @@
   --placeholder: #86a595;
   --light-logo: none;
   --dark-logo: block;
+}
+/* День святого Валентина: малина на розовой бумаге — единственный светлый
+   праздник, чтобы не путать его с «Японией», поле заметно розовое. */
+:root[data-theme="valentine"] {
+  color-scheme: light;
+  --bg: #fff0f5;
+  --panel: #ffffff;
+  --panel-2: #ffdde9;
+  --ink: #c2185b;
+  --text: #2a0b17;
+  --text-2: #5a2a3c;
+  --muted: #7d4a5e;
+  --line: #c2185b;
+  --line-soft: rgba(194, 24, 91, .26);
+  --inv-bg: #c2185b;
+  --inv-text: #ffffff;
+  --accent: #7a1fa2;
+  --err: #b3261e;
+  --err-text: #ffffff;
+  --code-key: #c2185b;
+  --code-str: #7a1fa2;
+  --code-com: #7d4a5e;
+  --code-num: #8a5a00;
+  --field-bg: #ffffff;
+  --field-text: #2a0b17;
+  --placeholder: #a98593;
+  --light-logo: block;
+  --dark-logo: none;
 }
 
 :root {
@@ -718,6 +775,8 @@ body.with-rail { padding-left: var(--rail); }
 .sw-magenta     { --sw-a: #16041a; --sw-b: #ff59d6; }
 .sw-halloween   { --sw-a: #120c14; --sw-b: #ff7a1a; }
 .sw-newyear     { --sw-a: #0a3324; --sw-b: #ffd34d; }
+.sw-valentine   { --sw-a: #fff0f5; --sw-b: #c2185b; }
+.sw-matrix      { --sw-a: #020703; --sw-b: #00ff41; }
 
 /* На странице входа рейки нет — переключатель стоит сам по себе. */
 .lang.auth { display: inline-block; margin: 0 0 24px; }
@@ -1494,8 +1553,13 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   --garland: "🎄 ❄️ 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄 🎁 ✨ ⭐ ❄️ 🎄";
   --corner: "🎅";
 }
+:root[data-theme="valentine"] {
+  --garland: "💘 🌹 💌 💕 🍫 💖 🌹 💘 💌 💕 🍫 💖 🌹 💘 💌 💕 🍫 💖 🌹 💘 💌 💕";
+  --corner: "💘";
+}
 :root[data-theme="halloween"] main::before,
-:root[data-theme="newyear"] main::before {
+:root[data-theme="newyear"] main::before,
+:root[data-theme="valentine"] main::before {
   content: var(--garland); font-family: var(--emoji);
   display: block; margin: -14px 0 18px;
   overflow: hidden; white-space: nowrap; text-align: center;
@@ -1503,7 +1567,8 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   pointer-events: none; user-select: none; -webkit-user-select: none;
 }
 :root[data-theme="halloween"] .rail-foot::before,
-:root[data-theme="newyear"] .rail-foot::before {
+:root[data-theme="newyear"] .rail-foot::before,
+:root[data-theme="valentine"] .rail-foot::before {
   /* В рейке над аватаркой, а не в углу экрана: там фигурка ложилась
      на кнопки страницы — «Сдать решение» у задачи. */
   content: var(--corner); font-family: var(--emoji);
@@ -1626,6 +1691,73 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 }
 @keyframes fog-breathe { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
 
+/* День святого Валентина: гирлянда на нитке с розовым отсветом, сердце
+   в рейке бьётся, а не качается. */
+:root[data-theme="valentine"] main::before {
+  padding-top: 8px;
+  background: linear-gradient(transparent 4px, rgba(194, 24, 91, .3) 4px 5px, transparent 5px) repeat-x;
+  filter: drop-shadow(0 0 4px rgba(255, 105, 160, .5));
+}
+:root[data-theme="valentine"] .rail-foot::before {
+  animation: heart-beat 1.6s ease-in-out infinite;
+}
+@keyframes heart-beat {
+  0%, 40%, 100% { transform: scale(1); }
+  10% { transform: scale(1.18); }
+  20% { transform: scale(1.02); }
+  30% { transform: scale(1.14); }
+}
+/* Сердечки поднимаются со дна экрана и покачиваются — под содержимым,
+   как мыши на Хэллоуин: видны в просветах и полях, текст не перекрывают. */
+:root[data-theme="valentine"] body::before,
+:root[data-theme="valentine"] body::after {
+  content: "💗"; position: fixed; z-index: -1; left: 0; top: 0;
+  font-family: var(--emoji); font-size: 56px; line-height: 1; opacity: .3;
+  pointer-events: none; user-select: none; -webkit-user-select: none;
+  will-change: transform;
+}
+:root[data-theme="valentine"] body::before {
+  animation: heart-rise 19s linear infinite;
+}
+:root[data-theme="valentine"] body::after {
+  content: "💕"; font-size: 44px; opacity: .26;
+  animation: heart-rise-other 26s linear 8s infinite backwards;
+}
+@keyframes heart-rise {
+  0%   { transform: translate(18vw, calc(100vh + 60px)) rotate(-8deg); }
+  12%  { transform: translate(22vw, 75vh) rotate(8deg); }
+  24%  { transform: translate(16vw, 50vh) rotate(-8deg); }
+  36%  { transform: translate(23vw, 25vh) rotate(8deg); }
+  48%  { transform: translate(18vw, -80px) rotate(0); }
+  100% { transform: translate(18vw, -80px); }
+}
+@keyframes heart-rise-other {
+  0%   { transform: translate(78vw, calc(100vh + 60px)) rotate(8deg); }
+  10%  { transform: translate(72vw, 78vh) rotate(-8deg); }
+  20%  { transform: translate(80vw, 55vh) rotate(8deg); }
+  30%  { transform: translate(73vw, 30vh) rotate(-8deg); }
+  40%  { transform: translate(78vw, -80px) rotate(0); }
+  100% { transform: translate(78vw, -80px); }
+}
+
+/* ---------- «Матрица» ----------
+   Заголовки — моноширинным, как в терминале, с зелёным свечением и
+   мигающим курсором. Бегущие столбцы символов — холст из matrix.js под
+   содержимым; сквозь него кликается. */
+:root[data-theme="matrix"] {
+  --display: var(--mono);
+}
+:root[data-theme="matrix"] h1 { text-shadow: 0 0 12px rgba(0, 255, 65, .45); }
+:root[data-theme="matrix"] main h1::after {
+  content: "_"; margin-left: .08em;
+  animation: cursor-blink 1.1s steps(1) infinite;
+}
+@keyframes cursor-blink { 50% { opacity: 0; } }
+.matrix-rain {
+  position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%;
+  pointer-events: none; opacity: .5;
+}
+
 /* Значок праздника у аватарки: тем, у кого выбрана своя тема. Нажатие
    включает праздничную тему. Появляется только скриптом — без него
    выбирать тему всё равно нечем. */
@@ -1641,7 +1773,8 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
 
 @media (max-width: 760px) {
   :root[data-theme="halloween"] main::before,
-  :root[data-theme="newyear"] main::before { font-size: 15px; margin: -8px 0 12px; }
+  :root[data-theme="newyear"] main::before,
+  :root[data-theme="valentine"] main::before { font-size: 15px; margin: -8px 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="halloween"] body::before,
@@ -1651,16 +1784,22 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   :root[data-theme="newyear"] body::before,
   :root[data-theme="newyear"] body::after { display: none; }
   :root[data-theme="newyear"] main::before { animation: none; }
+  :root[data-theme="valentine"] body::before,
+  :root[data-theme="valentine"] body::after { display: none; }
+  :root[data-theme="matrix"] main h1::after { animation: none; }
   :root[data-theme="halloween"] .rail-foot::before,
   :root[data-theme="newyear"] .rail-foot::before,
+  :root[data-theme="valentine"] .rail-foot::before,
   .season-btn:not([hidden]) { animation: none; }
 }
 @media print {
-  main::before, .rail-foot::before, body::before, body::after, .shell::after { display: none !important; }
+  main::before, .rail-foot::before, body::before, body::after, .shell::after,
+  .matrix-rain { display: none !important; }
 }
 /* Высококонтрастный режим Windows и подобные: браузер сам убирает фоны,
    и от украшений остались бы обрывки. Там — без них. */
 @media (forced-colors: active) {
   main::before, .rail-foot::before,
-  body::before, body::after, .shell::after, .season-btn { display: none !important; }
+  body::before, body::after, .shell::after, .season-btn,
+  .matrix-rain { display: none !important; }
 }

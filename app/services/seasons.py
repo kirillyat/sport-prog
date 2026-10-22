@@ -40,6 +40,8 @@ class Season:
 SEASONS: tuple[Season, ...] = (
     Season("halloween", N_("Хэллоуин"), "🎃", (10, 22), (11, 1)),
     Season("newyear", N_("Новый год"), "🎄", (12, 1), (1, 10)),
+    # Неделя до праздника и день после: 14-е выпадает и на выходные.
+    Season("valentine", N_("День святого Валентина"), "💘", (2, 7), (2, 15)),
 )
 
 SEASON_KEYS: tuple[str, ...] = tuple(season.key for season in SEASONS)
