@@ -180,7 +180,8 @@ async def _page(
 @router.get("/tasks/{slug}")
 async def task_page(request: Request, session: SessionDep, user: CurrentUser, slug: str):
     found = await tasks.get_by_slug(session, slug)
-    if found is None:
+    # Задача ещё не начавшейся контрольной неотличима от несуществующей.
+    if found is None or not await tasks.may_open(session, user, found[0].id):
         return _not_found()
     return await _page(request, session, user, *found)
 
@@ -196,7 +197,8 @@ async def run_open_tests(
 ):
     """Прогон по открытым тестам. Попытку не тратит."""
     found = await tasks.get_by_slug(session, slug)
-    if found is None:
+    # Задача ещё не начавшейся контрольной неотличима от несуществующей.
+    if found is None or not await tasks.may_open(session, user, found[0].id):
         return _not_found()
     problem, task = found
     language = languages.pick(await languages.allowed(session), language_id)
@@ -242,7 +244,8 @@ async def submit(
 ):
     """Сдача: все тесты и минус одна попытка."""
     found = await tasks.get_by_slug(session, slug)
-    if found is None:
+    # Задача ещё не начавшейся контрольной неотличима от несуществующей.
+    if found is None or not await tasks.may_open(session, user, found[0].id):
         return _not_found()
     problem, task = found
     language = languages.pick(await languages.allowed(session), language_id)

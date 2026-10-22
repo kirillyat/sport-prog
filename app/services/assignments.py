@@ -35,6 +35,9 @@ async def issue(
 ) -> tuple[list[Assignment], int]:
     """Выданные задания и сколько сообщений ушло в Telegram.
 
+    Начало в будущем — студенты не видят задание до начала, и сообщение в
+    Telegram тоже уйдёт тогда (`notify.announce_started`), а сейчас — ноль.
+
     Несколько групп — несколько заданий, по одному на группу, а не одно на
     всех. Табло, напоминания и матрица живут по группам, и у каждой группы
     своё задание можно продлить или удалить, не задевая соседей.
@@ -66,6 +69,8 @@ async def issue(
             created_by_id=author.id,
             count_prior_solves=count_prior_solves,
             requires_solution=requires_solution,
+            # Начнётся позже — объявим в момент начала, не раньше.
+            announced=start <= utcnow(),
         )
         for group_id in (group_ids or [None])
     ]
@@ -81,5 +86,6 @@ async def issue(
     )
     delivered = 0
     for assignment in created:
-        delivered += await notify.notify_assignment(assignment, int(problems or 0), session)
+        if assignment.announced:
+            delivered += await notify.notify_assignment(assignment, int(problems or 0), session)
     return created, delivered

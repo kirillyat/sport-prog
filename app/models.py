@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     TypeDecorator,
     UniqueConstraint,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -378,6 +379,10 @@ class Assignment(Base):
     count_prior_solves: Mapped[bool] = mapped_column(Boolean, default=False)
     # Когда напомнили о дедлайне. Пусто — ещё не напоминали.
     reminded_at: Mapped[datetime | None] = mapped_column()
+    # Ушло ли сообщение о выдаче в Telegram. Задание с началом в будущем
+    # объявляется в момент начала (планировщик), а не при выдаче: иначе
+    # контрольная стала бы известна заранее.
+    announced: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
     problem_set: Mapped[ProblemSet] = relationship(lazy="selectin")
     group: Mapped[Group | None] = relationship(lazy="selectin")

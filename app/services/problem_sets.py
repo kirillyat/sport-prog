@@ -61,6 +61,30 @@ async def add(
     return added, result.unresolved
 
 
+async def remove(session: AsyncSession, problem_set_id: int, problem_ids: list[int]) -> int:
+    """Убирает задачи из списка — и тем самым из всех заданий по нему.
+
+    Можно и после выдачи, и когда задачу уже сдавали: посылки студентов
+    остаются (в профиле, в ленте), а зачёт считается из посылок и списка
+    (`Cell.counts`), так что матрица, табло и выгрузка пересчитаются сами.
+    Возвращает, сколько задач убрано.
+    """
+    if not problem_ids:
+        return 0
+    items = (
+        await session.execute(
+            select(ProblemSetItem).where(
+                ProblemSetItem.problem_set_id == problem_set_id,
+                ProblemSetItem.problem_id.in_(problem_ids),
+            )
+        )
+    ).scalars().all()
+    for item in items:
+        await session.delete(item)
+    await session.commit()
+    return len(items)
+
+
 async def used_in(
     session: AsyncSession, problem_ids: list[int]
 ) -> dict[int, list[tuple[ProblemSet, list[Assignment]]]]:

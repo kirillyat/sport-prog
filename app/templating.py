@@ -14,6 +14,7 @@ from app.i18n import mark as N_
 from app.i18n import translate as _
 from app.models import SolveStatus
 from app.services import course, linkify, seasons
+from app.services.progress import has_started
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -262,6 +263,7 @@ templates.env.filters["ago"] = timeago
 templates.env.filters["clock"] = clock
 templates.env.filters["linkify"] = linkify.render
 templates.env.filters["first_link"] = linkify.first_link
+templates.env.globals["has_started"] = has_started
 templates.env.filters["initials"] = initials
 templates.env.filters["sentence"] = sentence
 templates.env.filters["hue"] = avatar_hue

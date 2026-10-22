@@ -19,6 +19,7 @@ from app.models import (
     SolveStatus,
     Submission,
     User,
+    utcnow,
 )
 
 # В зачёт идёт только решённое после выдачи и до дедлайна. Опоздание видно
@@ -229,7 +230,15 @@ async def compute_progress(
     return progress
 
 
+def has_started(assignment: Assignment, now: datetime | None = None) -> bool:
+    """Начало задания — это момент, когда студенты его видят, а не только
+    начинают сдавать. Контрольную выдают заранее, и до начала её нет ни в
+    списке, ни по ссылке, ни в табло, ни у нейросети."""
+    return assignment.assigned_at <= (now or utcnow())
+
+
 async def assignments_for_user(session: AsyncSession, user: User) -> list[Assignment]:
+    """Задания студента, которые уже начались: лично, через группу или всем."""
     group_ids = select(GroupMembership.group_id).where(GroupMembership.user_id == user.id)
     stmt = (
         select(Assignment)
@@ -238,6 +247,7 @@ async def assignments_for_user(session: AsyncSession, user: User) -> list[Assign
             | (Assignment.group_id.in_(group_ids))
             # Задание всем: обе ссылки пусты.
             | ((Assignment.group_id.is_(None)) & (Assignment.user_id.is_(None))),
+            Assignment.assigned_at <= utcnow(),
         )
         .order_by(Assignment.assigned_at.desc())
     )
@@ -245,13 +255,18 @@ async def assignments_for_user(session: AsyncSession, user: User) -> list[Assign
 
 
 async def may_see_assignment(session: AsyncSession, user: User, assignment: Assignment) -> bool:
-    """Тот же круг, что у `assignments_for_user`: лично, через группу или всем.
+    """Тот же круг, что у `assignments_for_user`: лично, через группу или всем,
+    и только после начала.
 
     Правило одно на список и на страницу задания. Когда страница считала
     по-своему и забывала про «всем», задание висело у студента в списке,
     а по ссылке отвечало «не для тебя».
     """
-    if user.is_teacher or assignment.user_id == user.id:
+    if user.is_teacher:
+        return True
+    if not has_started(assignment):
+        return False
+    if assignment.user_id == user.id:
         return True
     if assignment.group_id is None:
         return assignment.user_id is None

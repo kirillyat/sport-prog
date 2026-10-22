@@ -732,6 +732,48 @@ async def add_problems_to_set(ctx: Context, args: AddToSetParams) -> dict:
     return {"added": [_ref(problem) for problem in added], "unresolved": unresolved}
 
 
+class RemoveFromSetParams(Params):
+    problem_set_id: int
+    problems: list[str] = Field(min_length=1, max_length=100)
+
+
+@tool(
+    "remove_problems_from_set",
+    title=N_("Убрать задачи из списка"),
+    hint=N_("и из всех заданий по нему; посылки студентов остаются"),
+    roles=TEACHER,
+    writes=True,
+)
+async def remove_problems_from_set(ctx: Context, args: RemoveFromSetParams) -> dict:
+    """Убирает задачи из списка — и тем самым из всех заданий, выданных по
+    нему, в том числе уже начавшихся. Как кнопка «убрать» в таблице задач
+    на странице задания.
+
+    Посылки студентов остаются, зачёт пересчитывается сам. Перед вызовом
+    скажи человеку, из каких заданий пропадут задачи (`get_problem_set`
+    показывает, где список выдан), и дождись явного «да».
+    """
+    problem_set = await ctx.session.get(ProblemSet, args.problem_set_id)
+    if problem_set is None:
+        raise ToolError(f"Списка {args.problem_set_id} нет")
+    wanted = [await _resolve(ctx, raw) for raw in args.problems]
+    in_set = {item.problem_id for item in problem_set.items}
+    missing = [_ref(p) for p in wanted if p.id not in in_set]
+    removed = await problem_sets.remove(
+        ctx.session, problem_set.id, [p.id for p in wanted if p.id in in_set]
+    )
+    affected = (
+        await ctx.session.execute(
+            select(Assignment).where(Assignment.problem_set_id == problem_set.id)
+        )
+    ).scalars().all()
+    return {
+        "removed": removed,
+        "not_in_set": missing,
+        "assignments": await _describe(ctx, list(affected), teacher=True),
+    }
+
+
 # ---------------------------------------------------------------- преподавателю: группы и задания
 
 
@@ -1073,7 +1115,10 @@ class CreateAssignmentParams(Params):
     description: str = Field("", max_length=2000)
     starts_at: datetime | None = Field(
         None,
-        description="Начало, ISO 8601. Без пояса — местное время портала. Пусто — сейчас.",
+        description=(
+            "Начало, ISO 8601. Без пояса — местное время портала. Пусто — сейчас. "
+            "До начала студенты задание не видят, сообщение в Telegram уйдёт в момент начала."
+        ),
     )
     deadline: datetime | None = Field(
         None, description="Дедлайн, ISO 8601. Без пояса — местное время портала."
@@ -1101,7 +1146,12 @@ async def create_assignment(ctx: Context, args: CreateAssignmentParams) -> dict:
 
     Перед вызовом покажи человеку название, список, группы, начало и дедлайн
     и дождись явного «да». После выдачи меняются только название, описание и
-    дедлайн (вперёд) — на сайте.
+    дедлайн (вперёд) — на сайте; задачи — remove_problems_from_set и
+    add_problems_to_set.
+
+    Начало в будущем: до него студенты не видят задание нигде (ни на портале,
+    ни через MCP), а сообщение в Telegram уходит в момент начала —
+    `telegram_messages` тогда 0, это не ошибка.
     """
     if not args.group_ids and not args.for_everyone:
         raise ToolError(

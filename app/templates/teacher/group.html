@@ -120,7 +120,7 @@
       {% for assignment in assignments %}
         <p style="margin:0 0 8px">
           <a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a>
-          <span class="small muted">— {{ _("выдано") }} {{ assignment.assigned_at | ago }}{% if assignment.deadline %},
+          <span class="small muted">— {% if has_started(assignment) %}{{ _("выдано") }} {{ assignment.assigned_at | ago }}{% else %}{{ _("начнётся") }} {{ assignment.assigned_at | dt }}{% endif %}{% if assignment.deadline %},
             {{ _("дедлайн") }} {{ assignment.deadline | dt }}{% endif %}</span>
         </p>
       {% else %}

@@ -18,12 +18,20 @@
 <h1>{{ assignment.title }}</h1>
 <p class="sub">
   {{ assignment.group.title if assignment.group else (_("персональное") if assignment.user_id else _("всем")) }} ·
-  {{ _("выдано") }} {{ assignment.assigned_at | dt }}
+  {{ _("выдано") if has_started(assignment) else _("начнётся") }} {{ assignment.assigned_at | dt }}
   {% if assignment.deadline %}
     · {{ _("дедлайн") }} {{ assignment.deadline | dt }}
   {% endif %}
 </p>
 {% if assignment.description %}<p class="sub">{{ assignment.description }}</p>{% endif %}
+{% if not has_started(assignment) %}
+<div class="card callout">
+  <h3>{{ icon("clock") }} {{ _("Начнётся %(when)s") % {"when": assignment.assigned_at | dt} }}</h3>
+  <p class="small" style="margin:0">
+    {{ _("До начала студенты не видят ни задания, ни его задач — ни на портале, ни у нейросети. Сообщение в Telegram уйдёт в момент начала.") }}
+  </p>
+</div>
+{% endif %}
 
 <div class="row" style="gap:8px; margin:0 0 14px">
   <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/export.csv">
@@ -244,7 +252,7 @@
   <table>
     <thead><tr><th>#</th><th>{{ _("Задача") }}</th><th>{{ _("Платформа") }}</th><th>{{ _("Сложность") }}</th><th>{{ _("Решили") }}</th>
       {% if assignment.requires_solution %}<th>{{ _("Сдали код") }}</th>{% endif %}
-      <th>{{ _("Первым") }}</th></tr></thead>
+      <th>{{ _("Первым") }}</th><th></th></tr></thead>
     <tbody>
     {% for problem in progress.problems %}
       {% set solved = progress.problem_solved_count(problem.id) %}
@@ -270,6 +278,23 @@
           {% set first = progress.first_solver(problem.id) %}
           {% if first %}<a class="badge first" href="/u/{{ first.id }}">{{ icon("flame") }}{{ first.display_name }}</a>
           {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        <td class="num">
+          {# Подтверждение без скрипта: раскрыть — прочитать — нажать. Задача
+             уходит из списка, а значит и из заданий-соседей по нему. #}
+          <details class="confirm-remove">
+            <summary class="btn ghost small" title="{{ _("Убрать задачу из задания") }}" aria-label="{{ _("Убрать задачу из задания") }}">{{ icon("trash") }}</summary>
+            <div class="confirm-box">
+              <p class="small" style="margin:0 0 8px">
+                {{ _("Убрать «%(title)s» из задания? Посылки студентов останутся, зачёт пересчитается.") % {"title": problem.title} }}
+                {% if siblings %}<br><b>{{ _("Список общий — задача пропадёт и из:") }}</b>
+                  {% for other in siblings %}{{ other.title }}{% if other.group %} ({{ other.group.title }}){% endif %}{{ ", " if not loop.last }}{% endfor %}{% endif %}
+              </p>
+              <form method="post" action="/teacher/assignments/{{ assignment.id }}/problems/{{ problem.id }}/remove">
+                <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Убрать") }}</button>
+              </form>
+            </div>
+          </details>
         </td>
       </tr>
     {% endfor %}

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from app.config import settings
 from app.db import SessionLocal
 from app.models import utcnow
-from app.notify import send_deadline_reminders, send_due_reminders
+from app.notify import announce_started, send_deadline_reminders, send_due_reminders
 from app.services import course
 from app.services.catalog import get_state, set_state, sync_catalog
 from app.services.sync import relink_orphan_submissions, sync_all
@@ -86,21 +86,39 @@ async def run_once() -> None:
             logger.info("отправлено напоминаний о дедлайне: %s", nudged)
 
 
+# Объявления о начавшихся заданиях проверяем чаще синхронизации: контрольная
+# в 10:00 должна прийти в Telegram в 10:00, а не в 10:09.
+ANNOUNCE_EVERY = 60
+
+
+async def announce_once() -> None:
+    async with SessionLocal() as session:
+        sent = await announce_started(session)
+    if sent:
+        logger.info("объявлено о начавшихся заданиях: %s", sent)
+
+
 async def run_scheduler(stop_event: asyncio.Event) -> None:
     logger.info("планировщик запущен, интервал %s с", settings.sync_interval_seconds)
     # Небольшая задержка на старте, чтобы не конкурировать с первыми запросами.
     with contextlib.suppress(TimeoutError):
         await asyncio.wait_for(stop_event.wait(), timeout=5)
 
+    tick = min(ANNOUNCE_EVERY, settings.sync_interval_seconds)
+    last_full: datetime | None = None
     while not stop_event.is_set():
-        try:
-            await run_once()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("итерация планировщика упала")
+        now = utcnow()
+        jobs = [announce_once]
+        if last_full is None or (now - last_full).total_seconds() >= settings.sync_interval_seconds:
+            jobs.append(run_once)
+            last_full = now
+        for job in jobs:
+            try:
+                await job()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("итерация планировщика упала: %s", job.__name__)
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(
-                stop_event.wait(), timeout=settings.sync_interval_seconds
-            )
+            await asyncio.wait_for(stop_event.wait(), timeout=tick)
     logger.info("планировщик остановлен")

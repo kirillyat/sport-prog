@@ -35,6 +35,7 @@ from app.models import (
     Submission,
     Task,
     TaskTest,
+    User,
     utcnow,
 )
 from app.services.judge import TestRef
@@ -292,6 +293,26 @@ async def my_attempts(session: AsyncSession, user_id: int, problem_id: int) -> l
     return list((await session.execute(stmt)).scalars().all())
 
 
+async def may_open(session: AsyncSession, user: User, problem_id: int) -> bool:
+    """Условие своей задачи студенту видно, если задача из начавшегося
+    задания или ни в одно ещё не начавшееся не входит (просто для практики).
+
+    Задача контрольной, которая начнётся завтра, по прямой ссылке не
+    открывается: слаг из архива угадать нетрудно.
+    """
+    if user.is_teacher:
+        return True
+    if await assignment_for(session, user.id, problem_id) is not None:
+        return True
+    upcoming = await session.scalar(
+        select(Assignment.id)
+        .join(ProblemSetItem, ProblemSetItem.problem_set_id == Assignment.problem_set_id)
+        .where(ProblemSetItem.problem_id == problem_id, Assignment.assigned_at > utcnow())
+        .limit(1)
+    )
+    return upcoming is None
+
+
 async def assignment_for(session: AsyncSession, user_id: int, problem_id: int) -> Assignment | None:
     """Задание студента, в которое входит эта задача. Нужно, чтобы решение
     попало преподавателю в ту же очередь проверки, что и остальные."""
@@ -301,6 +322,7 @@ async def assignment_for(session: AsyncSession, user_id: int, problem_id: int) -
         .join(ProblemSetItem, ProblemSetItem.problem_set_id == Assignment.problem_set_id)
         .where(
             ProblemSetItem.problem_id == problem_id,
+            Assignment.assigned_at <= utcnow(),
             (Assignment.user_id == user_id)
             | (Assignment.group_id.in_(groups))
             | ((Assignment.group_id.is_(None)) & (Assignment.user_id.is_(None))),

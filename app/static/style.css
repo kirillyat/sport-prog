@@ -1474,6 +1474,16 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 @keyframes message-arrived { from { background: color-mix(in srgb, var(--ink) 18%, var(--panel)); } }
 @media (prefers-reduced-motion: reduce) { .message.arrived { animation: none; } }
 
+/* Подтверждение «убрать задачу» без скрипта: details раскрывает плашку
+   прямо в ячейке. Не поверх: таблица лежит в прокручиваемой рамке, и
+   всплывающее за её край обрезалось бы. */
+.confirm-remove > summary { list-style: none; cursor: pointer; display: inline-flex; }
+.confirm-remove > summary::-webkit-details-marker { display: none; }
+.confirm-remove .confirm-box {
+  width: 260px; margin-top: 8px; padding: 10px 12px;
+  border: 2px solid var(--line); background: var(--panel); text-align: left; white-space: normal;
+}
+
 /* Ник на портале под именем из учётной записи вуза — у преподавателя. */
 .nick { display: block; font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0; text-transform: none; }
 .nick::before { content: "«"; }

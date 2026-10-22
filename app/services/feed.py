@@ -23,6 +23,7 @@ from app.models import (
     Role,
     Submission,
     User,
+    utcnow,
 )
 from app.platforms.codeforces import submission_url as codeforces_submission_url
 
@@ -121,7 +122,12 @@ async def _assignment_index(
     for user_id, group_id in memberships:
         groups_of.setdefault(user_id, set()).add(group_id)
 
-    assignments = list((await session.execute(select(Assignment))).scalars().all())
+    # Только начавшиеся: иначе название будущей контрольной всплыло бы в ленте.
+    assignments = list(
+        (await session.execute(select(Assignment).where(Assignment.assigned_at <= utcnow())))
+        .scalars()
+        .all()
+    )
     if not assignments:
         return {}
 

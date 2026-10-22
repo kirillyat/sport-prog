@@ -836,8 +836,7 @@ async def add_problems(
 async def remove_problem(session: SessionDep, user: TeacherUser, set_id: int, item_id: int):
     item = await session.get(ProblemSetItem, item_id)
     if item is not None and item.problem_set_id == set_id:
-        await session.delete(item)
-        await session.commit()
+        await problem_sets.remove(session, set_id, [item.problem_id])
     return _redirect(f"/teacher/sets/{set_id}", message=_("Задача убрана"))
 
 
@@ -1011,8 +1010,34 @@ async def assignment_matrix(
             "files_by_problem": files_by_problem,
             "uploads": uploads,
             "messages": await messages.for_assignment(session, assignment.id),
+            # Список общий: убранная задача пропадёт и из этих заданий.
+            "siblings": await _all(
+                session,
+                select(Assignment).where(
+                    Assignment.problem_set_id == assignment.problem_set_id,
+                    Assignment.id != assignment.id,
+                ),
+            ),
             **_flash(request),
         },
+    )
+
+
+@router.post("/assignments/{assignment_id}/problems/{problem_id}/remove")
+async def remove_assignment_problem(
+    session: SessionDep, user: TeacherUser, assignment_id: int, problem_id: int
+):
+    """Убрать задачу из уже выданного задания. Убирается из списка, поэтому
+    и из других заданий по нему — об этом предупреждает форма."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
+    removed = await problem_sets.remove(session, assignment.problem_set_id, [problem_id])
+    back = f"/teacher/assignments/{assignment_id}"
+    if not removed:
+        return _redirect(back, error=_("Этой задачи в задании уже нет"))
+    return _redirect(
+        back, message=_("Задача убрана; посылки студентов сохранены, зачёт пересчитан")
     )
 
 

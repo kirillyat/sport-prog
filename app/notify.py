@@ -18,7 +18,7 @@ from datetime import timedelta
 from functools import partial
 from urllib.parse import urlparse
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import TelegramAPI
@@ -31,6 +31,7 @@ from app.models import (
     Group,
     GroupMembership,
     Material,
+    ProblemSetItem,
     User,
     utcnow,
 )
@@ -340,6 +341,35 @@ async def notify_assignment_message(
     )
 
 
+async def announce_started(session: AsyncSession) -> int:
+    """Сообщения о заданиях, которые только что начались.
+
+    Задание с началом в будущем при выдаче не объявляется — иначе
+    контрольная стала бы известна заранее. Планировщик зовёт это раз в
+    минуту; `announced` не даёт объявить дважды.
+    """
+    due = (
+        await session.execute(
+            select(Assignment).where(
+                Assignment.announced.is_(False), Assignment.assigned_at <= utcnow()
+            )
+        )
+    ).scalars().all()
+    delivered = 0
+    for assignment in due:
+        # Отмечаем до отправки: упавший Telegram не должен слать повтор
+        # каждую минуту, а задание студенты и так уже видят на портале.
+        assignment.announced = True
+        await session.commit()
+        problems = await session.scalar(
+            select(func.count()).select_from(ProblemSetItem).where(
+                ProblemSetItem.problem_set_id == assignment.problem_set_id
+            )
+        )
+        delivered += await notify_assignment(assignment, int(problems or 0), session)
+    return delivered
+
+
 def deadline_reminder_text(item: Assignment, left: int, total: int) -> str:
     hours = max(1, round((item.deadline - utcnow()).total_seconds() / 3600))
     lines = [
@@ -365,6 +395,7 @@ async def send_deadline_reminders(session: AsyncSession) -> int:
     now = utcnow()
     horizon = now + timedelta(hours=settings.assignment_reminder_hours)
     stmt = select(Assignment).where(
+        Assignment.assigned_at <= now,
         Assignment.deadline.is_not(None),
         Assignment.deadline > now,
         Assignment.deadline <= horizon,

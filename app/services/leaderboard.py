@@ -108,6 +108,9 @@ async def _assignments_in_scope(
         )
     if since is not None:
         stmt = stmt.where(Assignment.assigned_at >= since)
+    # Не начавшееся задание ещё не выдано: студенты его не видят, и в «выдано»
+    # на табло оно попадать не должно.
+    stmt = stmt.where(Assignment.assigned_at <= utcnow())
     return list((await session.execute(stmt)).scalars().all())
 
 
