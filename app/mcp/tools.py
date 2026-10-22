@@ -41,7 +41,7 @@ from app.models import (
 from app.notify import portal_url
 from app.routers.announcements import list_visible
 from app.services import assignments as assignments_service
-from app.services import problem_sets, sheet, similarity, solutions
+from app.services import messages, problem_sets, sheet, similarity, solutions
 from app.services import tasks as tasks_service
 from app.services.problem_parser import parse_problem_list, search_problems
 from app.services.progress import (
@@ -298,7 +298,9 @@ class AssignmentParams(Params):
     roles=STUDENT,
 )
 async def get_assignment(ctx: Context, args: AssignmentParams) -> dict:
-    """Одно задание: условия выдачи и задачи со ссылками.
+    """Одно задание: условия выдачи, задачи со ссылками и последние сообщения
+    преподавателя к нему (`messages`, свежие первыми: ссылки на комнаты
+    для совместного решения, объявления по ходу пары).
 
     Студенту — по каждой задаче его статус: solved_in_time (засчитано, если
     `counts`), solved_late (после дедлайна, не засчитывается), solved_before
@@ -309,6 +311,10 @@ async def get_assignment(ctx: Context, args: AssignmentParams) -> dict:
     assignment = await _assignment_for(ctx, args.assignment_id)
     teacher = ctx.user.is_teacher
     out = (await _describe(ctx, [assignment], teacher=teacher))[0]
+    out["messages"] = [
+        _message(item)
+        for item in await messages.for_assignment(ctx.session, assignment.id, limit=10)
+    ]
 
     if not teacher:
         progress = await compute_progress(ctx.session, assignment, [ctx.user])
@@ -1009,6 +1015,51 @@ async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
     }
 
 
+def _message(item) -> dict:
+    return {
+        "id": item.id,
+        "text": item.body,
+        "at": _when(item.created_at),
+        "author": item.author.display_name if item.author else None,
+    }
+
+
+class MessageParams(Params):
+    assignment_id: int
+    text: str = Field(min_length=1, max_length=messages.MAX_CHARS)
+    telegram: bool = Field(False, description="Продублировать в Telegram. По умолчанию — нет.")
+
+
+@tool(
+    "post_assignment_message",
+    title=N_("Написать участникам задания"),
+    hint=N_("сообщение сразу видно на странице задания и на главной"),
+    roles=TEACHER,
+    writes=True,
+    notifies=True,
+)
+async def post_assignment_message(ctx: Context, args: MessageParams) -> dict:
+    """Сообщение участникам задания — как поле «Сообщения преподавателя» на
+    странице задания: ссылка на комнату для совместного решения, «смотрите
+    задачу 3». Студенты сразу видят его на странице задания и несколько
+    часов — на главной; в Telegram — только с telegram=true.
+
+    Перед вызовом покажи человеку текст и кому он уйдёт, дождись явного
+    «да»: отозвать увиденное нельзя (удалить можно — на сайте).
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    result = await messages.post(
+        ctx.session, assignment, ctx.user, args.text, telegram=args.telegram
+    )
+    if isinstance(result, str):
+        raise ToolError(result)
+    return {
+        "assignment_id": assignment.id,
+        "message": _message(result),
+        "url": portal_url(f"/assignments/{assignment.id}#messages"),
+    }
+
+
 class CreateAssignmentParams(Params):
     title: str = Field(min_length=1, max_length=200)
     problem_set_id: int
@@ -1227,6 +1278,9 @@ TEACHER_GUIDE = """\
 4. create_problem_set — после согласия человека.
 5. list_groups, затем create_assignment — только после явного «да»: студенты
    сразу видят задание, в Telegram уходит сообщение.
+
+На паре: post_assignment_message — ссылка на комнату или пара слов участникам
+задания; видно сразу на странице задания и на главной. Тоже только после «да».
 
 Проверка: get_assignment_progress — кто сколько решил (так же, как матрица
 и табло на сайте); get_assignment_solutions — код решений для проверки и

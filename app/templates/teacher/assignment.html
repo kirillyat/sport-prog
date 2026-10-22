@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty, two_names %}
+{% from "_messages.html" import message_feed %}
 {% block title %}{{ assignment.title }} — {{ settings.app_name }}{% endblock %}
 {#
   Значок в клетке отвечает на вопрос «что произошло», а заливка — «зачлось ли».
@@ -37,6 +38,8 @@
     </button>
   </form>
 </div>
+
+{{ message_feed(assignment, messages, can_post=True) }}
 
 <details class="formula" style="margin-bottom:18px">
   <summary>{{ _("Изменить название и описание") }}</summary>

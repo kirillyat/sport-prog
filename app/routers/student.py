@@ -4,7 +4,7 @@ import re
 from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 
 from app.access import is_confirmed
@@ -21,7 +21,7 @@ from app.models import (
     utcnow,
 )
 from app.routers.announcements import upcoming_for_dashboard
-from app.services import solutions, verification
+from app.services import messages, solutions, verification
 from app.services.feed import build_feed
 from app.services.leaderboard import build_leaderboard
 from app.services.progress import (
@@ -73,6 +73,7 @@ async def dashboard(request: Request, session: SessionDep, user: CurrentUser):
             "cards": cards,
             "feed_items": await build_feed(session, user, limit=12),
             "announcements": await upcoming_for_dashboard(session, user),
+            "fresh_messages": await messages.fresh_for(session, user),
             "groups": groups,
             "missing_accounts": missing_accounts,
             "confirmed": is_confirmed(user),
@@ -112,10 +113,43 @@ async def assignment_detail(
             "progress": progress,
             "problems": progress.problems,
             "my_solutions": mine,
+            "messages": await messages.for_assignment(session, assignment.id),
             "ok": request.query_params.get("ok"),
             "error": request.query_params.get("err"),
         },
     )
+
+
+def _message_items(items, user, show_assignment=False) -> JSONResponse:
+    """Новые сообщения той же разметкой, что на странице: скрипт вставит их как есть."""
+    macro = templates.env.get_template("_messages.html").module.message_item
+    return JSONResponse({
+        "items": [
+            {
+                "id": item.id,
+                "html": str(macro(item, show_assignment=show_assignment,
+                                  can_delete=user.is_teacher and not show_assignment)),
+            }
+            for item in items
+        ]
+    })
+
+
+@router.get("/assignments/{assignment_id}/messages")
+async def assignment_messages(
+    session: SessionDep, user: CurrentUser, assignment_id: int, after: int = 0
+):
+    """Сообщения новее `after` — для страницы задания, без перезагрузки."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None or not await may_see_assignment(session, user, assignment):
+        return JSONResponse({"items": []}, status_code=404)
+    return _message_items(await messages.for_assignment(session, assignment.id, after), user)
+
+
+@router.get("/messages/fresh")
+async def fresh_messages(session: SessionDep, user: CurrentUser, after: int = 0):
+    """Свежие сообщения из всех своих заданий — для главной."""
+    return _message_items(await messages.fresh_for(session, user, after), user, True)
 
 
 @router.get("/me")

@@ -13,7 +13,7 @@ from app.i18n import LANGUAGES, current_language
 from app.i18n import mark as N_
 from app.i18n import translate as _
 from app.models import SolveStatus
-from app.services import course, seasons
+from app.services import course, linkify, seasons
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -71,6 +71,15 @@ def fmt_dt(value: datetime | None, fmt: str = "%d.%m.%Y %H:%M") -> str:
 
 def fmt_date(value: datetime | None) -> str:
     return fmt_dt(value, "%d.%m.%Y")
+
+
+def clock(value: datetime | None, now: datetime | None = None) -> str:
+    """Время сообщения: сегодняшнее — часами, как в мессенджере, иначе с датой."""
+    if value is None:
+        return "—"
+    today = (now or datetime.now(UTC)).astimezone(LOCAL_TZ).date()
+    local = value.astimezone(LOCAL_TZ)
+    return local.strftime("%H:%M" if local.date() == today else "%d.%m %H:%M")
 
 
 def fmt_points(value: float | None) -> str:
@@ -250,6 +259,9 @@ templates.env.filters["d"] = fmt_date
 templates.env.filters["pts"] = fmt_points
 templates.env.filters["dtinput"] = to_local_input
 templates.env.filters["ago"] = timeago
+templates.env.filters["clock"] = clock
+templates.env.filters["linkify"] = linkify.render
+templates.env.filters["first_link"] = linkify.first_link
 templates.env.filters["initials"] = initials
 templates.env.filters["sentence"] = sentence
 templates.env.filters["hue"] = avatar_hue

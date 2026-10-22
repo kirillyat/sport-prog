@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_ui.html" import empty %}
+{% from "_messages.html" import message_feed %}
 {% block title %}{{ assignment.title }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 {% set solved = progress.solved_count(user.id) %}
@@ -11,6 +12,8 @@
   {% endif %}
   {% if assignment.group %} · {{ assignment.group.title }}{% endif %}
 </p>
+
+{{ message_feed(assignment, messages, can_post=user.is_teacher) }}
 
 <div class="card">
   <div class="bar {{ 'done' if progress.total_problems and solved == progress.total_problems }}">

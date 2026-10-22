@@ -27,6 +27,7 @@ from app.i18n import translate as _
 from app.models import (
     Announcement,
     Assignment,
+    AssignmentMessage,
     Group,
     GroupMembership,
     Material,
@@ -321,6 +322,21 @@ async def notify_assignment(
     return await _deliver(
         session, assignment_text(item, problems),
         group_id=item.group_id, user_id=item.user_id, button=assignment_button(item),
+    )
+
+
+def assignment_message_text(item: AssignmentMessage, assignment: Assignment) -> str:
+    # Ссылки в тексте Telegram сделает кликабельными сам.
+    return "💬 <b>" + _e(assignment.title) + "</b>\n" + _e(item.body)
+
+
+async def notify_assignment_message(
+    item: AssignmentMessage, assignment: Assignment, session: AsyncSession | None = None
+) -> int:
+    return await _deliver(
+        session, assignment_message_text(item, assignment),
+        group_id=assignment.group_id, user_id=assignment.user_id,
+        button=assignment_button(assignment),
     )
 
 

@@ -4,7 +4,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 from typing import Annotated
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
@@ -41,6 +41,7 @@ from app.services import (
     judge,
     languages,
     llm,
+    messages,
     notebook,
     problem_sets,
     similarity,
@@ -1009,9 +1010,48 @@ async def assignment_matrix(
             "files": files,
             "files_by_problem": files_by_problem,
             "uploads": uploads,
+            "messages": await messages.for_assignment(session, assignment.id),
             **_flash(request),
         },
     )
+
+
+@router.post("/assignments/{assignment_id}/messages")
+async def post_message(
+    request: Request,
+    session: SessionDep,
+    user: TeacherUser,
+    assignment_id: int,
+    body: Annotated[str, Form()] = "",
+    telegram: Annotated[bool, Form()] = False,
+):
+    """Сообщение участникам задания. Возвращаемся туда, откуда писали:
+    со страницы студента — на неё, из матрицы — в матрицу."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
+    back = _message_back(request, assignment_id)
+    result = await messages.post(session, assignment, user, body, telegram=telegram)
+    if isinstance(result, str):
+        return RedirectResponse(f"{back}?err={quote(result)}#messages", status_code=303)
+    return RedirectResponse(f"{back}#messages", status_code=303)
+
+
+def _message_back(request: Request, assignment_id: int) -> str:
+    # Путь сравниваем целиком: «/teacher/assignments/5» тоже кончается на
+    # «/assignments/5», и из матрицы уводило бы на страницу студента.
+    student_page = f"/assignments/{assignment_id}"
+    if urlparse(request.headers.get("referer", "")).path == student_page:
+        return student_page
+    return f"/teacher/assignments/{assignment_id}"
+
+
+@router.post("/assignments/{assignment_id}/messages/{message_id}/delete")
+async def delete_message(
+    request: Request, session: SessionDep, user: TeacherUser, assignment_id: int, message_id: int
+):
+    await messages.delete(session, assignment_id, message_id)
+    return RedirectResponse(f"{_message_back(request, assignment_id)}#messages", status_code=303)
 
 
 @router.get("/assignments/{assignment_id}/similar")

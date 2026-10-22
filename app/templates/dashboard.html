@@ -2,11 +2,14 @@
 {% from "_ui.html" import empty %}
 {% from "_feed.html" import feed_list %}
 {% from "_announce.html" import announce_card %}
+{% from "_messages.html" import fresh_messages as fresh_feed %}
 {% block title %}{{ _("Задания") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <p class="eyebrow">{{ _("главная") }}</p>
 <h1>{{ _("Привет") }}, {{ user.display_name }}</h1>
 <p class="sub">{{ _("Задания, материалы и объявления.") }}</p>
+
+{{ fresh_feed(fresh_messages) }}
 
 {% if not confirmed %}
 <div class="card callout warn">

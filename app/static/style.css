@@ -1452,6 +1452,28 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .nb-md th { font-family: var(--display); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 2px solid var(--line); }
 .nb-md blockquote { margin: 10px 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--text-2); }
 .nb-code { border: 2px solid var(--ink); position: relative; }
+/* Сообщения преподавателя к заданию: как в мессенджере — свежие сверху,
+   ссылка кликабельна, под ней кнопка, по которой на паре попадают сразу. */
+.messages { margin: 0 0 22px; }
+.messages h2 { margin-top: 8px; }
+.message-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+.message-form input[type="text"] { flex: 1 1 320px; min-width: 0; }
+.message-list { display: flex; flex-direction: column; gap: 10px; }
+.message { border: 2px solid var(--line); background: var(--panel); padding: 10px 14px 12px; }
+.messages.fresh .message { border-left-width: 10px; }
+.message-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); margin-bottom: 6px; }
+.message-meta b { color: var(--text); }
+.message-meta .avatar { width: 22px; height: 22px; font-size: 9px; }
+.message-delete { margin-left: auto; }
+.message-delete button { padding: 2px 6px; }
+.message-body { overflow-wrap: anywhere; line-height: 1.5; }
+.message-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.message .btn { margin-top: 8px; }
+/* Только что пришло — короткая подсветка, чтобы заметили. */
+.message.arrived { animation: message-arrived 2.4s ease-out; }
+@keyframes message-arrived { from { background: color-mix(in srgb, var(--ink) 18%, var(--panel)); } }
+@media (prefers-reduced-motion: reduce) { .message.arrived { animation: none; } }
+
 /* Ник на портале под именем из учётной записи вуза — у преподавателя. */
 .nick { display: block; font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0; text-transform: none; }
 .nick::before { content: "«"; }

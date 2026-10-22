@@ -1,0 +1,59 @@
+{#
+  Сообщения преподавателя к заданию. Одна разметка на страницу задания,
+  на главную и на ответ скрипта, который подтягивает новые
+  (`app/static/messages.js`): иначе подтянутое выглядело бы иначе.
+#}
+{% from "_ui.html" import avatar %}
+
+{% macro message_item(item, show_assignment=False, can_delete=False) -%}
+{% set link = item.body | first_link %}
+<article class="message" data-id="{{ item.id }}">
+  <div class="message-meta small">
+    {% if item.author %}{{ avatar(item.author, "sm") }}<b>{{ item.author.display_name }}</b>{% endif %}
+    <time datetime="{{ item.created_at.isoformat() }}" title="{{ item.created_at | dt }}">{{ item.created_at | clock }}</time>
+    {% if show_assignment %}<a href="/assignments/{{ item.assignment_id }}#messages">{{ item.assignment.title }}</a>{% endif %}
+    {% if can_delete %}
+    <form method="post" action="/teacher/assignments/{{ item.assignment_id }}/messages/{{ item.id }}/delete" class="message-delete">
+      <button class="ghost small" type="submit" title="{{ _("Удалить сообщение") }}" aria-label="{{ _("Удалить сообщение") }}">{{ icon("close") }}</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="message-body">{{ item.body | linkify }}</div>
+  {% if link %}
+  <a class="btn small" href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ icon("external") }} {{ _("Открыть ссылку") }}</a>
+  {% endif %}
+</article>
+{%- endmacro %}
+
+{% macro message_feed(assignment, messages, can_post=False) -%}
+<section class="messages" id="messages"
+         data-messages-src="/assignments/{{ assignment.id }}/messages"
+         data-after="{{ messages[0].id if messages else 0 }}"
+         {% if not messages and not can_post %}hidden{% endif %}>
+  <h2>{{ icon("send") }} {{ _("Сообщения преподавателя") }}</h2>
+  {% if can_post %}
+  <form method="post" action="/teacher/assignments/{{ assignment.id }}/messages" class="message-form">
+    <input type="text" name="body" maxlength="1000" required autocomplete="off"
+           aria-label="{{ _("Сообщение участникам задания") }}"
+           placeholder="{{ _("Ссылка на комнату или пара слов — Enter, и группа увидит") }}">
+    <button type="submit">{{ icon("send") }} {{ _("Отправить") }}</button>
+    {% if settings.telegram_enabled %}
+    <label class="check small"><input type="checkbox" name="telegram" value="true"> {{ _("и в Telegram") }}</label>
+    {% endif %}
+  </form>
+  {% endif %}
+  <div class="message-list" data-message-list>
+    {% for item in messages %}{{ message_item(item, can_delete=can_post) }}{% endfor %}
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro fresh_messages(messages) -%}
+<section class="messages fresh" data-messages-src="/messages/fresh"
+         data-after="{{ messages[0].id if messages else 0 }}" {% if not messages %}hidden{% endif %}>
+  <h2>{{ icon("send") }} {{ _("Только что от преподавателя") }}</h2>
+  <div class="message-list" data-message-list>
+    {% for item in messages %}{{ message_item(item, show_assignment=True) }}{% endfor %}
+  </div>
+</section>
+{%- endmacro %}

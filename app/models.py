@@ -407,6 +407,29 @@ class HiddenAnnouncement(Base):
     hidden_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
+class AssignmentMessage(Base):
+    """Сообщение преподавателя участникам задания — короткое, как в чате:
+    ссылка на комнату для совместного решения, «смотрите задачу 3».
+
+    Видят его те же, кто видит задание (`may_see_assignment`), — на странице
+    задания и свежим на главной. Мессенджер для этого не нужен: у кого его
+    нет на компьютере в аудитории, тот всё равно открывает портал.
+    """
+
+    __tablename__ = "assignment_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), index=True
+    )
+    author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+
+    author: Mapped[User | None] = relationship(lazy="selectin")
+    assignment: Mapped[Assignment] = relationship(lazy="selectin")
+
+
 class Announcement(Base):
     """Объявление: анонс контеста, сбор, организационная новость."""
 
