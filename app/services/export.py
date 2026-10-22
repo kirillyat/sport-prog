@@ -64,13 +64,15 @@ async def _groups_of(session: AsyncSession, user_ids: list[int]) -> dict[int, li
 async def leaderboard_csv(session: AsyncSession, rows: list[LeaderboardRow]) -> bytes:
     groups = await _groups_of(session, [row.user.id for row in rows])
     header = [
-        _("Место"), _("Студент"), _("Группы"), _("Зачтено"), _("Выдано"), _("Доля, %"),
-        _("После дедлайна"), _("Бонусы"), _("Последнее решение"), _("Подтверждён"),
+        _("Место"), _("Студент"), _("Имя на портале"), _("Группы"), _("Зачтено"),
+        _("Выдано"), _("Доля, %"), _("После дедлайна"), _("Бонусы"), _("Последнее решение"),
+        _("Подтверждён"),
     ]
     body: list[list[object]] = []
     for row in rows:
         body.append([
             row.place,
+            row.user.record_name,
             row.user.display_name,
             ", ".join(groups.get(row.user.id, [])),
             row.solved,
@@ -85,12 +87,13 @@ async def leaderboard_csv(session: AsyncSession, rows: list[LeaderboardRow]) -> 
 
 
 def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> bytes:
-    header = [_("Студент"), _("Зачтено"), _("Всего задач")]
+    header = [_("Студент"), _("Имя на портале"), _("Зачтено"), _("Всего задач")]
     header += [f"{index}. {problem.title}" for index, problem in enumerate(progress.problems, 1)]
 
     body: list[list[object]] = []
-    for student in sorted(progress.participants, key=lambda u: u.display_name):
+    for student in sorted(progress.participants, key=lambda u: u.record_name.lower()):
         line: list[object] = [
+            student.record_name,
             student.display_name,
             progress.solved_count(student.id),
             progress.total_problems,
@@ -102,7 +105,7 @@ def assignment_csv(assignment: Assignment, progress: AssignmentProgress) -> byte
 
 def sheet_csv(built) -> bytes:
     """Ведомость группы. Итог тремя числами — так же, как на странице."""
-    header = [_("Студент")]
+    header = [_("Студент"), _("Имя на портале")]
     # Занятие в заголовке: «Семинар 3 · посещение» читается и без второй строки.
     titles = {}
     for block in built.blocks:
@@ -116,7 +119,7 @@ def sheet_csv(built) -> bytes:
     body: list[list[object]] = []
     for student in built.students:
         total = built.total(student.id)
-        line: list[object] = [student.display_name]
+        line: list[object] = [student.record_name, student.display_name]
         for column in built.columns:
             line.append(_cell(built.value(student.id, column.id), column))
         line += [

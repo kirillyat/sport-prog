@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% block title %}{{ _("Студенты") }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
 <h1>{{ _("Преподаватели") if role == "teacher" else _("Студенты") }}</h1>
@@ -28,7 +28,7 @@
           <span class="row" style="gap:9px; flex-wrap:nowrap">
             {{ avatar(student, "sm") }}
             <span>
-              <a href="/u/{{ student.id }}">{{ student.display_name }}</a>
+              <a href="/u/{{ student.id }}">{{ two_names(student) }}</a>
               {% if student.telegram_username %}<br><span class="small muted">@{{ student.telegram_username }}</span>{% endif %}
             </span>
           </span>

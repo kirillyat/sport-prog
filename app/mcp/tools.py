@@ -33,7 +33,6 @@ from app.models import (
     ProblemSetItem,
     SheetKind,
     SheetScale,
-    Submission,
     Task,
     TaskTest,
     User,
@@ -42,7 +41,7 @@ from app.models import (
 from app.notify import portal_url
 from app.routers.announcements import list_visible
 from app.services import assignments as assignments_service
-from app.services import problem_sets, sheet, solutions
+from app.services import problem_sets, sheet, similarity, solutions
 from app.services import tasks as tasks_service
 from app.services.problem_parser import parse_problem_list, search_problems
 from app.services.progress import (
@@ -801,7 +800,8 @@ async def get_group(ctx: Context, args: GroupParams) -> dict:
         "id": group.id,
         "title": group.title,
         "members": [
-            {"id": user.id, "name": user.display_name, "role": user.role.value}
+            {"id": user.id, "name": user.display_name, "official_name": user.official_name,
+             "role": user.role.value}
             for user in members
         ],
         "assignments": await _describe(ctx, issued, teacher=True),
@@ -844,6 +844,7 @@ async def get_assignment_progress(ctx: Context, args: AssignmentParams) -> dict:
             {
                 "student_id": user.id,
                 "student": user.display_name,
+                "official_name": user.official_name,
                 "solved": progress.solved_count(user.id),
                 "problems": cells,
             }
@@ -897,31 +898,9 @@ async def get_assignment_solutions(ctx: Context, args: SolutionsParams) -> dict:
         if not problems:
             raise ToolError("Этой задачи нет в задании")
 
-    user_ids = [u.id for u in participants]
-    problem_ids = [p.id for p in problems]
-    uploads = await solutions.for_assignment(ctx.session, assignment.id, user_ids)
-
-    latest: dict[tuple[int, int], Submission] = {}
-    attempts: dict[tuple[int, int], int] = {}
-    if user_ids and problem_ids:
-        rows = await ctx.session.execute(
-            select(Submission)
-            .where(
-                Submission.user_id.in_(user_ids),
-                Submission.problem_id.in_(problem_ids),
-                Submission.submitted_at >= assignment.assigned_at,
-            )
-            .order_by(Submission.submitted_at)
-        )
-        for sub in rows.scalars():
-            key = (sub.user_id, sub.problem_id)
-            attempts[key] = attempts.get(key, 0) + 1
-            if not sub.code:
-                continue
-            current = latest.get(key)
-            # Принятое важнее непринятого, среди равных — более позднее.
-            if current is None or sub.is_accepted or not current.is_accepted:
-                latest[key] = sub
+    picked = await solutions.picked_for_assignment(
+        ctx.session, assignment, [u.id for u in participants], [p.id for p in problems]
+    )
 
     budget = MAX_CODE_CHARS
     truncated = False
@@ -929,37 +908,22 @@ async def get_assignment_solutions(ctx: Context, args: SolutionsParams) -> dict:
     for problem in problems:
         entries = []
         for user in participants:
-            key = (user.id, problem.id)
-            upload, sub = uploads.get(key), latest.get(key)
-            if upload is None and sub is None:
+            found = picked.get((user.id, problem.id))
+            if found is None:
                 continue
-            if upload is not None:
-                entry = {
-                    "source": "upload",
-                    "code": upload.code,
-                    "submitted_at": upload.submitted_at,
-                    "review": upload.status.value,
-                    "language": None,
-                    "accepted": None,
-                }
-            else:
-                entry = {
-                    "source": "submission",
-                    "code": sub.code,
-                    "submitted_at": sub.submitted_at,
-                    "review": None,
-                    "language": sub.language,
-                    "accepted": sub.is_accepted,
-                }
-            code = entry.pop("code") or ""
-            submitted_at = entry.pop("submitted_at")
+            code = found.code
             entry = {
                 "student_id": user.id,
                 "student": user.display_name,
-                **entry,
-                "submitted_at": _when(submitted_at),
-                "late": assignment.deadline is not None and submitted_at > assignment.deadline,
-                "attempts": attempts.get(key, 0),
+                "official_name": user.official_name,
+                "source": found.source,
+                "review": found.review,
+                "language": found.language,
+                "accepted": found.accepted,
+                "submitted_at": _when(found.submitted_at),
+                "late": assignment.deadline is not None
+                and found.submitted_at > assignment.deadline,
+                "attempts": found.attempts,
             }
             if len(code) <= budget:
                 entry["code"] = code
@@ -977,6 +941,72 @@ async def get_assignment_solutions(ctx: Context, args: SolutionsParams) -> dict:
             "параметром problem или по студенту параметром student_id."
         )
     return result
+
+
+class SimilarParams(Params):
+    assignment_id: int
+    problem: str | None = Field(None, description="Только эта задача задания.")
+
+
+@tool(
+    "find_similar_solutions",
+    title=N_("Похожие решения"),
+    hint=N_("пары похожих решений одной задачи — как на странице задания"),
+    roles=TEACHER,
+)
+async def find_similar_solutions(ctx: Context, args: SimilarParams) -> dict:
+    """Пары похожих решений по задачам задания — тот же отчёт, что на странице
+    «Похожие решения» у задания.
+
+    Сравнивается устройство кода: имена переменных, пробелы и комментарии не
+    влияют. `similarity` — проценты совпадения, в отчёт попадают пары от
+    порога `threshold`. `shared_names` — имена, которые из всей группы есть
+    только у этих двоих: улика сильнее процентов. Короткие решения (`short`)
+    не сравниваются — у простой задачи хорошие решения похожи сами по себе.
+
+    Это повод посмотреть, а не приговор. Код пары — get_assignment_solutions
+    с параметрами problem и student_id; ссылку `compare_url` дай преподавателю,
+    чтобы он посмотрел решения рядом.
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    problem_id = None
+    if args.problem:
+        problem_id = (await _resolve(ctx, args.problem)).id
+    reports = await similarity.for_assignment(ctx.session, assignment, problem_id)
+    if problem_id is not None and not reports:
+        raise ToolError("Этой задачи нет в задании")
+    base = f"/teacher/assignments/{assignment.id}/similar"
+    return {
+        "assignment_id": assignment.id,
+        "threshold": round(similarity.THRESHOLD * 100),
+        "page_url": portal_url(base),
+        "problems": [
+            {
+                **_problem(report.problem),
+                "compared": report.compared,
+                "short": report.short,
+                "pairs": [
+                    {
+                        "students": [
+                            {"id": m.first.id, "name": m.first.display_name,
+                             "official_name": m.first.official_name,
+                             "submitted_at": _when(m.first_solution.submitted_at)},
+                            {"id": m.second.id, "name": m.second.display_name,
+                             "official_name": m.second.official_name,
+                             "submitted_at": _when(m.second_solution.submitted_at)},
+                        ],
+                        "similarity": m.pair.percent,
+                        "shared_names": m.pair.shared_names,
+                        "compare_url": portal_url(
+                            f"{base}/{report.problem.id}?a={m.first.id}&b={m.second.id}"
+                        ),
+                    }
+                    for m in report.matches
+                ],
+            }
+            for report in reports
+        ],
+    }
 
 
 class CreateAssignmentParams(Params):
@@ -1154,6 +1184,7 @@ async def get_gradebook(ctx: Context, args: GroupParams) -> dict:
             {
                 "student_id": student.id,
                 "student": student.display_name,
+                "official_name": student.official_name,
                 "marks": [
                     {
                         "column_id": meta["column_id"],
@@ -1199,7 +1230,8 @@ TEACHER_GUIDE = """\
 
 Проверка: get_assignment_progress — кто сколько решил (так же, как матрица
 и табло на сайте); get_assignment_solutions — код решений для проверки и
-поиска списывания. Похожесть решений — повод посмотреть, а не приговор.
+поиска списывания; find_similar_solutions — готовые пары похожих решений,
+как на странице «Похожие решения». Похожесть — повод посмотреть, а не приговор.
 
 Записи задач: ссылка, слаг LeetCode (two-sum), cf:4A, task:слаг своей задачи.
 Время без пояса — местное время портала (см. whoami).

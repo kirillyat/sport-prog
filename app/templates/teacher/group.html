@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% from "_feed.html" import feed_list %}
 {% block title %}{{ group.title }} — {{ settings.app_name }}{% endblock %}
 {% block content %}
@@ -60,7 +60,7 @@
       <select id="user_id" name="user_id" required>
         <option value="" disabled selected>{{ _("выбери из списка") }}</option>
         {% for student in candidates %}
-        <option value="{{ student.id }}">{{ student.display_name }}</option>
+        <option value="{{ student.id }}">{{ student.record_name }}{% if student.renamed %} ({{ student.display_name }}){% endif %}</option>
         {% endfor %}
       </select>
     </div>
@@ -82,7 +82,7 @@
         <td>
           <span class="row" style="gap:9px; flex-wrap:nowrap">
             {{ avatar(member, "sm") }}
-            <a href="/u/{{ member.id }}">{{ member.display_name }}</a>
+            <a href="/u/{{ member.id }}">{{ two_names(member) }}</a>
           </span>
         </td>
         {% if settings.telegram_enabled %}

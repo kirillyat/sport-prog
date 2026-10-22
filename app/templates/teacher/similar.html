@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_ui.html" import two_names %}
+{% block title %}{{ _("Похожие решения") }} — {{ assignment.title }} — {{ settings.app_name }}{% endblock %}
+{#
+  Отчёт для преподавателя после контрольной. Проценты — повод открыть два
+  решения рядом, а не вердикт: поэтому у каждой пары кнопка «Сравнить», а
+  слова «списал» на странице нет.
+#}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a></p>
+    <h1>{{ _("Похожие решения") }}</h1>
+    <p class="sub">{{ _("Пары решений одной задачи, совпадающих по устройству не меньше чем на %(n)s%%. Переименованные переменные, пробелы и комментарии не мешают найти совпадение.") % {"n": threshold} }}</p>
+  </div>
+</div>
+
+<p class="small muted" style="margin:0 0 18px">
+  {{ icon("alert") }} {{ _("Похожесть — повод посмотреть, а не приговор: у простой задачи хорошие решения похожи сами по себе. Сильнее процентов говорят общие редкие имена — те, что из всей группы есть только у этих двоих.") }}
+</p>
+
+{% for report in reports %}
+<section class="similar-problem">
+  <h2>{{ loop.index }}. {{ report.problem.title }}</h2>
+  <p class="small muted">
+    {{ _("сравнили решений: %(n)s") % {"n": report.compared} }}
+    {%- if report.short %} · {{ _("коротких (меньше %(n)s элементов) не сравнивали: %(count)s") % {"n": min_tokens, "count": report.short} }}{% endif %}
+  </p>
+  {% if report.matches %}
+  <div class="card table-wrap" style="padding:6px">
+    <table class="similar-pairs">
+      <tbody>
+      {% for match in report.matches %}
+        <tr>
+          <td>
+            <span class="badge {{ 'bad' if match.pair.nearly_same else 'warn' }}">{{ match.pair.percent }}%</span>
+          </td>
+          <td>
+            <a href="/u/{{ match.first.id }}">{{ two_names(match.first) }}</a>
+            <span class="muted">·</span>
+            <a href="/u/{{ match.second.id }}">{{ two_names(match.second) }}</a>
+            <div class="small muted">
+              {{ match.first_solution.submitted_at | dt }} · {{ match.second_solution.submitted_at | dt }}
+            </div>
+            {% if match.pair.shared_names %}
+            <div class="small">
+              {{ _("общие редкие имена:") }}
+              {% for name in match.pair.shared_names %}<code>{{ name }}</code>{{ " " if not loop.last }}{% endfor %}
+            </div>
+            {% endif %}
+          </td>
+          <td class="num">
+            <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/similar/{{ report.problem.id }}?a={{ match.first.id }}&b={{ match.second.id }}">
+              {{ icon("layers") }} {{ _("Сравнить") }}
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif report.compared >= 2 %}
+  <p class="small">{{ icon("check") }} {{ _("Похожих решений нет.") }}</p>
+  {% else %}
+  <p class="small muted">{{ _("Сравнивать не с чем: решений с кодом меньше двух.") }}</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

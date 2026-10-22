@@ -1452,6 +1452,18 @@ input[type=file]::file-selector-button { font: inherit; margin-right: 10px; padd
 .nb-md th { font-family: var(--display); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 2px solid var(--line); }
 .nb-md blockquote { margin: 10px 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--text-2); }
 .nb-code { border: 2px solid var(--ink); position: relative; }
+/* Ник на портале под именем из учётной записи вуза — у преподавателя. */
+.nick { display: block; font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0; text-transform: none; }
+.nick::before { content: "«"; }
+.nick::after { content: "»"; }
+
+/* Похожие решения: процент, пара, улики, кнопка — в одну строку. */
+.similar-pairs td { vertical-align: middle; }
+.similar-pairs td:first-child, .similar-pairs td.num { width: 1%; white-space: nowrap; }
+.similar-pairs td.num { text-align: right; }
+.similar-pairs code { font-size: 12px; }
+/* Два решения рядом: длинное не растягивает страницу, а прокручивается. */
+.similar-sides .nb-code pre { max-height: 75vh; overflow: auto; margin: 0; }
 .nb-lang { position: absolute; top: 0; right: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; background: var(--inv-bg); color: var(--inv-text); padding: 2px 7px; }
 .nb-code pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; }
 .nb-out { border-top: 2px dashed var(--line); color: var(--text-2); white-space: pre-wrap; }

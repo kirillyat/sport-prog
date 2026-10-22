@@ -14,6 +14,15 @@
   Аватарка. Инициалы лежат под картинкой: если Gravatar отвечает 404
   (почты нет в их базе), onerror убирает <img> и остаются инициалы.
 #}
+{#
+  Имя для преподавателя: из учётной записи вуза, а под ним мелко — как
+  студент назвался на портале, если иначе. Студенту пусть дурачится,
+  а ведомость не должна разъезжаться.
+#}
+{% macro two_names(person) -%}
+{{ person.record_name }}{% if person.renamed %}<span class="nick">{{ person.display_name }}</span>{% endif %}
+{%- endmacro %}
+
 {% macro avatar(person, size="") -%}
 <span class="avatar {{ size }}" style="--h: {{ person.display_name | hue }}"
       {% if person.display_name %}title="{{ person.display_name }}"{% endif %}>

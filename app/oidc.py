@@ -167,6 +167,15 @@ def display_name_from(claims: dict) -> str:
     return f"user-{claims.get('sub', '')[:8]}"
 
 
+def official_name_from(claims: dict) -> str | None:
+    """Имя человека в учётной записи — claim `name` (в Authentik это ФИО).
+    Логин и почта именем не считаются: по ним ведомость не заполнишь."""
+    value = claims.get("name")
+    if isinstance(value, str) and value.strip():
+        return " ".join(value.split())[:120]
+    return None
+
+
 def groups_from(claims: dict) -> set[str]:
     raw = claims.get(settings.oidc_groups_claim)
     if isinstance(raw, str):

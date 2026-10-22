@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% block title %}{{ column.title }} — {{ group.title }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -33,7 +33,7 @@
         {% for student in students %}
         {% set mark = marks.get(student.id) %}
         <tr>
-          <td>{{ student.display_name }}</td>
+          <td>{{ two_names(student) }}</td>
           <td>
             {% if column.scale == "points" %}
             <input type="text" name="mark:{{ student.id }}" inputmode="decimal" class="narrow"

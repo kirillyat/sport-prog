@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% block title %}{{ column.title }} — {{ group.title }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -24,7 +24,7 @@
     {% set mark = marks.get(student.id) %}
     {% set state = mark.attendance if mark else "present" %}
     <div class="attend-row">
-      <span class="attend-name">{{ student.display_name }}</span>
+      <span class="attend-name">{{ two_names(student) }}</span>
       <span class="attend-states">
         <label class="chip">
           <input type="radio" name="mark:{{ student.id }}" value="present"

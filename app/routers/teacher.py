@@ -41,7 +41,9 @@ from app.services import (
     judge,
     languages,
     llm,
+    notebook,
     problem_sets,
+    similarity,
     solutions,
     timeline,
 )
@@ -1008,6 +1010,75 @@ async def assignment_matrix(
             "files_by_problem": files_by_problem,
             "uploads": uploads,
             **_flash(request),
+        },
+    )
+
+
+@router.get("/assignments/{assignment_id}/similar")
+async def similar_solutions(
+    request: Request, session: SessionDep, user: TeacherUser, assignment_id: int
+):
+    """Похожие решения по задачам задания — отчёт после контрольной."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
+    reports = await similarity.for_assignment(session, assignment)
+    return templates.TemplateResponse(
+        request,
+        "teacher/similar.html",
+        {
+            "user": user,
+            "assignment": assignment,
+            "reports": reports,
+            "threshold": round(similarity.THRESHOLD * 100),
+            "min_tokens": similarity.MIN_TOKENS,
+        },
+    )
+
+
+def _highlighted(found: solutions.Picked) -> str:
+    if found.source == "upload":
+        return notebook.highlight_file(found.code, solutions.FILENAME)
+    return notebook.highlight(found.code, languages.lexer_name(found.language))
+
+
+@router.get("/assignments/{assignment_id}/similar/{problem_id}")
+async def similar_pair(
+    request: Request,
+    session: SessionDep,
+    user: TeacherUser,
+    assignment_id: int,
+    problem_id: int,
+    a: int,
+    b: int,
+):
+    """Два решения рядом — чтобы решать глазами, а не по процентам."""
+    assignment = await session.get(Assignment, assignment_id)
+    if assignment is None:
+        return _redirect("/teacher/assignments", error=_("Задание не найдено"))
+    back = f"/teacher/assignments/{assignment_id}/similar"
+    reports = await similarity.for_assignment(session, assignment, problem_id)
+    match = next(
+        (
+            m for r in reports for m in r.matches
+            if {m.first.id, m.second.id} == {a, b}
+        ),
+        None,
+    )
+    if match is None:
+        return _redirect(back, error=_("Этой пары нет среди похожих решений"))
+    return templates.TemplateResponse(
+        request,
+        "teacher/similar_pair.html",
+        {
+            "user": user,
+            "assignment": assignment,
+            "problem": reports[0].problem,
+            "match": match,
+            "sides": [
+                (match.first, match.first_solution, _highlighted(match.first_solution)),
+                (match.second, match.second_solution, _highlighted(match.second_solution)),
+            ],
         },
     )
 

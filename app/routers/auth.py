@@ -71,10 +71,12 @@ async def _resolve_oidc_user(session: SessionDep, claims: dict, groups: set[str]
     sub = str(claims["sub"])
     user = await session.scalar(select(User).where(User.oidc_sub == sub))
     teacher_by_group = bool(groups & settings.oidc_teacher_group_set)
+    official = oidc.official_name_from(claims)
     if user is None:
         first = await _is_first_user(session)
         user = User(
             display_name=oidc.display_name_from(claims),
+            official_name=official,
             email=claims.get("email"),
             oidc_sub=sub,
             role=Role.teacher if (first or teacher_by_group) else Role.student,
@@ -82,6 +84,9 @@ async def _resolve_oidc_user(session: SessionDep, claims: dict, groups: set[str]
         session.add(user)
     else:
         user.email = claims.get("email") or user.email
+        # Имя на портале человек меняет сам, а это — только вход: поправили
+        # ФИО в учётной записи — поправится и здесь.
+        user.official_name = official or user.official_name
         # Группа провайдера — источник истины на повышение. Понижать автоматически
         # не станем: преподаватель мог получить роль иначе (первый вход, вручную).
         if teacher_by_group:
@@ -205,6 +210,7 @@ async def login_oidc_callback(request: Request, session: SessionDep):
             )
         current.oidc_sub = str(merged["sub"])
         current.email = merged.get("email") or current.email
+        current.official_name = oidc.official_name_from(merged) or current.official_name
         if groups & settings.oidc_teacher_group_set:
             current.role = Role.teacher
         await session.commit()

@@ -61,6 +61,12 @@
       {% endif %}
     </div>
     {% endif %}
+    {% if target.official_name and (user.is_teacher or is_self) %}
+    <p class="small muted" style="margin:0 0 6px">
+      {{ org_account() }}: <strong>{{ target.official_name }}</strong>
+      {%- if is_self %} · {{ _("имя на портале можно менять как угодно — преподаватель всё равно видит это") }}{% endif %}
+    </p>
+    {% endif %}
     <div class="row small muted">
       {% if target.telegram_username %}<span>@{{ target.telegram_username }}</span>{% endif %}
       {% if target.is_teacher %}<span class="badge info">{{ icon("shield") }} {{ _("преподаватель") }}</span>{% endif %}

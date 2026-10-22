@@ -172,7 +172,7 @@ async def students_of(session: AsyncSession, group: Group) -> list[User]:
         select(User)
         .join(GroupMembership, GroupMembership.user_id == User.id)
         .where(GroupMembership.group_id == group.id, User.is_active.is_(True))
-        .order_by(func.lower(User.display_name))
+        .order_by(func.lower(func.coalesce(User.official_name, User.display_name)))
     )
     return list((await session.execute(stmt)).scalars().all())
 

@@ -144,7 +144,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Имя на портале — его человек меняет сам, как хочет: табло, лента, профиль.
     display_name: Mapped[str] = mapped_column(String(120))
+    # Имя из учётной записи вуза (OIDC, Authentik). Пишет только вход, правки
+    # на портале его не трогают — по нему преподаватель ведёт ведомость, даже
+    # если студент назвался «Гэндальфом». Пусто — входил не через OIDC.
+    official_name: Mapped[str | None] = mapped_column(String(120))
     role: Mapped[Role] = mapped_column(EnumStr(Role), default=Role.student)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -171,6 +176,16 @@ class User(Base):
     @property
     def is_teacher(self) -> bool:
         return self.role == Role.teacher
+
+    @property
+    def record_name(self) -> str:
+        """Имя для ведомости и выгрузок: из учётной записи вуза, если есть."""
+        return self.official_name or self.display_name
+
+    @property
+    def renamed(self) -> bool:
+        """Назвался на портале не так, как в учётной записи вуза."""
+        return bool(self.official_name) and self.official_name != self.display_name
 
     def account_for(self, platform: Platform) -> PlatformAccount | None:
         for acc in self.accounts:

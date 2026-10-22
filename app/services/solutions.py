@@ -12,11 +12,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ReviewStatus, SolutionUpload, utcnow
+from app.models import Assignment, ReviewStatus, SolutionUpload, Submission, utcnow
 
 # Потолок на длину: решение задачи столько не занимает, а вставленный по
 # ошибке ноутбук или лог — запросто.
@@ -165,3 +166,76 @@ async def pending(session: AsyncSession, limit: int = 100) -> list[SolutionUploa
         .limit(limit)
     )
     return list((await session.execute(stmt)).scalars().all())
+
+
+@dataclass(slots=True)
+class Picked:
+    """Решение студента по задаче задания — то, которое читают проверяющий,
+    поиск похожих решений и нейросеть по MCP. Одно правило на всех: иначе
+    страница сравнивала бы одно решение, а нейросеть показывала другое."""
+
+    source: str                 # "upload" — прислан к задаче, "submission" — посылка
+    code: str
+    submitted_at: datetime
+    language: str | None
+    accepted: bool | None       # у присланного кода вердикта нет
+    review: str | None          # а у посылки — проверки
+    attempts: int
+    url: str                    # где его прочитать на портале
+
+
+async def picked_for_assignment(
+    session: AsyncSession,
+    assignment: Assignment,
+    user_ids: list[int],
+    problem_ids: list[int],
+) -> dict[tuple[int, int], Picked]:
+    """(user_id, problem_id) -> решение, у кого оно есть.
+
+    Присланный к задаче код важнее посылки: его студент выбрал сам. Без него —
+    посылка после выдачи задания с исходником: последняя принятая, а если
+    принятой нет — последняя. `attempts` — все посылки после выдачи.
+    """
+    if not user_ids or not problem_ids:
+        return {}
+    uploads = await for_assignment(session, assignment.id, user_ids)
+
+    latest: dict[tuple[int, int], Submission] = {}
+    attempts: dict[tuple[int, int], int] = {}
+    rows = await session.execute(
+        select(Submission)
+        .where(
+            Submission.user_id.in_(user_ids),
+            Submission.problem_id.in_(problem_ids),
+            Submission.submitted_at >= assignment.assigned_at,
+        )
+        .order_by(Submission.submitted_at)
+    )
+    for sub in rows.scalars():
+        key = (sub.user_id, sub.problem_id)
+        attempts[key] = attempts.get(key, 0) + 1
+        if not sub.code:
+            continue
+        current = latest.get(key)
+        # Принятое важнее непринятого, среди равных — более позднее.
+        if current is None or sub.is_accepted or not current.is_accepted:
+            latest[key] = sub
+
+    out: dict[tuple[int, int], Picked] = {}
+    for user_id in user_ids:
+        for problem_id in problem_ids:
+            key = (user_id, problem_id)
+            upload, sub = uploads.get(key), latest.get(key)
+            if upload is not None:
+                out[key] = Picked(
+                    source="upload", code=upload.code or "", submitted_at=upload.submitted_at,
+                    language=None, accepted=None, review=upload.status.value,
+                    attempts=attempts.get(key, 0), url=f"/solutions/{upload.id}",
+                )
+            elif sub is not None:
+                out[key] = Picked(
+                    source="submission", code=sub.code or "", submitted_at=sub.submitted_at,
+                    language=sub.language, accepted=sub.is_accepted, review=None,
+                    attempts=attempts.get(key, 0), url=f"/submissions/{sub.id}",
+                )
+    return out

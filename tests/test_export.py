@@ -84,13 +84,15 @@ async def test_leaderboard_export_has_a_row_per_student(client, world):
     assert response.content.startswith(b"\xef\xbb\xbf")      # BOM для Excel
 
     rows = decode(response.content)
-    assert rows[0][:6] == ["Место", "Студент", "Группы", "Зачтено", "Выдано", "Доля, %"]
+    assert rows[0][:7] == [
+        "Место", "Студент", "Имя на портале", "Группы", "Зачтено", "Выдано", "Доля, %",
+    ]
     by_name = {row[1]: row for row in rows[1:]}
-    assert by_name["Аня"][2] == "Осень"
-    assert by_name["Аня"][3:7] == ["1", "2", "50", "1"]      # зачтено, выдано, доля, опоздания
-    assert by_name["Аня"][9] == "да"                         # подтверждён через вуз
-    assert by_name["Боря"][3] == "0"
-    assert by_name["Боря"][9] == "нет"
+    assert by_name["Аня"][3] == "Осень"
+    assert by_name["Аня"][4:8] == ["1", "2", "50", "1"]      # зачтено, выдано, доля, опоздания
+    assert by_name["Аня"][10] == "да"                        # подтверждён через вуз
+    assert by_name["Боря"][4] == "0"
+    assert by_name["Боря"][10] == "нет"
 
 
 async def test_leaderboard_export_is_always_about_one_group(client, world, session):
@@ -114,11 +116,13 @@ async def test_assignment_export_is_a_matrix(client, world):
     assert response.status_code == 200
 
     rows = decode(response.content)
-    assert rows[0] == ["Студент", "Зачтено", "Всего задач", "1. Задача 1", "2. Задача 2"]
+    assert rows[0] == [
+        "Студент", "Имя на портале", "Зачтено", "Всего задач", "1. Задача 1", "2. Задача 2",
+    ]
     by_name = {row[0]: row for row in rows[1:]}
     # Опоздание показываем, но в «зачтено» оно не попадает.
-    assert by_name["Аня"][1:] == ["1", "2", "в срок", "после дедлайна"]
-    assert by_name["Боря"][1:] == ["0", "2", "", ""]
+    assert by_name["Аня"][2:] == ["1", "2", "в срок", "после дедлайна"]
+    assert by_name["Боря"][2:] == ["0", "2", "", ""]
 
 
 async def test_students_cannot_export(session, client, world):

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% block title %}{{ assignment.title }} — {{ settings.app_name }}{% endblock %}
 {#
   Значок в клетке отвечает на вопрос «что произошло», а заливка — «зачлось ли».
@@ -27,6 +27,9 @@
 <div class="row" style="gap:8px; margin:0 0 14px">
   <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/export.csv">
     {{ icon("download") }} {{ _("Выгрузить в CSV") }}
+  </a>
+  <a class="btn ghost small" href="/teacher/assignments/{{ assignment.id }}/similar">
+    {{ icon("layers") }} {{ _("Похожие решения") }}
   </a>
   <form method="post" action="/teacher/assignments/{{ assignment.id }}/sync">
     <button class="ghost small" type="submit">
@@ -95,7 +98,7 @@
         <td>
           <span class="row" style="gap:9px; flex-wrap:nowrap">
             {{ avatar(student, "sm") }}
-            <a href="/u/{{ student.id }}">{{ student.display_name }}</a>
+            <a href="/u/{{ student.id }}">{{ two_names(student) }}</a>
           </span>
         </td>
         {% for problem in progress.problems %}

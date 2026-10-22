@@ -118,7 +118,9 @@ async def participants_for_assignment(session: AsyncSession, assignment: Assignm
         # Задание всем: студенты, подтвердившие вуз. Преподаватель его выдал,
         # а не получил, и в матрице ему делать нечего.
         stmt = stmt.where(User.role != Role.teacher, confirmed_clause())
-    return list((await session.execute(stmt.order_by(User.display_name))).scalars().all())
+    # Порядок ведомости: по имени из учётной записи вуза — ник его не сбивает.
+    order = func.lower(func.coalesce(User.official_name, User.display_name))
+    return list((await session.execute(stmt.order_by(order))).scalars().all())
 
 
 async def problems_for_set(session: AsyncSession, problem_set_id: int) -> list[Problem]:

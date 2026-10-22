@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import empty %}
+{% from "_ui.html" import empty, two_names %}
 {% block title %}{{ _("Ведомость") }} — {{ group.title }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -85,7 +85,7 @@
       {% for student in sheet.students %}
       {% set total = sheet.total(student.id) %}
       <tr>
-        <td><a href="/u/{{ student.id }}">{{ student.display_name }}</a></td>
+        <td><a href="/u/{{ student.id }}">{{ two_names(student) }}</a></td>
         <td class="num totals">{{ total.points | round(1) }}</td>
         <td class="num totals">{{ total.passed }} / {{ total.gradable }}</td>
         <td class="num totals">{{ total.present }} / {{ total.lessons }}</td>
