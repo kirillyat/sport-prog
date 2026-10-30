@@ -104,6 +104,31 @@ async def test_unknown_problem_stays_unlinked_then_relinks(session, account, mon
     assert submission.problem_id is not None
 
 
+async def test_submission_saved_without_problem_is_healed_by_next_sync(
+    session, account, monkeypatch
+):
+    """Посылку, сохранённую без задачи, долечивает следующий синк.
+
+    Так на проде одна посылка висела в ленте «задачей» без названия и
+    сложности: LeetCode отдал её пустой через три секунды после сдачи.
+    """
+    session.add(Submission(
+        user_id=account.user_id, platform_account_id=account.id, platform=Platform.leetcode,
+        external_id="a1", verdict="Accepted", is_accepted=True, submitted_at=NOW,
+    ))
+    await session.commit()
+    monkeypatch.setattr(sync_service, "LeetCodeClient", FakeClient([_sub("a1", "two-sum", NOW)]))
+
+    added = await sync_service.sync_account(session, account)
+
+    assert added == 0
+    submission = await session.scalar(select(Submission))
+    await session.refresh(submission)
+    assert submission.problem_slug == "two-sum"
+    assert submission.problem_title == "Two Sum"
+    assert submission.problem_id is not None
+
+
 async def test_platform_error_is_recorded_not_raised(session, account, monkeypatch):
     fake = FakeClient([], error=PlatformError("LeetCode вернул 429"))
     monkeypatch.setattr(sync_service, "LeetCodeClient", fake)

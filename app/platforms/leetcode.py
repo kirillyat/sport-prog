@@ -189,6 +189,11 @@ class LeetCodeClient:
         out: list[RemoteSubmission] = []
         for item in items:
             slug = item.get("titleSlug")
+            if not slug:
+                # Сразу после сдачи LeetCode отдаёт посылку без задачи. Сохранённая
+                # так, она висела бы безымянной: посылку мы больше не переписываем.
+                # Через минуту она приходит целиком, и следующий синк её заберёт.
+                continue
             out.append(
                 RemoteSubmission(
                     external_id=str(item["id"]),

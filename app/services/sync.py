@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,6 +123,26 @@ async def sync_account(session: AsyncSession, account: PlatformAccount) -> int:
         )
         result = await session.execute(stmt)
         inserted += result.rowcount or 0
+
+    # Исключение — посылка, которую когда-то сохранили без задачи (LeetCode
+    # отдал её пустой сразу после сдачи): дописываем то, чего не было.
+    # Пришедшее раньше не трогаем — только пустые поля.
+    for row in rows:
+        if not row["problem_slug"]:
+            continue
+        await session.execute(
+            update(Submission)
+            .where(
+                Submission.platform == account.platform,
+                Submission.external_id == row["external_id"],
+                Submission.problem_slug.is_(None),
+            )
+            .values(
+                problem_slug=row["problem_slug"],
+                problem_title=func.coalesce(Submission.problem_title, row["problem_title"]),
+                problem_id=func.coalesce(Submission.problem_id, row["problem_id"]),
+            )
+        )
 
     account.last_synced_at = utcnow()
     account.last_sync_error = None

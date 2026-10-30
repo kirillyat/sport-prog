@@ -154,6 +154,26 @@ async def test_leetcode_recent_accepted():
     assert subs[0].submitted_at == datetime.fromtimestamp(1789272451, tz=UTC)
 
 
+async def test_leetcode_submission_without_problem_waits_for_next_sync():
+    """Сразу после сдачи LeetCode отдаёт посылку без названия и слага.
+
+    Такую не берём: на портале она висела бы «задачей» без сложности навсегда.
+    Через минуту-другую LeetCode отдаёт её целиком, и следующий синк заберёт.
+    """
+    recent = {"data": {"recentAcSubmissionList": [
+        {"id": "2", "title": None, "titleSlug": None, "timestamp": "1789272460"},
+        {"id": "1", "title": "Two Sum", "titleSlug": "two-sum", "timestamp": "1789272451"},
+    ]}}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=recent)
+
+    async with LeetCodeClient(_client(handler)) as client:
+        subs = await client.fetch_submissions("anya")
+
+    assert [s.external_id for s in subs] == ["1"]
+
+
 async def test_leetcode_missing_user_is_not_found():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {"recentAcSubmissionList": None}})
