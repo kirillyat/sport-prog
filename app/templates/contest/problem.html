@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{{ item.letter }}. {{ problem.title }} — {{ contest.title }}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="/static/vendor/codemirror.min.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/vendor/show-hint.min.css?v={{ asset_version }}">
+{% endblock %}
+{% block content %}
+{% set base = "/contest/" ~ contest.id ~ "/problems/" ~ item.letter %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest/{{ contest.id }}">{{ contest.title }}</a> / {{ _("задача") }} {{ item.letter }}</p>
+    <h1><span class="letter">{{ item.letter }}</span> {{ problem.title }}</h1>
+  </div>
+  {% if task %}<span class="badge">{{ task.time_limit_ms / 1000 }} {{ _("с") }} · {{ task.memory_limit_mb }} {{ _("МБ") }}</span>{% endif %}
+</div>
+
+{# Задачи соревнования — в одну строку, чтобы переходить между ними, не
+   возвращаясь к списку: на туре это делают десятки раз. #}
+<p class="small">
+  {% for other in contest.problems %}
+  <a class="letter {{ 'solved' if other.letter == item.letter }}" href="/contest/{{ contest.id }}/problems/{{ other.letter }}"
+     title="{{ other.problem.title }}">{{ other.letter }}</a>
+  {% endfor %}
+</p>
+
+<div class="grid two" style="align-items:start">
+  <div>
+    <div class="card nb-md">{{ statement | safe }}</div>
+
+    {% if open_tests %}
+    <h2>{{ icon("check") }} {{ _("Примеры") }}</h2>
+    <div class="card">
+      {% for test in open_tests %}
+      <div class="test-pair">
+        <div><span class="lbl">{{ _("Ввод") }}</span><pre class="nb-raw">{{ test.stdin }}</pre></div>
+        <div><span class="lbl">{{ _("Ожидается") }}</span><pre class="nb-raw">{{ test.expected }}</pre></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="solution-pane" data-solution-pane>
+    <h2>{{ icon("code") }} {{ _("Решение") }}</h2>
+    <div class="card">
+      <div class="editor-toolbar">
+        <button type="button" class="ghost small editor-expand" data-editor-expand hidden aria-pressed="false">
+          <span class="when-collapsed">{{ icon("expand") }} {{ _("Развернуть") }}</span>
+          <span class="when-expanded">{{ icon("shrink") }} {{ _("Свернуть · Esc") }}</span>
+        </button>
+      </div>
+      {% if not judge_ready %}
+      <p class="small muted" style="margin-top:0">{{ icon("alert") }}
+        {{ _("Сервер проверки сейчас не поднят: посылку сохраним, но вердикта не будет.") }}</p>
+      {% elif judge_down %}
+      <p class="small muted" style="margin-top:0">{{ icon("alert") }}
+        {{ _("Сервер проверки не отвечает. Попробуй прогнать примеры — если он вернулся, портал это заметит.") }}</p>
+      {% endif %}
+
+      <form method="post" action="{{ base }}/run#result" class="solution-form" data-busy="busy.run" data-editor-form>
+        {% if code_languages | length > 1 %}
+        <div class="language-pick">
+          <label for="language_id">{{ _("Язык") }}</label>
+          <select id="language_id" name="language_id" data-language-pick>
+            {% for lang in code_languages %}
+            <option value="{{ lang.id }}" data-mode="{{ lang.editor_mode }}" {{ 'selected' if lang.id == code_language.id }}>{{ lang.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="language_id" value="{{ code_language.id }}">
+        {% endif %}
+        {# Черновик привязан к задаче соревнования, а не к общей странице
+           задачи: одну задачу могут дать и на тур, и потом в учёбе. #}
+        <textarea id="code" name="code" class="code-input" data-mode="{{ code_language.editor_mode }}"
+                  data-code-at="{{ code_at }}" data-draft-key="{{ base }}">{{ code }}</textarea>
+        <p class="small muted editor-hints" data-draft-state="{{ _("черновик сохранён") }}">
+          <span><kbd>Tab</kbd> {{ _("отступ") }}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>/</kbd> {{ _("комментарий") }}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> {{ _("прогнать тесты") }}</span>
+        </p>
+        <div class="solution-actions">
+          <div class="solution-action">
+            <button class="ghost" type="submit" formaction="{{ base }}/run#result"
+                    data-busy="busy.run" data-action="run" {{ 'disabled' if not judge_ready }}>
+              {{ icon("refresh") }} {{ _("Прогнать примеры") }}</button>
+            <p class="small muted">{{ _("Только примеры из условия. В табло не идёт и штрафа не даёт.") }}</p>
+          </div>
+          <div class="solution-action">
+            <button type="submit" formaction="{{ base }}/submit#result" data-busy="busy.submit" data-action="submit">
+              {{ icon("send") }} {{ _("Отправить") }}</button>
+            <p class="small muted">
+              {% if counts %}
+              {{ _("Все тесты. Посылка идёт в табло команды; неудачная до принятой — плюс 20 минут штрафа.") if contest.rules == "icpc" else _("Все тесты. В табло идёт лучший результат по задаче.") }}
+              {% else %}
+              {{ _("Дорешивание: посылка видна тебе, но в табло не идёт.") }}
+              {% endif %}
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {% if run or run_kind == "submit" %}
+    <h2 id="result">{{ icon("activity") }} {{ _("Результат посылки") if run_kind == "submit" else _("Результат прогона примеров") }}</h2>
+    <div class="card">
+      {% if not run %}
+      <div class="verdict">{{ icon("clock") }} <span>{{ _("Посылка сохранена без проверки: сервер проверки сейчас не подключён.") }}</span></div>
+      {% else %}
+      {% set total = run.results | length %}
+      {% set passed = run.results | selectattr("passed") | list | length %}
+      {% if run.passed %}
+      <div class="verdict ok">{{ icon("check") }} <span>{{ _("Принято") if run_kind == "submit" else _("Примеры пройдены") }} · {{ passed }}/{{ total }}</span></div>
+      {% else %}
+      <div class="verdict bad">{{ icon("close") }} <span>{{ run.first_failed.status }} · {{ _("тест %(n)s") % {"n": run.first_failed.position + 1} }} · {{ passed }}/{{ total }}</span></div>
+      {% endif %}
+      {# Подробности — только по открытым тестам: закрытые не показываем
+         ни вводом, ни ответом, ни выводом решения. #}
+      {% for result in run.results if result.is_open and not result.passed %}
+      {% set test = open_by_position.get(result.position) %}
+      <div class="run-detail">
+        {% if test %}
+        <div><span class="lbl">{{ _("Ввод") }}</span><pre class="nb-raw small">{{ test.stdin }}</pre></div>
+        <div><span class="lbl">{{ _("Ожидается") }}</span><pre class="nb-raw small">{{ test.expected }}</pre></div>
+        {% endif %}
+        <div><span class="lbl">{{ _("Вывод решения") }}</span><pre class="nb-raw small">{{ result.stdout if result.stdout else _("(пусто)") }}</pre></div>
+        {% if result.stderr %}
+        <div class="run-detail-wide"><span class="lbl">{{ _("Ошибка") }}</span><pre class="nb-raw small">{{ result.stderr }}</pre></div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if history %}
+    <h2>{{ icon("clock") }} {{ _("Посылки команды") if contest.is_team else _("Мои посылки") }}</h2>
+    <div class="card table-wrap" style="padding:6px">
+      <table>
+        <tbody>
+          {% for run_item in history %}
+          <tr>
+            <td class="small muted">{{ run_item.submitted_at | ago }}</td>
+            {% if contest.is_team %}<td class="small">{{ run_item.user.display_name }}</td>{% endif %}
+            <td><a href="/contest/{{ contest.id }}/runs/{{ run_item.id }}">
+              <span class="badge {{ 'ok' if run_item.accepted }}">{{ run_item.verdict }}</span></a>
+              {% if run_item.practice %}<span class="small muted">{{ _("дорешивание") }}</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/vendor/codemirror.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/python.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/closebrackets.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/matchbrackets.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/active-line.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/vendor/show-hint.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/editor.js?v={{ asset_version }}" defer></script>
+  <script src="/static/busy.js?v={{ asset_version }}" defer></script>
+{% endblock %}

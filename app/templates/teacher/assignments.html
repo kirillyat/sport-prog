@@ -74,7 +74,8 @@
     <thead><tr><th>{{ _("Задание") }}</th><th>{{ _("Группа") }}</th><th>{{ _("Выдано") }}</th><th>{{ _("Дедлайн") }}</th><th></th></tr></thead>
     <tbody>
     {% for assignment in assignments %}
-      <tr>
+      {# Ещё не началось — студенты его не видят: строка пунктиром. #}
+      <tr class="{{ 'staff-only' if not has_started(assignment) }}">
         <td><a href="/teacher/assignments/{{ assignment.id }}">{{ assignment.title }}</a></td>
         <td class="small muted">{{ assignment.group.title if assignment.group else (_("персонально") if assignment.user_id else _("всем")) }}</td>
         <td class="small muted">

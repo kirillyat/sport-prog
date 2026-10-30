@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% from "contest/_bits.html" import phase_badge, rules_label %}
+{% block title %}{{ _("Пульт") }} — {{ contest.title }}{% endblock %}
+{% block content %}
+{% set phase = contest.phase(now()) %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest/{{ contest.id }}">{{ contest.title }}</a> / {{ rules_label(contest) }}</p>
+    <h1>{{ _("Пульт") }}</h1>
+  </div>
+  {{ phase_badge(contest) }}
+</div>
+
+{#
+  Пульт сверху: в аудитории преподаватель открывает страницу ради одной
+  кнопки, и искать её под настройками посреди тура некогда.
+#}
+<div class="card">
+  <h3>{{ icon("activity") }} {{ _("Ход соревнования") }}</h3>
+  {# Шаги по порядку: что сделано и что дальше. Без них «Старт» молча не
+     нажимался, пока не заданы задачи, и было непонятно почему. #}
+  {% set has_problems = contest.problems | length > 0 %}
+  <ol class="steps">
+    <li class="{{ 'done' if has_problems else 'next' }}"><b>1</b>
+      {{ _("Задачи: %(n)s") % {"n": contest.problems | length} if has_problems else _("Задать задачи") }}</li>
+    <li class="{{ 'done' if contest.published else ('next' if has_problems else '') }}"><b>2</b>{{ _("Открыть регистрацию") }}</li>
+    <li class="{{ 'done' if contest.started_at else ('next' if contest.published and has_problems else '') }}"><b>3</b>{{ _("Старт") }}</li>
+    <li class="{{ 'done' if phase == 'finished' else ('next' if phase == 'running' else '') }}"><b>4</b>{{ _("Завершить") }}</li>
+  </ol>
+  <div class="contest-control">
+    {% if phase == "draft" %}
+      <form method="post" action="/contest/{{ contest.id }}/publish">
+        <input type="hidden" name="on" value="true">
+        <button type="submit">{{ icon("megaphone") }} {{ _("Открыть регистрацию") }}</button>
+      </form>
+      <span class="small muted">{{ _("Пока черновик — студенты соревнования не видят.") }}</span>
+    {% elif phase == "registration" %}
+      <form method="post" action="/contest/{{ contest.id }}/start">
+        <button type="submit">{{ icon("send") }} {{ _("Старт") }}</button>
+      </form>
+      <form method="post" action="/contest/{{ contest.id }}/publish">
+        <input type="hidden" name="on" value="false">
+        <button class="ghost small" type="submit">{{ _("Скрыть") }}</button>
+      </form>
+      <span class="small muted">{{ _("«Старт» открывает задачи всем сразу и запускает часы на %(n)s мин.") % {"n": contest.duration_min} }}</span>
+    {% else %}
+      <form method="post" action="/contest/{{ contest.id }}/extend">
+        <input type="number" name="minutes" min="1" max="1440" value="15" aria-label="{{ _("минут") }}">
+        <button class="ghost" type="submit">{{ icon("plus") }} {{ _("Добавить минут") }}</button>
+      </form>
+      {% if phase == "running" %}
+      <form method="post" action="/contest/{{ contest.id }}/finish">
+        <button type="submit">{{ icon("check") }} {{ _("Завершить сейчас") }}</button>
+      </form>
+      {% endif %}
+      <span class="small muted">
+        {{ _("Старт") }}: {{ contest.started_at | dt }} · {{ _("конец") }}: {{ contest.ends_at | dt }}
+      </span>
+    {% endif %}
+  </div>
+  {% if not has_problems and not contest.started_at %}
+  <p class="small" style="margin:12px 0 0">{{ icon("alert") }}
+    {{ _("Без задач старт не пройдёт — задайте их ниже, слева.") }}</p>
+  {% endif %}
+</div>
+
+<div class="grid two" style="align-items:start">
+  <div class="card staff-only" id="problems">
+    {% if not contest.started_at %}<p class="staff-note">{{ icon("shield") }} {{ _("Студенты увидят задачи только после старта") }}</p>{% endif %}
+    <h3>{{ icon("tasks") }} {{ _("Задачи") }} <span class="muted">· {{ contest.problems | length }}</span></h3>
+    {% if contest.started_at %}
+      <ol class="small" style="margin:0;padding-left:0;list-style:none">
+        {% for item in contest.problems %}<li><span class="letter">{{ item.letter }}</span> {{ item.problem.title }} <span class="muted">· {{ item.problem.slug }}</span></li>{% endfor %}
+      </ol>
+      <p class="small muted">{{ _("После старта задачи не меняются: буква — имя задачи на табло.") }}</p>
+    {% else %}
+    <form method="post" action="/contest/{{ contest.id }}/problems">
+      <div class="field">
+        <label for="slugs">{{ _("Слаги своих задач по порядку: первая — A, вторая — B") }}</label>
+        <textarea id="slugs" name="slugs" rows="6" class="mono" placeholder="two-sum&#10;binary-search">{{ slugs }}</textarea>
+      </div>
+      <button type="submit">{{ icon("check") }} {{ _("Сохранить задачи") }}</button>
+    </form>
+    {% if sets %}
+    <form method="post" action="/contest/{{ contest.id }}/problems" style="margin-top:14px">
+      <div class="field">
+        <label for="problem_set_id">{{ _("…или взять свои задачи из списка") }}</label>
+        <select id="problem_set_id" name="problem_set_id">
+          {% for item in sets %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="ghost" type="submit">{{ icon("layers") }} {{ _("Взять из списка") }}</button>
+    </form>
+    {% endif %}
+    <details style="margin-top:14px">
+      <summary class="small">{{ _("Свои задачи на портале") }} · {{ own | length }}</summary>
+      <p class="small muted">{% for problem in own %}<code>{{ problem.slug }}</code> {{ problem.title }}{{ "; " if not loop.last }}{% else %}{{ _("Своих задач нет — загрузите набор в «Задачи → Свои задачи».") }}{% endfor %}</p>
+    </details>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>{{ icon("edit") }} {{ _("Настройки") }}</h3>
+    <form method="post" action="/contest/{{ contest.id }}/edit">
+      {% include "contest/_settings_fields.html" %}
+      <button type="submit">{{ icon("check") }} {{ _("Сохранить") }}</button>
+    </form>
+  </div>
+</div>
+
+<h2 id="teams">{{ icon("users") }} {{ _("Команды") if contest.is_team else _("Участники") }} <span class="muted">· {{ all_teams | length }}</span></h2>
+{% if all_teams %}
+<div class="card table-wrap" style="padding:6px">
+  <table>
+    <tbody>
+    {% for team in all_teams %}
+      <tr>
+        <td><strong>{{ team.name }}</strong>{% if contest.is_team %}<br><span class="small muted mono">{{ team.join_code }}</span>{% endif %}</td>
+        <td class="small">
+          {% for member in team.members %}
+          <span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px">
+            {{ member.user.display_name }}{% if member.user_id == team.captain_id and contest.is_team %} ★{% endif %}
+            {% if contest.is_team and team.members | length > 1 %}
+            <form method="post" action="/contest/{{ contest.id }}/teams/{{ team.id }}/members/{{ member.user_id }}/delete" style="display:inline">
+              <button class="rail-btn" type="submit" title="{{ _("Убрать из команды") }}" style="color:inherit">{{ icon("close") }}</button>
+            </form>
+            {% endif %}
+          </span>
+          {% endfor %}
+        </td>
+        <td style="text-align:right">
+          {# Подтверждение без скрипта, как у задач в задании: посылки
+             команды уходят вместе с ней, и табло пересчитается. #}
+          <details class="confirm-remove">
+            <summary class="btn ghost small" title="{{ _("Удалить команду") }}" aria-label="{{ _("Удалить команду") }}">{{ icon("trash") }}</summary>
+            <div class="confirm-box">
+              <p class="small" style="margin:0 0 8px">{{ _("Удалить «%(name)s» вместе с её посылками?") % {"name": team.name} }}</p>
+              <form method="post" action="/contest/{{ contest.id }}/teams/{{ team.id }}/delete">
+                <button class="danger small" type="submit">{{ icon("trash") }} {{ _("Удалить") }}</button>
+              </form>
+            </div>
+          </details>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="small muted">{{ _("Никто не зарегистрировался.") }}</p>
+{% endif %}
+{% endblock %}

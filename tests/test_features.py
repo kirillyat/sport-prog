@@ -73,3 +73,17 @@ async def test_student_cannot_touch_the_switches(session, client):
 async def test_flag_defaults_to_open_for_unknown_section(session, client):
     """Раздел, которого нет в реестре, не запирается случайно."""
     assert features.allows({}, "чего-то-нет", user=None) is True
+
+
+async def test_teacher_is_told_when_a_page_is_closed_to_students(session, client):
+    """Пунктирная полоса над страницей — преподаватель не гадает, видит ли её группа.
+    Глазами студента её нет: студент закрытого раздела вовсе не видит."""
+    await _login(client, "Кирилл", teacher=True)
+    await _close(client, students=False, teachers=True)
+
+    page = await client.get("/materials")
+    assert "staff-banner" in page.text and "закрыт студентам" in page.text
+    assert "staff-banner" not in (await client.get("/course")).text
+
+    await client.post("/view/student", data={"next": "/"})
+    assert "staff-banner" not in (await client.get("/")).text

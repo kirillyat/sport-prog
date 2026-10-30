@@ -34,9 +34,10 @@ from app.templating import templates
 
 router = APIRouter(tags=["tasks"])
 
-# Кто прямо сейчас ждёт судью. Портал живёт одним процессом, поэтому
-# обычного множества достаточно — ни Redis, ни блокировок в базе.
-_running: set[int] = set()
+# Кто прямо сейчас ждёт судью: студент по номеру, а в соревновании — вся
+# команда сразу. Портал живёт одним процессом, поэтому обычного множества
+# достаточно — ни Redis, ни блокировок в базе.
+_running: set[object] = set()
 
 
 class _Busy(Exception):
@@ -44,14 +45,14 @@ class _Busy(Exception):
 
 
 @asynccontextmanager
-async def _one_at_a_time(user_id: int):
-    if user_id in _running:
+async def _one_at_a_time(key: object):
+    if key in _running:
         raise _Busy
-    _running.add(user_id)
+    _running.add(key)
     try:
         yield
     finally:
-        _running.discard(user_id)
+        _running.discard(key)
 
 
 async def _judged(

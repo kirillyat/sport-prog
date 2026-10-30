@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 200" width="280" height="200" role="img" aria-label="знак соревнований">
+  <!-- Знак раздела соревнований: тот же «>_», что у портала, но в угловых
+       скобках вместо фигурных. Одна линия и одна сетка с mark.svg — видно,
+       что это тот же портал, и видно, что другая его половина.
+       Своё учреждение кладёт вариант в DATA_DIR/branding/mark-contest.svg. -->
+  <g fill="none" stroke="#111" stroke-width="13" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M96 22 L52 100 L96 178"/>
+    <path d="M184 22 L228 100 L184 178"/>
+    <path d="M104 72 L132 100 L104 128"/>
+    <path d="M148 130 H180"/>
+  </g>
+</svg>

@@ -11,7 +11,7 @@
 </div>
 
 {% if teacher_view %}
-<details class="formula" style="margin-bottom:18px" {% if not items %}open{% endif %}>
+<details class="formula staff-box" style="margin-bottom:18px" {% if not items %}open{% endif %}>
   <summary>{{ icon("plus") }} {{ _("Опубликовать материал") }}</summary>
   <form method="post" action="/materials" enctype="multipart/form-data" style="margin-top:12px">
     <div class="grid two">
@@ -63,7 +63,7 @@
       {% if teacher_view %}
       <form method="post" action="/materials/{{ item.id }}/delete"
             onsubmit="return confirm('{{ _("Удалить") }} «{{ item.title }}»?')">
-        <button class="danger small" type="submit">{{ icon("trash") }}</button>
+        <button class="danger small staff-only" type="submit">{{ icon("trash") }}</button>
       </form>
       {% endif %}
     </div>

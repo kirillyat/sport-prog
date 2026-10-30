@@ -724,8 +724,8 @@ async def features_page(request: Request, session: SessionDep, user: AdminUser):
     rows = [
         {
             "section": section,
-            "for_students": flags.get(section.key, features.DEFAULT)[0],
-            "for_teachers": flags.get(section.key, features.DEFAULT)[1],
+            "for_students": (flags.get(section.key) or section.default)[0],
+            "for_teachers": (flags.get(section.key) or section.default)[1],
         }
         for section in features.SECTIONS
     ]

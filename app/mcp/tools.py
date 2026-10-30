@@ -26,6 +26,8 @@ from app.mcp.registry import STUDENT, STUDENT_ONLY, TEACHER, Context, ToolError,
 from app.models import (
     Assignment,
     BonusPoint,
+    Contest,
+    ContestRules,
     Group,
     GroupMembership,
     Platform,
@@ -46,6 +48,7 @@ from app.notify import portal_url
 from app.routers.announcements import list_visible
 from app.services import announcements as announcements_service
 from app.services import assignments as assignments_service
+from app.services import contests as contests_service
 from app.services import deadlines, messages, problem_sets, sheet, similarity, solutions
 from app.services import tasks as tasks_service
 from app.services.problem_parser import parse_problem_list, search_problems
@@ -1828,6 +1831,15 @@ list_pending_reviews — присланный код, который ждёт п
 Студенты: find_students — найти по имени; get_student — группы, аккаунты на
 площадках и зачёт по всем заданиям. Это первый шаг на «почему у него ноль».
 
+Соревнования (раздел «Соревнования», отдельно от заданий и зачёта):
+list_contests, get_contest — настройки, задачи по буквам, команды с кодами;
+create_contest — черновик, студенты его не видят; update_contest — настройки
+и задачи (задачи — только свои, task:слаг, и только до старта);
+publish_contest — открыть регистрацию; start_contest — «Старт», задачи сразу
+видны всем участникам; extend_contest и finish_contest — время тура.
+Публикацию и старт — только после явного «да». get_contest_standings — табло,
+преподавателю живое даже в заморозку.
+
 Записи задач: ссылка, слаг LeetCode (two-sum), cf:4A, task:слаг своей задачи.
 Время без пояса — местное время портала (см. whoami).
 """
@@ -1843,3 +1855,303 @@ def instructions(ctx: Context) -> str:
     if not ctx.user.is_teacher:
         return STUDENT_GUIDE
     return TEACHER_GUIDE + ("" if ctx.can_write else READ_ONLY_NOTE)
+
+
+# ---------------------------------------------------------------- соревнования
+#
+# Тот же сервис, что у страниц раздела `/contest`. Раздел закрыт для роли —
+# закрыты и инструменты (`section="contest"`).
+
+
+def _contest(contest: Contest, *, teacher: bool) -> dict:
+    out = {
+        "id": contest.id,
+        "title": contest.title,
+        "description": contest.description,
+        "phase": contest.phase(),
+        "rules": contest.rules.value,
+        "team_size": contest.team_size,
+        "duration_min": contest.duration_min,
+        "freeze_min": contest.freeze_min,
+        "planned_at": _when(contest.planned_at),
+        "started_at": _when(contest.started_at),
+        "ends_at": _when(contest.ends_at),
+        "url": portal_url(f"/contest/{contest.id}"),
+    }
+    if teacher or contest.started_at is not None:
+        out["problems"] = [
+            {"letter": item.letter, "ref": _ref(item.problem), "title": item.problem.title}
+            for item in contest.problems
+        ]
+    return out
+
+
+async def _contest_for(ctx: Context, contest_id: int) -> Contest:
+    contest = await ctx.session.get(Contest, contest_id)
+    if contest is None or not contests_service.may_see(contest, ctx.user):
+        raise ToolError(f"Соревнования {contest_id} нет")
+    return contest
+
+
+class ContestParams(Params):
+    contest_id: int = Field(description="Номер соревнования из list_contests.")
+
+
+@tool(
+    "list_contests",
+    title=N_("Соревнования"),
+    hint=N_("соревнования портала и участие в них"),
+    roles=STUDENT,
+    section="contest",
+)
+async def list_contests(ctx: Context, args: NoParams) -> dict:
+    """Соревнования портала, свежие сверху. `phase`: draft (черновик, видит
+    только преподаватель), registration, running, finished. `my_team` —
+    команда того, чей ключ, если он зарегистрирован."""
+    out = []
+    for contest in await contests_service.visible(ctx.session, ctx.user):
+        item = _contest(contest, teacher=ctx.user.is_teacher)
+        team = await contests_service.team_of(ctx.session, contest, ctx.user)
+        item["my_team"] = team.name if team else None
+        out.append(item)
+    return {"contests": out}
+
+
+@tool(
+    "get_contest",
+    title=N_("Соревнование"),
+    hint=N_("настройки, задачи и команды с кодами"),
+    roles=TEACHER,
+    section="contest",
+)
+async def get_contest(ctx: Context, args: ContestParams) -> dict:
+    """Соревнование целиком: настройки, задачи по буквам и команды с составом
+    и кодом приглашения. Код можно продиктовать студенту, потерявшему его."""
+    contest = await _contest_for(ctx, args.contest_id)
+    teams = await contests_service.teams(ctx.session, contest)
+    return {
+        **_contest(contest, teacher=True),
+        "teams": [
+            {
+                "id": team.id,
+                "name": team.name,
+                "join_code": team.join_code,
+                "members": [member.user.display_name for member in team.members],
+            }
+            for team in teams
+        ],
+    }
+
+
+class ContestSettings(Params):
+    title: str = Field(min_length=1, max_length=200)
+    rules: Literal["icpc", "ioi"] = Field(
+        "icpc", description="icpc — решённые задачи и штраф; ioi — баллы за тесты."
+    )
+    team_size: int = Field(3, ge=1, le=10, description="1 — личное соревнование.")
+    duration_min: int = Field(300, ge=1, le=1440)
+    freeze_min: int = Field(
+        0, ge=0, description="За сколько минут до конца заморозить табло; 0 — не замораживать."
+    )
+    planned_at: datetime | None = Field(
+        None,
+        description="Плановое начало, ISO 8601 — только подпись. Задачи открывает start_contest.",
+    )
+    description: str = ""
+    problems: list[str] | None = Field(
+        None,
+        max_length=26,
+        description="Свои задачи по порядку (A, B, …): task:слаг или слаг. "
+        "Не передано — задачи не трогаются.",
+    )
+
+
+@tool(
+    "create_contest",
+    title=N_("Создать соревнование"),
+    hint=N_("черновик: студенты его не видят"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def create_contest(ctx: Context, args: ContestSettings) -> dict:
+    """Создаёт черновик соревнования — студенты его не видят до publish_contest.
+    Задачи — только свои задачи портала с тестами (list_own_tasks)."""
+    try:
+        contest = await contests_service.create(
+            ctx.session,
+            ctx.user,
+            title=args.title,
+            rules=ContestRules(args.rules),
+            team_size=args.team_size,
+            duration_min=args.duration_min,
+            freeze_min=args.freeze_min,
+            planned_at=_moment(args.planned_at),
+            description=args.description,
+        )
+        if args.problems:
+            await contests_service.set_problems(ctx.session, contest, args.problems)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+class UpdateContestParams(ContestSettings):
+    contest_id: int
+
+
+@tool(
+    "update_contest",
+    title=N_("Изменить соревнование"),
+    hint=N_("настройки и задачи; задачи — только до старта"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def update_contest(ctx: Context, args: UpdateContestParams) -> dict:
+    """Меняет настройки — как форма на пульте. После старта правила, размер
+    команды, длительность и задачи не меняются: время двигают extend_contest
+    и finish_contest."""
+    contest = await _contest_for(ctx, args.contest_id)
+    try:
+        await contests_service.update(
+            ctx.session,
+            contest,
+            title=args.title,
+            rules=ContestRules(args.rules),
+            team_size=args.team_size,
+            duration_min=args.duration_min,
+            freeze_min=args.freeze_min,
+            planned_at=_moment(args.planned_at),
+            description=args.description,
+        )
+        if args.problems is not None:
+            await contests_service.set_problems(ctx.session, contest, args.problems)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+@tool(
+    "publish_contest",
+    title=N_("Открыть регистрацию"),
+    hint=N_("студенты видят соревнование и регистрируются"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def publish_contest(ctx: Context, args: ContestParams) -> dict:
+    """Публикует черновик: студенты видят соревнование и регистрируются.
+    Задачи до старта по-прежнему закрыты. Перед вызовом дождись «да»."""
+    contest = await _contest_for(ctx, args.contest_id)
+    try:
+        await contests_service.publish(ctx.session, contest)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+@tool(
+    "start_contest",
+    title=N_("Старт соревнования"),
+    hint=N_("задачи сразу видны всем, идут часы"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def start_contest(ctx: Context, args: ContestParams) -> dict:
+    """Кнопка «Старт»: задачи сразу открываются всем участникам, и идут часы
+    на duration_min. Отменить нельзя. Зови только по явному «да» в разговоре
+    — обычно преподаватель жмёт кнопку в аудитории сам."""
+    contest = await _contest_for(ctx, args.contest_id)
+    try:
+        await contests_service.start(ctx.session, contest)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+class ExtendContestParams(ContestParams):
+    minutes: int = Field(ge=1, le=1440, description="Сколько минут добавить к концу.")
+
+
+@tool(
+    "extend_contest",
+    title=N_("Продлить тур"),
+    hint=N_("сдвигает конец соревнования"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def extend_contest(ctx: Context, args: ExtendContestParams) -> dict:
+    """Добавляет минуты к концу тура. После конца — продолжает тур с текущего момента."""
+    contest = await _contest_for(ctx, args.contest_id)
+    try:
+        await contests_service.extend(ctx.session, contest, args.minutes)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+@tool(
+    "finish_contest",
+    title=N_("Завершить тур"),
+    hint=N_("конец сейчас, табло размораживается"),
+    roles=TEACHER,
+    writes=True,
+    section="contest",
+)
+async def finish_contest(ctx: Context, args: ContestParams) -> dict:
+    """Заканчивает тур сейчас: табло размораживается, дальше — дорешивание."""
+    contest = await _contest_for(ctx, args.contest_id)
+    try:
+        await contests_service.finish(ctx.session, contest)
+    except contests_service.ContestError as exc:
+        raise ToolError(str(exc)) from exc
+    return _contest(contest, teacher=True)
+
+
+@tool(
+    "get_contest_standings",
+    title=N_("Табло соревнования"),
+    hint=N_("места, решённые задачи, штраф или баллы"),
+    roles=STUDENT,
+    section="contest",
+)
+async def get_contest_standings(ctx: Context, args: ContestParams) -> dict:
+    """Табло — то же, что на странице. Студенту в заморозку — замороженное
+    (`frozen`: true, `pending` — посылки с неизвестным пока итогом),
+    преподавателю — живое. До старта табло нет."""
+    contest = await _contest_for(ctx, args.contest_id)
+    if not contests_service.problems_open(contest, ctx.user):
+        raise ToolError("Соревнование ещё не началось — табло появится после старта")
+    board = await contests_service.standings(
+        ctx.session, contest, live=ctx.user.is_teacher
+    )
+    return {
+        "contest": contest.title,
+        "rules": contest.rules.value,
+        "frozen": board.frozen,
+        "problems": [item.letter for item in board.problems],
+        "rows": [
+            {
+                "place": row.place,
+                "team": row.team.name,
+                "members": [member.user.display_name for member in row.team.members],
+                "solved": row.solved,
+                "penalty": row.penalty,
+                "score": row.score,
+                "cells": {
+                    item.letter: {
+                        "solved": (cell := row.cell(item.problem_id)).solved,
+                        "tries": cell.tries,
+                        "minute": cell.minute,
+                        "score": cell.score,
+                        "pending": cell.pending,
+                    }
+                    for item in board.problems
+                },
+            }
+            for row in board.rows
+        ],
+    }

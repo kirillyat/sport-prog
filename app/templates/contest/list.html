@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% from "contest/_bits.html" import phase_badge, rules_label %}
+{% block title %}{{ _("Соревнования") }} — {{ settings.app_name }}{% endblock %}
+
+{% macro contest_rows(items) -%}
+<div class="card table-wrap {{ 'staff-only' if items and items[0].phase(now()) == 'draft' }}" style="padding:6px">
+  <table>
+    <tbody>
+    {% for item in items %}
+      <tr>
+        <td><a href="/contest/{{ item.id }}"><strong>{{ item.title }}</strong></a>
+          <br><span class="small muted">{{ rules_label(item) }}</span></td>
+        <td class="small muted">
+          {% if item.started_at %}{{ item.started_at | dt }}
+          {% elif item.planned_at %}{{ _("план") }}: {{ item.planned_at | dt }}
+          {% else %}{{ _("дата не назначена") }}{% endif %}
+        </td>
+        <td class="small">
+          {% if item.id in mine %}{{ icon("check") }} {{ mine[item.id].name if item.is_team else _("участвуешь") }}
+          {% elif not teacher_view and item.phase(now()) == "registration" %}<a href="/contest/{{ item.id }}/team">{{ _("зарегистрироваться") }}</a>
+          {% endif %}
+        </td>
+        <td style="text-align:right">{{ phase_badge(item) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{ _("соревнования") }}</p>
+    <h1>{{ _("Соревнования") }}</h1>
+  </div>
+</div>
+<p class="sub">{{ _("Командные и личные соревнования на задачах портала. Регистрируйся заранее — задачи откроются по старту.") }}</p>
+
+{% if mine or only_mine %}
+<nav class="contest-filter">
+  <a class="btn small {{ 'ghost' if only_mine }}" href="/contest">{{ _("Все") }}</a>
+  <a class="btn small {{ 'ghost' if not only_mine }}" href="/contest?mine=1">{{ _("Где я участвую") }}</a>
+</nav>
+{% endif %}
+
+{# Идёт сейчас — отдельной карточкой на каждое: это то, ради чего открывают раздел. #}
+{% for item in groups.running %}
+{% set team = mine.get(item.id) %}
+<div class="card contest-live">
+  <div class="grow">
+    <p class="eyebrow" style="margin:0 0 4px">{{ _("идёт сейчас") }} · {{ rules_label(item) }}</p>
+    <a class="contest-live-title" href="/contest/{{ item.id }}">{{ item.title }}</a>
+    <p class="small" style="margin:6px 0 0">
+      {% if team %}{{ icon("check") }} {{ (_("Твоя команда «%(name)s»") % {"name": team.name}) if item.is_team else _("Ты участвуешь") }}
+      {% elif not teacher_view %}{{ icon("alert") }} {{ _("Ты не зарегистрирован — регистрация ещё открыта") }}{% endif %}
+    </p>
+  </div>
+  <span class="countdown" data-countdown data-state="live"
+        data-start="{{ item.started_at.isoformat() }}" data-end="{{ item.ends_at.isoformat() }}">{{ _("идёт сейчас") }}</span>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    {% if team or teacher_view %}
+    <a class="btn" href="/contest/{{ item.id }}">{{ icon("tasks") }} {{ _("К задачам") }}</a>
+    {% else %}
+    <a class="btn" href="/contest/{{ item.id }}/team">{{ icon("plus") }} {{ _("Зарегистрироваться") }}</a>
+    {% endif %}
+    <a class="btn ghost" href="/contest/{{ item.id }}/standings">{{ icon("medal") }} {{ _("Табло") }}</a>
+  </div>
+</div>
+{% endfor %}
+
+{% if groups.registration %}
+<h2>{{ icon("calendar") }} {{ _("Скоро — регистрация открыта") }}</h2>
+{{ contest_rows(groups.registration) }}
+{% endif %}
+
+{% if teacher_view and groups.draft %}
+<h2>{{ icon("edit") }} {{ _("Черновики") }}</h2>
+<p class="staff-note">{{ icon("shield") }} {{ _("Студенты черновиков не видят — откройте регистрацию на пульте.") }}</p>
+{{ contest_rows(groups.draft) }}
+{% endif %}
+
+{% if groups.finished %}
+<h2>{{ icon("clock") }} {{ _("Прошедшие") }}</h2>
+{{ contest_rows(groups.finished) }}
+{% endif %}
+
+{% if not total %}
+  {{ empty("flame", _("Ты пока нигде не участвуешь.") if only_mine else _("Соревнований пока нет.")) }}
+{% endif %}
+
+{% if teacher_view %}
+<div class="card staff-only">
+  <p class="staff-note">{{ icon("shield") }} {{ _("Видно только преподавателю") }}</p>
+  <h3>{{ icon("plus") }} {{ _("Новое соревнование") }}</h3>
+  <form method="post" action="/contest">
+    {% include "contest/_settings_fields.html" %}
+    <button type="submit">{{ icon("plus") }} {{ _("Создать черновик") }}</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

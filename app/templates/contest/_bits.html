@@ -1,0 +1,32 @@
+{# Мелочи, общие страницам соревнования. #}
+{% macro phase_badge(contest) -%}
+  {% set phase = contest.phase(now()) %}
+  <span class="badge phase" data-phase="{{ phase }}">{{
+    {"draft": _("черновик"), "registration": _("регистрация"),
+     "running": _("идёт"), "finished": _("завершено")}[phase] }}</span>
+{%- endmacro %}
+
+{% macro rules_label(contest) -%}
+  {{ "ICPC" if contest.rules == "icpc" else "IOI" }} ·
+  {% if contest.is_team %}{{ _("команды до %(n)s человек") % {"n": contest.team_size} }}{% else %}{{ _("личное") }}{% endif %} ·
+  {{ _("%(n)s мин") % {"n": contest.duration_min} }}
+  {%- if contest.freeze_min %} · {{ _("заморозка за %(n)s мин") % {"n": contest.freeze_min} }}{% endif %}
+{%- endmacro %}
+
+{# Клетка табло. ICPC: «+», «+2», «−3» и минута; IOI: баллы. #}
+{% macro run_cell(cell, icpc) -%}
+  {% if cell.pending and not cell.solved %}
+    <span class="run-cell pending" title="{{ _("посылки в заморозку") }}">
+      <b>?</b><small>{{ cell.tries + cell.pending }}</small></span>
+  {% elif icpc and cell.solved %}
+    <span class="run-cell solved {{ 'first' if cell.first }}" title="{{ _("первым решили") if cell.first else '' }}">
+      <b>+{{ cell.tries if cell.tries else '' }}</b><small>{{ cell.minute }}</small></span>
+  {% elif icpc and cell.tries %}
+    <span class="run-cell failed"><b>−{{ cell.tries }}</b></span>
+  {% elif not icpc and cell.tries %}
+    <span class="run-cell {{ 'solved' if cell.solved else 'partial' }} {{ 'first' if cell.first }}">
+      <b>{{ cell.score | round(0) | int }}</b><small>{{ cell.minute }}</small></span>
+  {% else %}
+    <span class="run-cell"></span>
+  {% endif %}
+{%- endmacro %}

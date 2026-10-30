@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_ui.html" import empty %}
+{% block title %}{{ _("Посылки") }} — {{ contest.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest/{{ contest.id }}">{{ contest.title }}</a></p>
+    <h1>{{ _("Все посылки") if teacher_view else (_("Посылки команды") if contest.is_team else _("Мои посылки")) }}</h1>
+  </div>
+</div>
+{% if teacher_view %}<p class="staff-note">{{ icon("shield") }} {{ _("Участник видит только посылки своей команды") }}</p>{% endif %}
+{% if runs %}
+<div class="card table-wrap {{ 'staff-only' if teacher_view }}" style="padding:6px">
+  <table>
+    <thead><tr>
+      <th>{{ _("Когда") }}</th><th>{{ _("Задача") }}</th>
+      {% if teacher_view %}<th>{{ _("Команда") if contest.is_team else _("Участник") }}</th>{% endif %}
+      {% if contest.is_team or teacher_view %}<th>{{ _("Автор") }}</th>{% endif %}
+      <th>{{ _("Язык") }}</th><th>{{ _("Вердикт") }}</th><th>{{ _("Тесты") }}</th>
+    </tr></thead>
+    <tbody>
+    {% for run in runs %}
+      <tr>
+        <td class="small muted num">
+          {% if contest.started_at and not run.practice %}{{ ((run.submitted_at - contest.started_at).total_seconds() // 60) | int }} {{ _("мин") }}
+          {% else %}{{ run.submitted_at | ago }}{% endif %}
+        </td>
+        <td><a href="/contest/{{ contest.id }}/problems/{{ letters.get(run.problem_id, '?') }}"><span class="letter">{{ letters.get(run.problem_id, "?") }}</span></a></td>
+        {% if teacher_view %}<td class="small">{{ teams[run.team_id].name if run.team_id in teams else "—" }}</td>{% endif %}
+        {% if contest.is_team or teacher_view %}<td class="small">{{ run.user.display_name }}</td>{% endif %}
+        <td class="small muted">{{ run.language or "—" }}</td>
+        <td>
+          <a href="/contest/{{ contest.id }}/runs/{{ run.id }}"><span class="badge {{ 'ok' if run.accepted }}">{{ run.verdict }}</span></a>
+          {% if run.practice %}<span class="small muted">{{ _("дорешивание") }}</span>{% endif %}
+        </td>
+        <td class="small muted num">{{ run.passed_tests }}/{{ run.total_tests }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {{ empty("send", _("Посылок пока нет.")) }}
+{% endif %}
+{% endblock %}

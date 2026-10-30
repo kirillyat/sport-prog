@@ -25,7 +25,7 @@
 </p>
 {% if assignment.description %}<p class="sub">{{ assignment.description }}</p>{% endif %}
 {% if not has_started(assignment) %}
-<div class="card callout">
+<div class="card callout staff-only">
   <h3>{{ icon("clock") }} {{ _("Начнётся %(when)s") % {"when": assignment.assigned_at | dt} }}</h3>
   <p class="small" style="margin:0">
     {{ _("До начала студенты не видят ни задания, ни его задач — ни на портале, ни у нейросети. Сообщение в Telegram уйдёт в момент начала.") }}

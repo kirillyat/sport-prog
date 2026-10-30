@@ -37,6 +37,9 @@ LOGO_DARK_NAMES = ("logo-dark.svg", "logo-dark.png", "logo-dark.webp")
 FAVICON_NAMES = ("favicon.png", "favicon.svg", "favicon.ico", *LOGO_NAMES)
 # Компактный знак для рейки. Рисуется CSS-маской в цвет текста рейки — цвет файла не важен.
 MARK_NAMES = ("mark.svg", "mark.png")
+# Знак раздела соревнований — вариант основного. Нет своего у учреждения —
+# берётся запасной из app/static, а без него рейка покажет основной знак.
+CONTEST_MARK_NAMES = ("mark-contest.svg", "mark-contest.png")
 
 
 BRANDING_DIR = settings.data_dir / "branding"
@@ -51,6 +54,17 @@ def _find_asset(names: tuple[str, ...]) -> str | None:
         if (STATIC_DIR / name).is_file():
             return f"/static/{name}"
     return None
+
+
+def _contest_mark() -> str | None:
+    """Знак соревнований. Запасной — только при запасном основном знаке:
+    иначе фирменный знак учреждения в соревнованиях сменился бы чужим
+    нейтральным. Есть свой основной, а варианта нет — рейка оставит основной."""
+    found = _find_asset(CONTEST_MARK_NAMES)
+    if found is None or found.startswith("/branding/"):
+        return found
+    main = _find_asset(MARK_NAMES)
+    return found if main is None or main.startswith("/static/") else None
 from app.services.features import features_context  # noqa: E402
 from app.ticker import ticker_context  # noqa: E402
 
@@ -317,6 +331,7 @@ templates.env.globals["brand_logo"] = _find_asset(LOGO_NAMES)
 templates.env.globals["brand_logo_dark"] = _find_asset(LOGO_DARK_NAMES)
 templates.env.globals["favicon_asset"] = _find_asset(FAVICON_NAMES)
 templates.env.globals["brand_mark"] = _find_asset(MARK_NAMES)
+templates.env.globals["contest_mark"] = _contest_mark()
 templates.env.globals["course_available"] = course.is_available()
 templates.env.globals["org_student"] = access.org_student
 templates.env.globals["org_account"] = access.org_account

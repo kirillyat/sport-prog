@@ -13,6 +13,14 @@
   {% if assignment.group %} · {{ assignment.group.title }}{% endif %}
 </p>
 
+{% if teacher_view and not has_started(assignment) %}
+<div class="card callout staff-only">
+  <p class="staff-note">{{ icon("shield") }} {{ _("Видно только преподавателю") }}</p>
+  <h3>{{ icon("clock") }} {{ _("Начнётся %(when)s") % {"when": assignment.assigned_at | dt} }}</h3>
+  <p class="small" style="margin:0">{{ _("До начала студенты не видят ни задания, ни его задач.") }}</p>
+</div>
+{% endif %}
+
 {{ message_feed(assignment, messages, can_post=user.is_teacher) }}
 
 <div class="card">

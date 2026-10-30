@@ -2,11 +2,12 @@
   Пустые состояния. Правило: если строк нет — не рисуем шапку таблицы,
   вместо неё показываем, что сделать дальше.
 #}
-{% macro empty(name, text, href=None, label=None) -%}
+{# staff — ссылка-действие только для преподавателя: она в пунктире. #}
+{% macro empty(name, text, href=None, label=None, staff=False) -%}
 <div class="empty">
   {{ icon(name, "xl") }}
   <div>{{ text }}</div>
-  {% if href and label %}<a class="btn ghost small" href="{{ href }}">{{ label }}</a>{% endif %}
+  {% if href and label %}<a class="btn ghost small {{ 'staff-only' if staff }}" href="{{ href }}">{{ label }}</a>{% endif %}
 </div>
 {%- endmacro %}
 

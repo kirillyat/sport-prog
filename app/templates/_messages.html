@@ -32,7 +32,7 @@
          {% if not messages and not can_post %}hidden{% endif %}>
   <h2>{{ icon("send") }} {{ _("Сообщения преподавателя") }}</h2>
   {% if can_post %}
-  <form method="post" action="/teacher/assignments/{{ assignment.id }}/messages" class="message-form">
+  <form method="post" action="/teacher/assignments/{{ assignment.id }}/messages" class="message-form staff-box">
     <input type="text" name="body" maxlength="1000" required autocomplete="off"
            aria-label="{{ _("Сообщение участникам задания") }}"
            placeholder="{{ _("Ссылка на комнату или пара слов — Enter, и группа увидит") }}">

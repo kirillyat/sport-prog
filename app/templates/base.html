@@ -36,19 +36,34 @@
   {# Страницам, которым нужен свой файл стилей, — вот сюда. #}
   {% block head %}{% endblock %}
 </head>
-<body class="{{ 'with-rail' if user }}">
+{#
+  Раздел соревнований — вторая половина портала на том же движке: свой
+  набор пунктов в рейке и часы тура вместо строки события. Остальное общее,
+  чтобы соревнование выглядело частью того же места, а не чужим сайтом.
+#}
+{% set path = request.url.path if request else "" %}
+{% set contest_area = path == "/contest" or path.startswith("/contest/") %}
+{% if contest is not defined %}{% set contest = None %}{% endif %}
+{# Знак той половины портала, где человек: в соревнованиях — свой вариант. #}
+{% set brand_mark = (contest_mark or brand_mark) if contest_area else brand_mark %}
+<body class="{{ 'with-rail' if user }} {{ 'area-contest' if contest_area }}">
 {% from "_lang.html" import lang_switch %}
 {% from "_theme.html" import theme_pick %}
 {% include "_icons.html" %}
 
-{% set path = request.url.path if request else "" %}
 {% macro is_under(href) -%}
   {{- 'y' if path == href or (href != '/' and path.startswith(href ~ '/')) -}}
 {%- endmacro %}
-{% macro navlink(href, name, label, extra="", exact=False, count=0, new=False, also=()) -%}
+{#
+  staff — пункт, которого студент не видит (раздел закрыт ему флагом или
+  он вообще только для преподавателя). Обводится пунктиром: это общий знак
+  портала «студенту этого не видно», чтобы не гадать, открыт ли раздел.
+#}
+{% macro navlink(href, name, label, extra="", exact=False, count=0, new=False, also=(), staff=False) -%}
   {% set ns = namespace(on=(path == href) if exact else is_under(href) == 'y') %}
   {% for prefix in also %}{% if is_under(prefix) == 'y' %}{% set ns.on = True %}{% endif %}{% endfor %}
-  <a href="{{ href }}" class="{{ 'active' if ns.on }} {{ extra }}" title="{{ label }}">
+  <a href="{{ href }}" class="{{ 'active' if ns.on }} {{ extra }} {{ 'staff-only' if staff }}"
+     title="{{ label }}{{ ' — ' ~ _('студенты не видят') if staff }}">
     {{ icon(name) }}<span>{{ label }}</span>
     {% if count %}<span class="nav-count" title="{{ _("ждут проверки") }}">{{ count }}</span>{% endif %}
     {% if new %}<span class="nav-new">{{ _("новое") }}</span>{% endif %}
@@ -59,11 +74,12 @@
   <details>, как выбор языка: без скрипта. Пункт подсвечен, если открыта
   страница из него, и несёт плашку «новое», если она есть у кого-то внутри, —
   иначе свежий раздел за кнопкой никто бы не заметил.
-  groups — список пар (заголовок, [(адрес, иконка, подпись, новое), …]).
+  groups — список пар (заголовок, [(адрес, иконка, подпись, новое, студенты
+  не видят), …]).
 #}
 {% macro navmore(groups) -%}
   {% set ns = namespace(on=False, new=False) %}
-  {% for _title, items in groups %}{% for href, _name, _label, is_new in items %}
+  {% for _title, items in groups %}{% for href, _name, _label, is_new, _staff in items %}
     {% if is_under(href) == 'y' %}{% set ns.on = True %}{% endif %}
     {% if is_new %}{% set ns.new = True %}{% endif %}
   {% endfor %}{% endfor %}
@@ -75,8 +91,9 @@
     <div class="nav-more-menu">
       {% for title, items in groups if items %}
       <p class="nav-more-group">{{ title }}</p>
-      {% for href, name, label, is_new in items %}
-      <a href="{{ href }}" class="{{ 'active' if is_under(href) == 'y' }}">
+      {% for href, name, label, is_new, staff in items %}
+      <a href="{{ href }}" class="{{ 'active' if is_under(href) == 'y' }} {{ 'staff-only' if staff }}"
+         {% if staff %}title="{{ _('студенты не видят') }}"{% endif %}>
         {{ icon(name) }}<span>{{ label }}</span>
         {% if is_new %}<span class="badge">{{ _("новое") }}</span>{% endif %}
       </a>
@@ -127,36 +144,58 @@
   </div>
 </details>
 {%- endmacro %}
+{#
+  Рейка соревнования: только то, что нужно на туре. Пункты задач, табло и
+  посылок появляются, когда открыто конкретное соревнование, — в списке
+  соревнований им некуда вести. Последний пункт — обратно в учёбу.
+#}
+{% macro contest_navitems() -%}
+  {{ navlink("/contest", "flame", _("Соревнования"), "nav-long", exact=True,
+             staff="contest" in student_closed) }}
+  {% if contest %}
+    {% set home = "/contest/" ~ contest.id %}
+    {{ navlink(home, "tasks", _("Задачи"), exact=True, also=(home ~ "/problems",)) }}
+    {{ navlink(home ~ "/standings", "medal", _("Табло")) }}
+    {{ navlink(home ~ "/runs", "send", _("Посылки")) }}
+    {{ navlink(home ~ "/team", "users", _("Команда") if contest.is_team else _("Участие")) }}
+    {% if teacher_view %}{{ navlink(home ~ "/edit", "edit", _("Пульт"), staff=True) }}{% endif %}
+  {% endif %}
+  {{ navlink("/", "campus", _("Обучение"), "area-switch", exact=True) }}
+{%- endmacro %}
 {% macro navitems() -%}
   {# Преподаватель может смотреть портал глазами студента — тогда и рейка его. #}
-  {% if teacher_view %}
+  {% if contest_area %}
+    {{ contest_navitems() }}
+  {% elif teacher_view %}
     {{ navlink("/teacher", "shield", _("Панель"), "teacher-link", exact=True) }}
     {{ navlink("/teacher/groups", "users", _("Группы")) }}
     {{ navlink("/teacher/assignments", "tasks", _("Задания")) }}
     {{ navlink("/teacher/sets", "code", _("Задачи"), also=("/teacher/tasks", "/teacher/problems")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
-    {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
+    {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки"), staff="grades" in student_closed) }}{% endif %}
+    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long", staff="contest" in student_closed) }}{% endif %}
     {% if admin_view %}
     {{ navlink("/teacher/integrations", "plug", _("Интеграции"), also=("/teacher/judge", "/teacher/llm")) }}
     {% endif %}
     {% set for_students = [] %}
-    {% if "materials" in sections_on %}{% set for_students = for_students + [("/materials", "book", _("Материалы"), False)] %}{% endif %}
-    {% if course_available and "course" in sections_on %}{% set for_students = for_students + [("/course", "layers", _("Курс"), False)] %}{% endif %}
-    {% if "ai" in sections_on %}{% set for_students = for_students + [("/ai", "spark", _("ИИ"), "ai" in sections_new)] %}{% endif %}
+    {% if "materials" in sections_on %}{% set for_students = for_students + [("/materials", "book", _("Материалы"), False, "materials" in student_closed)] %}{% endif %}
+    {% if course_available and "course" in sections_on %}{% set for_students = for_students + [("/course", "layers", _("Курс"), False, "course" in student_closed)] %}{% endif %}
+    {% if "ai" in sections_on %}{% set for_students = for_students + [("/ai", "spark", _("ИИ"), "ai" in sections_new, "ai" in student_closed)] %}{% endif %}
     {% set for_students = for_students + [
-         ("/announcements", "megaphone", _("Анонсы"), False),
-         ("/feed", "activity", _("Лента"), False),
-         ("/leaderboard", "trophy", _("Табло"), False)] %}
+         ("/announcements", "megaphone", _("Анонсы"), False, False),
+         ("/feed", "activity", _("Лента"), False, False),
+         ("/leaderboard", "trophy", _("Табло"), False, False)] %}
     {{ navmore([
          (_("Разделы"), for_students),
-         (_("Управление"), [("/teacher/students", "user", _("Студенты"), False)]
-           + ([("/teacher/features", "shield", _("Видимость разделов"), False)] if admin_view else []))]) }}
+         (_("Управление"), [("/teacher/students", "user", _("Студенты"), False, False)]
+           + ([("/teacher/features", "shield", _("Видимость разделов"), False, False)] if admin_view else []))]) }}
   {% else %}
     {{ navlink("/", "tasks", _("Задания"), exact=True, also=("/assignments", "/tasks")) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
     {% if "ai" in sections_on %}{{ navlink("/ai", "spark", _("ИИ"), new="ai" in sections_new) }}{% endif %}
+    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long") }}{% endif %}
     {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
     {{ navlink("/feed", "activity", _("Лента")) }}
     {{ navlink("/leaderboard", "trophy", _("Лидерборд")) }}
@@ -166,7 +205,9 @@
 {% if user %}
 {# Рейка слева: тёмная полоса на светлой бумаге. На телефоне становится нижней панелью. #}
 <aside class="rail">
-  <a class="brand" href="/" title="{{ settings.app_name }}">
+  {# Знак ведёт на главную той половины портала, где человек сейчас:
+     из соревнований в учёбу уводит отдельный пункт «Обучение». #}
+  <a class="brand" href="{{ '/contest' if contest_area else '/' }}" title="{{ settings.app_name }}">
     {% if brand_mark %}
       {# Знак-маска: окрашивается в цвет текста рейки, поэтому виден и на чёрном, и на жёлтом. #}
       <span class="brand-mark" role="img" aria-label="{{ settings.app_short_name }}"
@@ -181,6 +222,7 @@
       {{ icon("campus", "xl") }}
     {% endif %}
     <span class="brand-text">{{ settings.app_short_name }}</span>
+    {% if contest_area %}<span class="brand-area">{{ _("соревнования") }}</span>{% endif %}
   </a>
   <nav class="nav">{{ navitems() }}</nav>
   {#
@@ -213,7 +255,7 @@
   {% if user %}
   {# На телефоне рейка скрыта — знак и имя портала живут в компактной шапке. #}
   <div class="mobile-bar">
-  <a class="mobile-brand" href="/" title="{{ settings.app_name }}">
+  <a class="mobile-brand" href="{{ '/contest' if contest_area else '/' }}" title="{{ settings.app_name }}">
     {% if brand_mark %}
       <span class="brand-mark small" role="img" aria-label=""
             style="--mark: url('{{ brand_mark }}?v={{ asset_version }}')"></span>
@@ -231,7 +273,30 @@
   </span>
   </div>
   {% endif %}
-  {% if user and ticker %}
+  {% if user and contest_area and contest and contest.published %}
+  {#
+    Часы тура на месте строки события: на соревновании это главное, что нужно
+    видеть с любой страницы. До старта — только план: задачи открывает
+    кнопка преподавателя, и обратный отсчёт до плановой минуты врал бы.
+  #}
+  {% set phase = contest.phase(now()) %}
+  <div class="ticker contest-clock" data-phase="{{ phase }}">
+    <a class="ticker-main" href="/contest/{{ contest.id }}/standings">
+      <span class="ticker-label">{{ {"registration": _("регистрация"), "running": _("идёт"), "finished": _("завершено")}[phase] }}</span>
+      <span class="ticker-title">{{ contest.title }}</span>
+      {% if phase == "running" %}
+      <span class="countdown" data-countdown data-state="live"
+            data-start="{{ contest.started_at.isoformat() }}" data-end="{{ contest.ends_at.isoformat() }}">{{ _("идёт сейчас") }}</span>
+      {% if contest.frozen(now()) %}<span class="badge warn">{{ icon("clock") }} {{ _("табло заморожено") }}</span>{% endif %}
+      {% elif phase == "registration" %}
+      <span class="countdown">{{ _("старт по кнопке") }}{% if contest.planned_at %} · {{ _("план") }}: {{ contest.planned_at | dt }}{% endif %}</span>
+      {% else %}
+      <span class="countdown">{{ _("дорешивание открыто") }}</span>
+      {% endif %}
+      <span class="ticker-go">{{ icon("chevron") }}</span>
+    </a>
+  </div>
+  {% elif user and ticker and not contest_area %}
   {# Ближайшее событие — с любой страницы. Полоса не ссылка целиком: рядом
      живёт крестик, а кнопку внутрь ссылки класть нельзя. #}
   <div class="ticker">
@@ -254,6 +319,9 @@
   {% endif %}
 
   <main>
+    {% if page_closed %}
+    <p class="staff-banner">{{ icon("shield") }} {{ _("Раздел «%(name)s» закрыт студентам — они его не видят. Открыть можно в «Видимости разделов».") % {"name": _(page_closed.title)} }}</p>
+    {% endif %}
     {% if ok %}<div class="flash ok">{{ icon("check") }}<span>{{ ok }}</span></div>{% endif %}
     {% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
     {% block content %}{% endblock %}

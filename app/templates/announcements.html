@@ -10,7 +10,7 @@
     <p class="sub">{{ _("Анонсы соревнований, сборы и объявления.") }}</p>
   </div>
   {% if teacher_view %}
-  <a class="btn ghost small" href="/teacher/announcements">{{ icon("plus") }} {{ _("Опубликовать") }}</a>
+  <a class="btn ghost small staff-only" href="/teacher/announcements">{{ icon("plus") }} {{ _("Опубликовать") }}</a>
   {% endif %}
 </div>
 
@@ -18,7 +18,7 @@
 <div class="card">
   {{ empty("megaphone", _("Объявлений пока нет."),
            "/teacher/announcements" if teacher_view else None,
-           _("Опубликовать первое") if teacher_view else None) }}
+           _("Опубликовать первое") if teacher_view else None, staff=teacher_view) }}
 </div>
 {% endif %}
 

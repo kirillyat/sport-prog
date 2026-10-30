@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Посылка") }} — {{ contest.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest/{{ contest.id }}/runs">{{ _("посылки") }}</a> / {{ _("задача") }} {{ letter or "?" }}</p>
+    <h1>{{ run.verdict }}</h1>
+  </div>
+  <span class="badge {{ 'ok' if run.accepted }}">{{ run.passed_tests }}/{{ run.total_tests }}</span>
+</div>
+<p class="small muted">
+  {{ run.user.display_name }}{% if run_team and contest.is_team %} · {{ run_team.name }}{% endif %}
+  · {{ run.language or "—" }} · {{ run.submitted_at | dt }}
+  {% if run.practice %} · {{ _("дорешивание") }}{% endif %}
+</p>
+<pre class="nb-raw code-box">{{ run.code }}</pre>
+{% endblock %}

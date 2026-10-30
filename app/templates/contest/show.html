@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "contest/_bits.html" import phase_badge, rules_label %}
+{% block title %}{{ contest.title }} — {{ settings.app_name }}{% endblock %}
+{% block content %}
+{% set phase = contest.phase(now()) %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest">{{ _("соревнования") }}</a> / {{ rules_label(contest) }}</p>
+    <h1>{{ contest.title }}</h1>
+  </div>
+  {{ phase_badge(contest) }}
+</div>
+{% if contest.description %}<p class="sub">{{ contest.description }}</p>{% endif %}
+
+{# Кто не зарегистрирован — это первое, что он должен увидеть. #}
+{% if not team and not teacher_view and phase in ("registration", "running") %}
+<div class="card">
+  <h3>{{ icon("users") }} {{ _("Ты ещё не участвуешь") }}</h3>
+  <p class="small muted" style="margin-top:0">
+    {% if contest.is_team %}
+    {{ _("Создай команду и раздай код или войди в команду по коду капитана.") }}
+    {% else %}
+    {{ _("Регистрация — одна кнопка. Без неё посылки в табло не идут.") }}
+    {% endif %}
+  </p>
+  <a class="btn" href="/contest/{{ contest.id }}/team">{{ icon("plus") }} {{ _("Зарегистрироваться") }}</a>
+</div>
+{% elif team %}
+<p class="small">
+  {{ icon("check") }}
+  {% if contest.is_team %}{{ _("Твоя команда") }}: <a href="/contest/{{ contest.id }}/team"><strong>{{ team.name }}</strong></a>
+  ({{ team.members | map(attribute="user.display_name") | join(", ") }}){% else %}{{ _("Ты участвуешь") }}{% endif %}
+  {% if my_row %} · {{ _("место") }} <strong>{{ my_row.place }}</strong>{% endif %}
+</p>
+{% endif %}
+
+{% if problems_open %}
+{% set hidden = phase not in ("running", "finished") %}
+<h2>{{ icon("tasks") }} {{ _("Задачи") }}</h2>
+{% if hidden %}<p class="staff-note">{{ icon("shield") }} {{ _("Студенты увидят задачи только после старта") }}</p>{% endif %}
+{% if phase == "finished" %}
+<p class="small muted">{{ _("Тур закончился. Задачи открыты для дорешивания — посылки видны тебе, но в табло не идут.") }}</p>
+{% endif %}
+<div class="card table-wrap {{ 'staff-only' if hidden }}" style="padding:6px">
+  <table>
+    <tbody>
+    {% for item in contest.problems %}
+      {% set cell = my_row.cell(item.problem_id) if my_row else None %}
+      <tr>
+        <td style="width:48px"><span class="letter {{ 'solved' if cell and cell.solved else ('tried' if cell and cell.touched else '') }}">{{ item.letter }}</span></td>
+        <td><a href="/contest/{{ contest.id }}/problems/{{ item.letter }}"><strong>{{ item.problem.title }}</strong></a></td>
+        <td class="small muted num" style="text-align:right">
+          {% if board %}{{ _("решили %(solved)s из %(tried)s") % {"solved": board.solved_by(item.problem_id), "tried": board.tried_by(item.problem_id)} }}{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="muted">{{ _("Задачи ещё не заданы.") }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <h3>{{ icon("clock") }} {{ _("Задачи откроются по старту") }}</h3>
+  <p class="small muted" style="margin:0">
+    {% if contest.planned_at %}{{ _("Плановое начало — %(when)s. Точный старт даёт преподаватель в аудитории.") % {"when": contest.planned_at | dt} }}
+    {% else %}{{ _("Время старта объявит преподаватель.") }}{% endif %}
+    {{ _("Зарегистрировано: %(n)s.") % {"n": team_count} }}
+  </p>
+</div>
+{% endif %}
+{% endblock %}

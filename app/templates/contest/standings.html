@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "contest/_bits.html" import phase_badge, run_cell %}
+{% block title %}{{ _("Табло") }} — {{ contest.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contest/{{ contest.id }}">{{ contest.title }}</a> / {{ "ICPC" if icpc else "IOI" }}</p>
+    <h1>{{ _("Табло") }}</h1>
+  </div>
+  {{ phase_badge(contest) }}
+</div>
+
+{% if not board %}
+<p class="sub">{{ _("Табло появится после старта.") }}</p>
+{% else %}
+{% if board.frozen %}
+<p class="small">{{ icon("clock") }} <strong>{{ _("Табло заморожено.") }}</strong>
+  {{ _("Посылки последних минут показаны знаком вопроса — результат откроется после конца.") }}</p>
+{% elif teacher_view and contest.frozen(now()) %}
+<p class="staff-note">{{ icon("shield") }} {{ _("Участники видят замороженное табло, ты — живое.") }}</p>
+{% endif %}
+{# Живое табло в заморозку видит только преподаватель — оно и в пунктире. #}
+<div class="card table-wrap {{ 'staff-only' if teacher_view and contest.frozen(now()) }}" style="padding:6px">
+  <table class="standings">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th class="team-cell">{{ _("Команда") if contest.is_team else _("Участник") }}</th>
+        {% for item in board.problems %}
+        <th><a href="/contest/{{ contest.id }}/problems/{{ item.letter }}" title="{{ item.problem.title }}">{{ item.letter }}</a></th>
+        {% endfor %}
+        {% if icpc %}<th>{{ _("Решено") }}</th><th>{{ _("Штраф") }}</th>{% else %}<th>{{ _("Баллы") }}</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in board.rows %}
+      <tr class="{{ 'mine' if team and row.team.id == team.id }}">
+        <td class="place">{{ row.place }}</td>
+        <td class="team-cell">
+          <strong>{{ row.team.name }}</strong>
+          {% if contest.is_team %}<span class="members">{{ row.team.members | map(attribute="user.display_name") | join(", ") }}</span>{% endif %}
+        </td>
+        {% for item in board.problems %}
+        <td>{{ run_cell(row.cell(item.problem_id), icpc) }}</td>
+        {% endfor %}
+        {% if icpc %}
+        <td class="total">{{ row.solved }}</td><td class="total muted">{{ row.penalty }}</td>
+        {% else %}
+        <td class="total">{{ row.score | round(1) }}</td>
+        {% endif %}
+      </tr>
+    {% else %}
+      <tr><td colspan="{{ board.problems | length + 4 }}" class="muted">{{ _("Никто не зарегистрировался.") }}</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if board.rows %}
+    <tfoot>
+      <tr>
+        <td></td><td class="team-cell">{{ _("решили / пробовали") }}</td>
+        {% for item in board.problems %}<td class="num">{{ board.solved_by(item.problem_id) }}/{{ board.tried_by(item.problem_id) }}</td>{% endfor %}
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+<p class="small muted">
+  {% if icpc %}
+  {{ _("«+» — задача решена, цифра после плюса — неудачные попытки до принятой, снизу — минута. Штраф: минута решения плюс 20 за каждую неудачную попытку. Ошибка компиляции не штрафуется.") }}
+  {% else %}
+  {{ _("В клетке — лучший результат по задаче из 100 и минута, когда он получен. При равных баллах выше тот, кто набрал их раньше.") }}
+  {% endif %}
+  {{ _("Рамка — первые решившие задачу.") }}
+</p>
+{% endif %}
+{% endblock %}

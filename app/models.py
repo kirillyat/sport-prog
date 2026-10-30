@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import (
     JSON,
@@ -774,3 +774,188 @@ class SheetMark(Base):
     comment: Mapped[str | None] = mapped_column(String(500))
     graded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     graded_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+# --------------------------------------------------------------- соревнования
+#
+# Отдельный мир рядом с учебным: свои посылки, своё табло, свои команды.
+# Общее — только задачи портала (`Task`) и судья. Посылки соревнования не
+# пишутся в `submissions`: оттуда читают лента, табло курса, профиль и зачёт
+# (`Cell.counts`), и решённая на соревновании задача молча закрыла бы домашку.
+
+
+class ContestRules(enum.StrEnum):
+    icpc = "icpc"   # решённые задачи, потом штраф по времени и попыткам
+    ioi = "ioi"     # баллы за пройденные тесты, лучшая посылка по задаче
+
+
+class Contest(Base):
+    """Соревнование: личное (команда из одного) или командное.
+
+    Задачи открываются не по времени, а по кнопке «Старт»: начало в
+    аудитории всегда немного плывёт. `planned_at` — только подпись для
+    регистрации, `started_at` ставит кнопка, а `ends_at` считается от неё
+    и двигается кнопками «+время» и «Завершить».
+    """
+
+    __tablename__ = "contests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text)
+    rules: Mapped[ContestRules] = mapped_column(EnumStr(ContestRules), default=ContestRules.icpc)
+    # 1 — личное соревнование: команда из одного человека заводится сама
+    # при регистрации, и табло с посылками не знают разницы.
+    team_size: Mapped[int] = mapped_column(Integer, default=3)
+    duration_min: Mapped[int] = mapped_column(Integer, default=300)
+    # За сколько минут до конца участники перестают видеть чужие результаты.
+    # 0 — табло живое до конца.
+    freeze_min: Mapped[int] = mapped_column(Integer, default=0)
+    # Черновик видит только преподаватель: задачи ещё подбираются.
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    planned_at: Mapped[datetime | None] = mapped_column()
+    started_at: Mapped[datetime | None] = mapped_column()
+    ends_at: Mapped[datetime | None] = mapped_column()
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    problems: Mapped[list[ContestProblem]] = relationship(
+        back_populates="contest",
+        cascade="all, delete-orphan",
+        order_by="ContestProblem.position",
+        lazy="selectin",
+    )
+
+    @property
+    def is_team(self) -> bool:
+        return self.team_size != 1
+
+    def phase(self, now: datetime | None = None) -> str:
+        """draft → registration → running → finished."""
+        if not self.published:
+            return "draft"
+        if self.started_at is None:
+            return "registration"
+        if self.ends_at is not None and (now or utcnow()) >= self.ends_at:
+            return "finished"
+        return "running"
+
+    def frozen(self, now: datetime | None = None) -> bool:
+        """Идёт заморозка: последние минуты, до «Завершить»."""
+        if not self.freeze_min or self.ends_at is None or self.phase(now) != "running":
+            return False
+        return (now or utcnow()) >= self.ends_at - timedelta(minutes=self.freeze_min)
+
+
+class ContestProblem(Base):
+    __tablename__ = "contest_problems"
+    __table_args__ = (UniqueConstraint("contest_id", "problem_id", name="uq_contest_problem"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contest_id: Mapped[int] = mapped_column(
+        ForeignKey("contests.id", ondelete="CASCADE"), index=True
+    )
+    problem_id: Mapped[int] = mapped_column(ForeignKey("problems.id", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    contest: Mapped[Contest] = relationship(back_populates="problems")
+    problem: Mapped[Problem] = relationship(lazy="selectin")
+
+    @property
+    def letter(self) -> str:
+        return letter(self.position)
+
+
+def letter(position: int) -> str:
+    """A, B, … Z, AA, AB — как на табло ICPC."""
+    out = ""
+    position += 1
+    while position:
+        position, rest = divmod(position - 1, 26)
+        out = chr(ord("A") + rest) + out
+    return out
+
+
+class ContestTeam(Base):
+    """Команда. Капитан её заводит и раздаёт код, остальные входят по коду."""
+
+    __tablename__ = "contest_teams"
+    __table_args__ = (UniqueConstraint("contest_id", "name", name="uq_contest_team_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contest_id: Mapped[int] = mapped_column(
+        ForeignKey("contests.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
+    captain_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    join_code: Mapped[str] = mapped_column(String(16), unique=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    members: Mapped[list[ContestMember]] = relationship(
+        back_populates="team",
+        cascade="all, delete-orphan",
+        order_by="ContestMember.joined_at",
+        lazy="selectin",
+    )
+
+
+class ContestMember(Base):
+    """Участник команды. `contest_id` повторён, чтобы база сама не пустила
+    одного человека в две команды одного соревнования."""
+
+    __tablename__ = "contest_members"
+    __table_args__ = (UniqueConstraint("contest_id", "user_id", name="uq_contest_member"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contest_id: Mapped[int] = mapped_column(ForeignKey("contests.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(
+        ForeignKey("contest_teams.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    joined_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    team: Mapped[ContestTeam] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(lazy="selectin")
+
+
+class ContestRun(Base):
+    """Посылка в соревновании.
+
+    `practice` ставится в момент сдачи, а не выводится из времени: конец
+    двигают кнопкой «+время», и посылка, сделанная до конца, не должна
+    задним числом стать дорешиванием. Посылки преподавателя — тоже
+    дорешивание: он прорешивает задачи заранее, в табло ему не место.
+    """
+
+    __tablename__ = "contest_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contest_id: Mapped[int] = mapped_column(
+        ForeignKey("contests.id", ondelete="CASCADE"), index=True
+    )
+    # Пусто — дорешивание без команды: после конца решать может любой.
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("contest_teams.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    problem_id: Mapped[int] = mapped_column(ForeignKey("problems.id", ondelete="CASCADE"))
+    language: Mapped[str | None] = mapped_column(String(80))
+    code: Mapped[str] = mapped_column(Text, default="")
+    verdict: Mapped[str] = mapped_column(String(80))
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Ошибка компиляции штрафа не даёт — по правилам ICPC.
+    compile_error: Mapped[bool] = mapped_column(Boolean, default=False)
+    passed_tests: Mapped[int] = mapped_column(Integer, default=0)
+    total_tests: Mapped[int] = mapped_column(Integer, default=0)
+    practice: Mapped[bool] = mapped_column(Boolean, default=False)
+    submitted_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+
+    user: Mapped[User] = relationship(lazy="selectin")
+    problem: Mapped[Problem] = relationship(lazy="selectin")
+
+    @property
+    def score(self) -> float:
+        """Баллы IOI: доля пройденных тестов, сотня за задачу."""
+        if not self.total_tests:
+            return 0.0
+        return round(100 * self.passed_tests / self.total_tests, 2)

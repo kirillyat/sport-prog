@@ -1381,7 +1381,7 @@ details.formula ul { margin: 8px 0 0; padding-left: 20px; color: var(--text-2); 
 
 /* ---------- прочее ---------- */
 .code-box { font-size: 16px; font-weight: 700; letter-spacing: .06em; background: var(--inv-bg); color: var(--inv-text); padding: 14px; word-break: break-all; user-select: all; text-align: center; }
-.empty { color: var(--text-2); padding: 34px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14px; border: var(--rule) dashed var(--line-soft); }
+.empty { color: var(--text-2); padding: 34px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14px; border: var(--rule) solid var(--line-soft); }
 .empty .icon { opacity: .5; }
 .card > .empty { margin: -8px; }
 .auth-shell { max-width: 520px; margin: 8vh auto 0; }
@@ -2198,3 +2198,106 @@ pre.snippet { margin: 8px 0 0; padding: 10px 12px; overflow-x: auto; font-family
   body::before, body::after, .shell::before, .shell::after, :root::after, .season-btn,
   .matrix-rain { display: none !important; }
 }
+
+/* ============================================================
+   Соревнования — та же бумага, своя рейка.
+   Новых цветов нет: раздел отличается подписью под знаком и тем, что
+   выход обратно в учёбу отделён от пунктов тура линейкой. Табло читается
+   той же плотностью заливки, что матрица: чёрное — решено.
+   ============================================================ */
+.brand-area { font-size: 7px; letter-spacing: .06em; padding: 1px 5px; background: var(--inv-text); color: var(--inv-bg); font-weight: 800; }
+.rail .nav a.area-switch { margin-top: auto; border-top: var(--rule) solid var(--inv-text); border-bottom: 0; }
+.tabbar a.area-switch { border-left: 1px solid var(--line-soft); }
+/* Угловая скобка знака раздела повторяется в мелочах: подзаголовок
+   начинается с «<>» вместо «//», черта перед заголовком — уголком «>».
+   Так раздел узнаётся и без рейки — на телефоне, на скриншоте. */
+.area-contest .eyebrow::before { content: "<>"; }
+.area-contest h2::before { width: 9px; height: 9px; background: none; margin: 0 6px 0 4px;
+  border: solid var(--ink); border-width: var(--rule) var(--rule) 0 0; transform: rotate(45deg); }
+/* Часы тура крупнее строки события: на соревновании на них смотрят чаще всего. */
+.contest-clock .countdown { font-size: 15px; padding: 4px 12px; }
+.contest-clock .badge.warn { background: transparent; color: var(--inv-text); border-color: var(--inv-text); }
+
+.phase { display: inline-flex; align-items: center; gap: 6px; }
+.phase[data-phase="running"] { background: var(--err); color: var(--err-text); border-color: var(--err); }
+.phase[data-phase="draft"] { border-style: dashed; }
+
+.join-code { font-family: "JetBrains Mono", monospace; font-size: 28px; font-weight: 700; letter-spacing: .18em; }
+.team-members { list-style: none; padding: 0; margin: 0; }
+.team-members li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.team-members li:last-child { border-bottom: 0; }
+
+.letter { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px;
+  border: 2px solid var(--ink); font-family: "Unbounded", sans-serif; font-weight: 800; }
+.letter.solved { background: var(--inv-bg); color: var(--inv-text); }
+/* Пробовали, но не решили — красная рамка, как у неудачной клетки табло.
+   Не пунктир: пунктир на портале значит «студенту не видно». */
+.letter.tried { border-color: var(--err); color: var(--err); }
+/* Буква в заголовке задачи — квадрат по высоте строки, буква по центру. */
+h1 .letter { font-size: .62em; width: 1.5em; height: 1.5em; min-width: 0; padding: 0;
+  border-width: 3px; vertical-align: .12em; margin-right: .2em; line-height: 1; }
+
+/* Табло: место, команда, клетка на задачу, итог. Клетка — плюс с числом
+   неудачных попыток и минутой, как на табло ICPC; в IOI — баллы. */
+.standings td, .standings th { text-align: center; padding: 6px 4px; }
+.standings td.team-cell, .standings th.team-cell { text-align: left; position: sticky; left: 0; background: var(--panel); min-width: 200px; }
+.standings tr.mine td { background: var(--panel-2); }
+.standings tr.mine td.team-cell { background: var(--panel-2); }
+.standings .place { font-family: "Unbounded", sans-serif; font-weight: 800; width: 44px; }
+.standings .total { font-weight: 800; font-variant-numeric: tabular-nums; }
+.standings .members { display: block; font-size: 11px; color: var(--muted); }
+.run-cell { display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 52px; min-height: 40px; padding: 2px 4px; border: 2px solid transparent; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.run-cell b { font-size: 15px; }
+.run-cell small { font-size: 10px; opacity: .8; }
+.run-cell.solved { background: var(--inv-bg); color: var(--inv-text); }
+.run-cell.first { outline: 3px solid var(--accent); outline-offset: -1px; }
+.run-cell.failed { border-color: var(--err); color: var(--err); }
+.run-cell.partial { border-color: var(--ink); }
+.run-cell.pending { border: 2px dashed var(--ink); }
+.standings tfoot td { font-size: 11px; color: var(--muted); border-top: var(--rule) solid var(--ink); }
+
+.contest-control { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.contest-control form { margin: 0; display: inline-flex; gap: 6px; align-items: center; }
+.contest-control input[type="number"] { width: 80px; }
+
+/* ============================================================
+   Пунктир — «студенту этого не видно».
+   Сплошная линия у блока значит, что его видят все; пунктирная — что
+   видит только преподаватель: раздел закрыт студентам флагом, задачи
+   соревнования до старта, живое табло в заморозку, черновик. Один знак
+   на весь портал — чтобы преподаватель не гадал, что видно группе.
+   ============================================================ */
+.staff-only.card, .card.staff-only,
+button.staff-only, .btn.staff-only, .badge.staff-only { border-style: dashed; }
+/* Блок без своей рамки (форма, строка текста) — пунктирная рамка вокруг. */
+.staff-box { border: 1.5px dashed var(--line); padding: 10px 14px; }
+p.staff-box { display: inline-block; padding: 4px 8px; }
+.staff-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 10px 14px;
+  border: var(--rule) dashed var(--ink); font-size: 13px; }
+.staff-banner .icon { width: 16px; height: 16px; flex: none; }
+.nav a.staff-only, .tabbar a.staff-only { outline: 1.5px dashed currentColor; outline-offset: -5px; }
+.nav .nav-more-menu a.staff-only { outline: 1.5px dashed currentColor; outline-offset: -3px; }
+tr.staff-only td { border-bottom-style: dashed; }
+.staff-note { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .04em;
+  color: var(--muted); margin: 0 0 10px; }
+.staff-note .icon { width: 14px; height: 14px; }
+/* Длинная подпись в рейке («Соревнования») — чуть мельче, чтобы не рвалась. */
+.nav a.nav-long span { font-size: 8px; letter-spacing: .02em; }
+
+/* Главная раздела соревнований: идущее — крупно сверху. */
+.contest-live { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
+.contest-live-title { display: block; font-family: var(--display); font-weight: 800; font-size: 24px;
+  line-height: 1.15; color: var(--text); text-transform: uppercase; }
+.contest-live .grow { flex: 1 1 260px; min-width: 0; }
+.contest-live .countdown { font-size: 18px; padding: 6px 14px; }
+.contest-filter { display: flex; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
+
+/* Шаги пульта: что уже сделано и что дальше. */
+.steps { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.steps li { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.steps li b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border: 2px solid currentColor; font-size: 11px; }
+.steps li.done { color: var(--text); }
+.steps li.done b { background: var(--inv-bg); color: var(--inv-text); border-color: var(--inv-bg); }
+.steps li.next { color: var(--text); font-weight: 700; }

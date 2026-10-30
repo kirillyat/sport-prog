@@ -1,0 +1,35 @@
+{# Поля настройки — одни на «создать» и на «изменить». `contest` может быть None. #}
+<div class="grid two">
+  <div class="field">
+    <label for="title">{{ _("Название") }}</label>
+    <input type="text" id="title" name="title" required value="{{ contest.title if contest else '' }}"
+           placeholder="{{ _("Осеннее командное соревнование") }}">
+  </div>
+  <div class="field">
+    <label for="rules">{{ _("Правила") }}</label>
+    <select id="rules" name="rules">
+      <option value="icpc" {{ 'selected' if contest and contest.rules == 'icpc' }}>{{ _("ICPC — решённые задачи и штрафное время") }}</option>
+      <option value="ioi" {{ 'selected' if contest and contest.rules == 'ioi' }}>{{ _("IOI — баллы за пройденные тесты") }}</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="team_size">{{ _("Человек в команде (1 — личное соревнование)") }}</label>
+    <input type="number" id="team_size" name="team_size" min="1" max="10" value="{{ contest.team_size if contest else 3 }}">
+  </div>
+  <div class="field">
+    <label for="planned_at">{{ _("Плановое начало — только подпись, задачи откроет кнопка «Старт»") }}</label>
+    <input type="datetime-local" id="planned_at" name="planned_at" value="{{ contest.planned_at | dtinput if contest else '' }}">
+  </div>
+  <div class="field">
+    <label for="duration_min">{{ _("Длительность, минут") }}</label>
+    <input type="number" id="duration_min" name="duration_min" min="1" max="1440" value="{{ contest.duration_min if contest else 300 }}">
+  </div>
+  <div class="field">
+    <label for="freeze_min">{{ _("Заморозить табло за столько минут до конца (0 — не замораживать)") }}</label>
+    <input type="number" id="freeze_min" name="freeze_min" min="0" max="1439" value="{{ contest.freeze_min if contest else 60 }}">
+  </div>
+</div>
+<div class="field">
+  <label for="description">{{ _("Описание (необязательно)") }}</label>
+  <textarea id="description" name="description" rows="3" placeholder="{{ _("Ауд. 612, с собой ноутбук на команду") }}">{{ contest.description or '' if contest else '' }}</textarea>
+</div>

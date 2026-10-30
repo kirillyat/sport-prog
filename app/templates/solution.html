@@ -18,7 +18,7 @@
   </div>
   <div class="row">
     {% if teacher_view and left %}
-    <span class="badge">{{ _("в очереди: %(count)s") % {"count": left} }}</span>
+    <span class="badge staff-only">{{ _("в очереди: %(count)s") % {"count": left} }}</span>
     {% endif %}
     <a class="btn ghost small" href="/solutions/{{ upload.id }}/download">
       {{ icon("download") }} {{ _("Скачать") }}
@@ -34,7 +34,7 @@
 {% endif %}
 
 {% if teacher_view %}
-<div class="card">
+<div class="card staff-only">
   <h3>{{ icon("shield") }} {{ _("Проверка") }}</h3>
   <p class="small muted" style="margin-top:0">
     {{ _("Отклонение снимает зачёт по задаче, поэтому нужен комментарий.") }}

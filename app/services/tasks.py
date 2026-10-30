@@ -38,6 +38,7 @@ from app.models import (
     User,
     utcnow,
 )
+from app.services import contests
 from app.services.judge import TestRef
 
 # Столько же, сколько у материалов: архив с тестами больше не бывает.
@@ -304,6 +305,10 @@ async def may_open(session: AsyncSession, user: User, problem_id: int) -> bool:
         return True
     if await assignment_for(session, user.id, problem_id) is not None:
         return True
+    # Задача соревнования живёт в его разделе: здесь посылка не попала бы
+    # в табло, а до старта условие утекло бы по угаданному слагу.
+    if await contests.in_contest(session, problem_id):
+        return False
     upcoming = await session.scalar(
         select(Assignment.id)
         .join(ProblemSetItem, ProblemSetItem.problem_set_id == Assignment.problem_set_id)

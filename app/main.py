@@ -23,6 +23,7 @@ from app.routers import (
     ai,
     announcements,
     auth,
+    contests,
     course,
     feed,
     ingest,
@@ -127,6 +128,7 @@ app.include_router(view.router)
 app.include_router(leaderboard.router)
 app.include_router(teacher.router)
 app.include_router(ai.router, dependencies=[Depends(section_required("ai"))])
+app.include_router(contests.router, dependencies=[Depends(section_required("contest"))])
 # Раздел для MCP проверяется внутри: ключ приходит заголовком, а не кукой,
 # и закрытому разделу нужен ответ JSON-RPC, а не страница ошибки.
 app.include_router(mcp_server.router)

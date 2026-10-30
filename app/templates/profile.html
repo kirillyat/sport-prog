@@ -62,7 +62,8 @@
     </div>
     {% endif %}
     {% if target.official_name and (user.is_teacher or is_self) %}
-    <p class="small muted" style="margin:0 0 6px">
+    {# Чужое имя из учётной записи вуза видит только преподаватель — пунктиром. #}
+    <p class="small muted {{ 'staff-box' if not is_self }}" style="margin:0 0 6px">
       {{ org_account() }}: <strong>{{ target.official_name }}</strong>
       {%- if is_self %} · {{ _("имя на портале можно менять как угодно — преподаватель всё равно видит это") }}{% endif %}
     </p>

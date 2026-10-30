@@ -12,7 +12,7 @@
     </p>
   </div>
   {% if teacher_view %}
-  <a class="btn ghost small" style="align-self:flex-end"
+  <a class="btn ghost small staff-only" style="align-self:flex-end"
      href="/teacher/export/leaderboard.csv?group_id={{ group_id }}&period={{ period }}">
     {{ icon("download") }} CSV
   </a>
@@ -122,7 +122,7 @@
   _("Табло считается по группе.") ~ " " ~ (_("Заведи группу и выдай ей задание.") if teacher_view
   else _("Вступи в группу по коду от преподавателя — тогда появится и табло.")),
   "/teacher/groups" if teacher_view else "/",
-  _("К группам") if teacher_view else _("На главную")) }}</div>
+  _("К группам") if teacher_view else _("На главную"), staff=teacher_view) }}</div>
 {% else %}
 <div class="card">{{ empty("trophy", _("Пока никого. Нужны назначенные задания и решённые задачи.")) }}</div>
 {% endif %}
