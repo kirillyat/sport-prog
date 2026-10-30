@@ -119,10 +119,15 @@ preparing judged problems, running an exam).
 
 ## Documentation
 
-The detailed documentation is in Russian: [README.md](README.md) for how the
-system works and why it is built this way, [DEPLOY.md](DEPLOY.md) for the
-deployment runbook. Both are worth reading before changing the scoring rules —
-they explain the decisions behind them.
+The detailed documentation is in Russian, also published as a
+[website](https://kirillyat.github.io/sport-prog/). [README.md](README.md) is the
+overview and the index; the pages in `docs/` explain how the system works and why
+it is built this way: [features](docs/features.md), [installation](docs/install.md),
+[configuration](docs/configuration.md), [sign-in and accounts](docs/login.md),
+[assignments and credit](docs/scoring.md), [portal sections](docs/sections.md),
+[internals](docs/internals.md). [DEPLOY.md](DEPLOY.md) is the deployment runbook,
+[EXAM.md](EXAM.md) is how to run an exam on your own problems. Read the page on
+credit before changing the scoring rules — it explains the decisions behind them.
 
 ## License
 

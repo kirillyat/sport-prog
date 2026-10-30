@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 
 import httpx
 from sqlalchemy import select
@@ -804,15 +805,24 @@ def _rail(page: str) -> tuple[str, str]:
 
 async def test_teacher_rail_shows_daily_work_and_hides_the_showcase(session, client):
     """Одиннадцать пунктов в столбик не помещались на экране ноутбука.
-    На виду — работа преподавателя, включая списки задач и судью, которые
-    раньше были только карточками на панели; витрина для студентов — под «Ещё»."""
+    На виду — работа преподавателя, включая списки задач, которые раньше
+    были только карточками на панели; витрина для студентов — под «Ещё»."""
     await _login(client, "Кирилл", teacher=True)
     shown, more = _rail((await client.get("/teacher")).text)
     for href in ("/teacher/groups", "/teacher/assignments", "/teacher/sets",
-                 "/teacher/reviews", "/teacher/integrations"):
+                 "/teacher/reviews"):
         assert f'href="{href}"' in shown, href
-    for href in ("/announcements", "/feed", "/leaderboard", "/teacher/features"):
+    for href in ("/announcements", "/feed", "/leaderboard", "/teacher/students"):
         assert f'href="{href}"' in more and f'href="{href}"' not in shown, href
+
+
+async def test_admin_mode_adds_settings_to_the_rail(session, client):
+    """Интеграции — на виду, видимость разделов — под «Ещё», рядом со студентами."""
+    await _login(client, "Кирилл", teacher=True)
+    await client.post("/view/admin")
+    shown, more = _rail((await client.get("/teacher")).text)
+    assert 'href="/teacher/integrations"' in shown
+    assert 'href="/teacher/features"' in more and 'href="/teacher/features"' not in shown
 
 
 async def test_tasks_item_stays_lit_across_its_tabs(session, client):
@@ -938,3 +948,26 @@ async def test_switch_returns_only_to_own_paths(session, client):
         "/view/student", data={"next": "//example.com/"}, follow_redirects=False
     )
     assert response.headers["location"] == "/"
+
+
+async def test_bug_report_mail_names_the_page_it_came_from(session, client, monkeypatch):
+    """«Не работает» без адреса страницы не найти — адрес уходит в тему письма."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "bug_report_email", "bugs@example.org")
+    await _login(client, "Аня")
+    page = (await client.get("/leaderboard")).text
+    assert 'href="mailto:bugs@example.org?subject=' in page
+    assert re.search(r"mailto:bugs@example.org\?subject=[^\"]*%3A%20/leaderboard\"", page)
+    assert 'href="https://github.com/kirillyat/sport-prog"' in page
+
+
+async def test_footer_has_no_bug_report_link_without_an_address(session, client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "bug_report_email", "")
+    monkeypatch.setattr(settings, "source_url", "")
+    await _login(client, "Аня")
+    page = (await client.get("/leaderboard")).text
+    assert "mailto:" not in page
+    assert 'class="site-foot"' not in page

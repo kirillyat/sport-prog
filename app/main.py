@@ -182,7 +182,11 @@ async def _forbidden(request: Request, exc: Forbidden):
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"user": exc.user, "message": exc.message or _("Недостаточно прав")},
+        {
+            "user": exc.user,
+            "message": exc.message or _("Недостаточно прав"),
+            "admin_next": exc.admin_next,
+        },
         status_code=403,
     )
 

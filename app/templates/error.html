@@ -4,6 +4,14 @@
   <div class="auth-logo">{{ icon("alert", "xl") }}</div>
   <h1>{{ title or _("Доступ закрыт") }}</h1>
   <p class="sub">{{ message }}</p>
-  <a class="btn ghost" href="/">{{ icon("chevron") }} {{ _("На главную") }}</a>
+  <div class="row">
+    {% if admin_next %}
+    <form method="post" action="/view/admin">
+      <input type="hidden" name="next" value="{{ admin_next }}">
+      <button type="submit">{{ icon("cpu") }} {{ _("Включить режим администратора") }}</button>
+    </form>
+    {% endif %}
+    <a class="btn ghost" href="/">{{ icon("chevron") }} {{ _("На главную") }}</a>
+  </div>
 </div>
 {% endblock %}

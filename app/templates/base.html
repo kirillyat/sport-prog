@@ -87,10 +87,11 @@
 {%- endmacro %}
 {#
   Рейка зависит от роли. У преподавателя в ней его работа на каждый день —
-  включая списки задач и судью, которые раньше жили только карточками на
-  панели. Разделы, сделанные для студентов, и редкие настройки — под «Ещё»:
-  одиннадцать пунктов в столбик на экране ноутбука не помещались, и подвал
-  с выходом уезжал за край.
+  включая списки задач, которые раньше жили только карточками на панели.
+  Разделы, сделанные для студентов, — под «Ещё»: одиннадцать пунктов
+  в столбик на экране ноутбука не помещались, и подвал с выходом уезжал
+  за край. Настройки портала (интеграции, видимость разделов) появляются
+  только в режиме администратора — см. require_admin.
 #}
 {#
   Меню под аватаркой: всё про самого человека, а не про портал. Одно на
@@ -110,6 +111,13 @@
       <button type="submit">{{ icon("shield" if as_student else "users") }}<span>{{
         _("Вид преподавателя") if as_student else _("Глазами студента") }}</span></button>
     </form>
+    {# Выключая режим, уходим на панель: админская страница, с которой
+       выключили, без режима сразу ответила бы отказом. #}
+    <form method="post" action="/view/{{ 'admin/off' if admin_view else 'admin' }}">
+      <input type="hidden" name="next" value="{{ '/teacher' if admin_view else path }}">
+      <button type="submit">{{ icon("cpu") }}<span>{{
+        _("Выключить режим администратора") if admin_view else _("Режим администратора") }}</span></button>
+    </form>
     {% endif %}
     {{ theme_pick("in-menu", _("Оформление")) }}
     {{ lang_switch(path, "in-menu", _("Язык")) }}
@@ -128,7 +136,9 @@
     {{ navlink("/teacher/sets", "code", _("Задачи"), also=("/teacher/tasks", "/teacher/problems")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
+    {% if admin_view %}
     {{ navlink("/teacher/integrations", "plug", _("Интеграции"), also=("/teacher/judge", "/teacher/llm")) }}
+    {% endif %}
     {% set for_students = [] %}
     {% if "materials" in sections_on %}{% set for_students = for_students + [("/materials", "book", _("Материалы"), False)] %}{% endif %}
     {% if course_available and "course" in sections_on %}{% set for_students = for_students + [("/course", "layers", _("Курс"), False)] %}{% endif %}
@@ -139,9 +149,8 @@
          ("/leaderboard", "trophy", _("Табло"), False)] %}
     {{ navmore([
          (_("Разделы"), for_students),
-         (_("Управление"), [
-           ("/teacher/students", "user", _("Студенты"), False),
-           ("/teacher/features", "shield", _("Видимость разделов"), False)])]) }}
+         (_("Управление"), [("/teacher/students", "user", _("Студенты"), False)]
+           + ([("/teacher/features", "shield", _("Видимость разделов"), False)] if admin_view else []))]) }}
   {% else %}
     {{ navlink("/", "tasks", _("Задания"), exact=True, also=("/assignments", "/tasks")) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки")) }}{% endif %}
@@ -249,6 +258,14 @@
     {% if error %}<div class="flash err">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% if settings.source_url or settings.bug_report_email %}
+  {# Подвал тихий: он нужен раз в семестр, когда что-то сломалось. Адрес
+     страницы уходит в тему письма — без него «не работает» не найти. #}
+  <footer class="site-foot">
+    {% if settings.source_url %}<a href="{{ settings.source_url }}" rel="noopener" title="{{ _("Исходный код") }}" aria-label="{{ _("Исходный код") }}">{{ icon("github") }}</a>{% endif %}
+    {% if settings.bug_report_email %}<a href="mailto:{{ settings.bug_report_email }}?subject={{ (_("Ошибка на портале") ~ ': ' ~ path)|urlencode }}" title="{{ _("Сообщить об ошибке") }}" aria-label="{{ _("Сообщить об ошибке") }}">{{ icon("bug") }}</a>{% endif %}
+  </footer>
+  {% endif %}
 </div>
 {# Переводы для скриптов — данными, чтобы не заводить инлайновый JS. #}
 <script type="application/json" id="js-strings">{{ js_strings()|tojson }}</script>

@@ -31,12 +31,17 @@ class RedirectToLogin(Exception):
 
 
 class Forbidden(Exception):
-    def __init__(self, message: str = "", user: User | None = None) -> None:
+    def __init__(
+        self, message: str = "", user: User | None = None, *, admin_next: str | None = None
+    ) -> None:
         # Пустое сообщение переводится на странице ошибки: язык известен
         # там, а не в момент, когда исключение поднялось.
         self.message = message
         # Пользователь известен — значит на странице ошибки можно оставить навигацию.
         self.user = user
+        # Отказ из-за выключенного режима администратора: страница ошибки
+        # предлагает включить его и вернуться сюда, а не искать переключатель.
+        self.admin_next = admin_next
 
 
 async def get_optional_user(request: Request, session: SessionDep) -> User | None:
@@ -67,6 +72,7 @@ async def require_teacher(request: Request, session: SessionDep) -> User:
 
 
 VIEW_COOKIE = "view_as"
+ADMIN_COOKIE = "admin_mode"
 
 
 def viewing_as_student(request: Request) -> bool:
@@ -78,10 +84,36 @@ def viewing_as_student(request: Request) -> bool:
     return request.cookies.get(VIEW_COOKIE) == "student"
 
 
+def admin_mode(request: Request) -> bool:
+    """Преподаватель включил себе режим администратора.
+
+    Это не права, а порядок на экране: любой преподаватель включает режим
+    сам, в меню под аватаркой. По умолчанию судья, ключи модели, видимость
+    разделов и выдача ролей убраны с глаз — каждый день они не нужны, а
+    случайная правка там бьёт по всем группам сразу.
+    """
+    return request.cookies.get(ADMIN_COOKIE) == "on"
+
+
+async def require_admin(request: Request, session: SessionDep) -> User:
+    user = await require_teacher(request, session)
+    if not admin_mode(request):
+        # Действия — POST, и возвращаться после включения режима некуда:
+        # такой адрес по GET не открывается. Тогда — на панель.
+        back = request.url.path if request.method == "GET" else "/teacher"
+        raise Forbidden(
+            _("Это настройки администратора. Включи режим администратора, чтобы их открыть"),
+            user,
+            admin_next=back,
+        )
+    return user
+
+
 AsStudent = Annotated[bool, Depends(viewing_as_student)]
 CurrentUser = Annotated[User, Depends(require_user)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 TeacherUser = Annotated[User, Depends(require_teacher)]
+AdminUser = Annotated[User, Depends(require_admin)]
 
 
 def section_required(key: str):

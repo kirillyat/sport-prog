@@ -1,7 +1,7 @@
 # Сайт документации на GitHub Pages.
 #
-# Страницы не пишутся отдельно: они собираются из тех же README, DEPLOY
-# и CONTRIBUTING, которые лежат в корне репозитория. Иначе документация
+# Страницы не пишутся отдельно: они собираются из тех же README, docs/,
+# DEPLOY, EXAM и CONTRIBUTING, что лежат в репозитории. Иначе документация
 # разъезжается — на сайте одно, в репозитории другое, и никто не знает,
 # чему верить. Раскладку делает шаг «Собрать страницы» в workflow.
 site_name: Портал тренировок по программированию
@@ -37,9 +37,17 @@ theme:
     - content.code.copy
     - toc.follow
 
+# Якоря тоже проверяются: подробности переехали из README в docs/, и ссылка
+# на исчезнувший раздел должна ронять сборку, а не вести в начало страницы.
+validation:
+  anchors: warn
+
 markdown_extensions:
   - admonition
   - attr_list
+  # Разметка внутри HTML: README центрирует шапку и ставит возможности
+  # в две колонки, а GitHub такую разметку понимает и без расширения.
+  - md_in_html
   - tables
   - toc:
       permalink: "#"
@@ -51,6 +59,13 @@ markdown_extensions:
 
 nav:
   - Портал: index.md
+  - Что умеет: docs/features.md
+  - Установка и выкатка: docs/install.md
+  - Настройка: docs/configuration.md
+  - Вход и аккаунты: docs/login.md
+  - Задания и зачёт: docs/scoring.md
+  - Разделы портала: docs/sections.md
+  - Устройство: docs/internals.md
   - Контрольная: exam.md
   - Развёртывание: deploy.md
   - Участие: contributing.md

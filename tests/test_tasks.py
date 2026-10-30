@@ -41,11 +41,14 @@ def _zip(**extra: str) -> bytes:
     return buffer.getvalue()
 
 
-async def _login(client, name, teacher=False):
+async def _login(client, name, teacher=False, admin=False):
     data = {"name": name}
     if teacher:
         data["teacher"] = "true"
     await client.post("/login/dev", data=data)
+    if admin:
+        # Судья — настройка портала: открывается в режиме администратора.
+        await client.post("/view/admin")
 
 
 @pytest.fixture
@@ -458,7 +461,7 @@ async def test_teacher_connects_the_judge_from_the_page(session, client, monkeyp
         return "1.13.0"
 
     monkeypatch.setattr(judge, "ping", fake_ping)
-    await _login(client, "Кирилл", teacher=True)
+    await _login(client, "Кирилл", teacher=True, admin=True)
 
     page = await client.post("/teacher/judge", data={"url": "http://10.0.0.7:2358"})
     assert "1.13.0" in page.text
@@ -474,7 +477,7 @@ async def test_unreachable_judge_keeps_the_address_and_says_so(session, client, 
         raise judge.JudgeUnavailable("судья недоступен: connect timeout")
 
     monkeypatch.setattr(judge, "ping", fake_ping)
-    await _login(client, "Кирилл", teacher=True)
+    await _login(client, "Кирилл", teacher=True, admin=True)
 
     page = await client.post("/teacher/judge", data={"url": "http://10.0.0.7:2358"})
     assert "не отвечает" in page.text
@@ -484,7 +487,7 @@ async def test_unreachable_judge_keeps_the_address_and_says_so(session, client, 
 async def test_reloading_a_judge_action_returns_to_the_section(client):
     """Обновление страницы посреди долгой проверки приходит GET-ом на адрес
     действия — это не повод показывать преподавателю голый 405."""
-    await _login(client, "Кирилл", teacher=True)
+    await _login(client, "Кирилл", teacher=True, admin=True)
 
     for action in ("/teacher/judge/check", "/teacher/judge/off", "/teacher/llm/check"):
         page = await client.get(action, follow_redirects=False)
@@ -570,7 +573,7 @@ async def test_a_judge_that_went_down_is_visible_without_a_separate_check(
 
 async def test_judge_is_configured_outside_the_tasks_page(session, client):
     """Задачи заводят заранее, судью подключают в день контрольной — это разные места."""
-    await _login(client, "Кирилл", teacher=True)
+    await _login(client, "Кирилл", teacher=True, admin=True)
 
     tasks_page = await client.get("/teacher/tasks")
     assert 'action="/teacher/judge"' not in tasks_page.text

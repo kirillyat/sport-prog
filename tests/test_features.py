@@ -22,6 +22,8 @@ async def _close(client, *, students: bool, teachers: bool):
     # Курс оставляем открытым, чтобы проверять именно материалы.
     data["course:students"] = "on"
     data["course:teachers"] = "on"
+    # Видимость разделов меняют в режиме администратора.
+    await client.post("/view/admin")
     return await client.post("/teacher/features", data=data)
 
 

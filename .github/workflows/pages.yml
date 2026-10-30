@@ -1,7 +1,7 @@
 # Публикация документации на GitHub Pages.
 #
-# Содержимое не дублируется: страницы собираются из README, DEPLOY
-# и CONTRIBUTING репозитория. Правка в README сразу становится правкой сайта.
+# Содержимое не дублируется: страницы собираются из README, docs/, DEPLOY,
+# EXAM и CONTRIBUTING репозитория. Правка в них сразу становится правкой сайта.
 name: Документация
 
 on:
@@ -35,21 +35,22 @@ jobs:
 
       - name: Собрать страницы из файлов репозитория
         run: |
-          mkdir -p site-src
+          # docs/ лежит на сайте там же, где в репозитории: тогда ссылки
+          # README → docs/… и docs/… → соседняя страница не нужно переписывать.
+          mkdir -p site-src/docs
           cp README.md site-src/index.md
+          cp docs/*.md site-src/docs/
           cp DEPLOY.md site-src/deploy.md
           cp EXAM.md site-src/exam.md
           cp CONTRIBUTING.md site-src/contributing.md
           cp README.en.md site-src/english.md
-          # Ссылки между файлами репозитория ведут на .md в корне —
-          # на сайте те же файлы лежат под другими именами.
-          sed -i 's|(DEPLOY\.md)|(deploy.md)|g; s|(EXAM\.md)|(exam.md)|g; s|(CONTRIBUTING\.md)|(contributing.md)|g; s|(README\.en\.md)|(english.md)|g' site-src/*.md
-          sed -i 's|(README\.md)|(index.md)|g' site-src/*.md
+          # Ссылки между файлами репозитория ведут на .md в корне (из docs/ —
+          # через ../), а на сайте те же файлы лежат под другими именами.
+          # Разделитель «#», потому что «|» занят перечислением.
+          sed -Ei 's#\]\((\.\./)?DEPLOY\.md#](\1deploy.md#g; s#\]\((\.\./)?EXAM\.md#](\1exam.md#g; s#\]\((\.\./)?CONTRIBUTING\.md#](\1contributing.md#g; s#\]\((\.\./)?README\.en\.md#](\1english.md#g; s#\]\((\.\./)?README\.md#](\1index.md#g' site-src/*.md site-src/docs/*.md
           # Ссылки на исходники на сайте вести некуда — отправляем их в репозиторий.
           blob="https://github.com/${GITHUB_REPOSITORY}/blob/main"
-          # Разделитель «#», потому что «|» занят перечислением каталогов.
-          sed -Ei "s#\]\((app|scripts|migrations|tests)/([^)]*)\)#](${blob}/\1/\2)#g" site-src/*.md
-          sed -i "s|](LICENSE)|](${blob}/LICENSE)|g" site-src/*.md
+          sed -Ei "s#\]\((\.\./)?((app|scripts|migrations|tests)/[^)]*|LICENSE|AGENTS\.md|\.env\.example|pyproject\.toml)\)#](${blob}/\2)#g" site-src/*.md site-src/docs/*.md
 
       - name: Построить сайт
         run: mkdocs build --strict

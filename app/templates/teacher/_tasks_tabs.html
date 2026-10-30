@@ -10,7 +10,11 @@
        ("tasks", "/teacher/tasks", _("Свои задачи")),
        ("catalog", "/teacher/problems", _("Каталог")),
        ("unlinked", "/teacher/problems/unlinked", _("Вне каталога"))] %}
+  {# «Вне каталога» — разбор посылок, которые не подвязались: работа
+     администратора, а не подготовка курса. #}
+  {% if key != "unlinked" or admin_view %}
   <a href="{{ href }}" class="{{ 'active' if key == current }}">{{ label }}</a>
+  {% endif %}
   {% endfor %}
 </nav>
 {%- endmacro %}

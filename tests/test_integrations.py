@@ -21,6 +21,9 @@ async def _login(client, name, teacher=False):
     if teacher:
         data["teacher"] = "true"
     await client.post("/login/dev", data=data)
+    if teacher:
+        # Интеграции — настройки портала, без режима администратора их не открыть.
+        await client.post("/view/admin")
 
 
 @pytest.fixture

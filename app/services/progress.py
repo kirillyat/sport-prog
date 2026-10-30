@@ -162,18 +162,23 @@ def _status(
     deadline: datetime | None,
     count_prior: bool,
 ) -> tuple[SolveStatus, datetime | None]:
+    if first_after is not None and (deadline is None or first_after <= deadline):
+        return SolveStatus.solved_in_time, first_after
+    # first_ever — самое раннее решение вообще; если оно не совпало с первым
+    # после выдачи, значит, задача была решена ещё до выдачи.
+    prior = first_ever is not None and first_ever != first_after
+    # Засчитанное решение до выдачи сильнее позднего: иначе повторный Submit
+    # после дедлайна снимал уже стоявший зачёт.
+    if prior and count_prior:
+        return SolveStatus.solved_in_time, first_ever
     if first_after is not None:
-        if deadline is None or first_after <= deadline:
-            return SolveStatus.solved_in_time, first_after
         # После дедлайна решение видно, но в зачёт не идёт — одинаково у всех
         # заданий. Отдельного «жёсткого» дедлайна больше нет: пока опоздание
         # засчитывалось наполовину, разница была, теперь её нет.
         return SolveStatus.solved_late, first_after
-    if first_ever is not None:
+    if prior:
         # Задача была решена ещё до выдачи задания. По умолчанию не засчитываем,
         # иначе баллы капают за работу прошлых лет.
-        if count_prior:
-            return SolveStatus.solved_in_time, first_ever
         return SolveStatus.solved_before, first_ever
     return SolveStatus.not_solved, None
 

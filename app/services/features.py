@@ -165,4 +165,9 @@ def features_context(request) -> dict:
         # «Преподаватель» для показа: он сам может попросить показать портал
         # глазами студента, и тогда преподавательских кнопок быть не должно.
         "teacher_view": nav.get("is_teacher", False) and not as_student,
+        # Настройки портала — только во включённом режиме администратора.
+        # Права проверяет require_admin, здесь — только что рисовать.
+        "admin_view": nav.get("is_teacher", False)
+        and not as_student
+        and request.cookies.get("admin_mode") == "on",
     }

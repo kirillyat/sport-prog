@@ -96,8 +96,10 @@
     <p class="small muted" style="margin:0">{{ _("Оценки, посещаемость и итоги — у каждой группы своя") }}</p></a>
   <a class="card" href="/teacher/students"><h3>{{ icon("user") }} {{ _("Студенты") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Роли и бонусы") }}</p></a>
+  {% if admin_view %}
   <a class="card" href="/teacher/features"><h3>{{ icon("shield") }} {{ _("Видимость разделов") }}</h3>
     <p class="small muted" style="margin:0">{{ _("Что показывать студентам, а что пока только преподавателям") }}</p></a>
+  {% endif %}
 </div>
 
 <h2>{{ icon("database") }} {{ _("Каталог задач") }}</h2>
@@ -110,16 +112,20 @@
     {{ _("Обновляется сам раз в %(hours)s ч.") % {"hours": settings.catalog_refresh_hours} }}
   </p>
   <div class="row">
+    {% if admin_view %}
     <form method="post" action="/teacher/catalog-refresh">
       <button class="ghost small" type="submit">{{ icon("database") }} {{ _("Обновить каталог") }}</button></form>
+    {% endif %}
     <form method="post" action="/teacher/sync-now">
       <button class="ghost small" type="submit">{{ icon("refresh") }} {{ _("Синхронизировать посылки") }}</button></form>
-    {% if settings.course_source_url %}
+    {% if admin_view and settings.course_source_url %}
     <form method="post" action="/teacher/course-refresh">
       <button class="ghost small" type="submit">{{ icon("book") }} {{ _("Обновить материалы курса") }}</button></form>
     {% endif %}
     <a class="btn ghost small" href="/teacher/problems">{{ icon("search") }} {{ _("Поиск по каталогу") }}</a>
+    {% if admin_view %}
     <a class="btn ghost small" href="/teacher/problems/unlinked">{{ icon("alert") }} {{ _("Задачи вне каталога") }}</a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -568,6 +568,7 @@ async def test_ai_section_can_be_hidden_from_students(session, client):
     form = {f"{key}:{who}": "on" for key in ("materials", "course", "grades")
             for who in ("students", "teachers")}
     form["ai:teachers"] = "on"
+    await client.post("/view/admin")
     await client.post("/teacher/features", data=form)
     await client.post("/logout")
 

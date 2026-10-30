@@ -118,6 +118,28 @@ async def test_prior_solves_counted_when_teacher_allows(session, world):
     assert progress.solved_count(world["student"].id) == 1
 
 
+async def test_late_resubmit_keeps_the_credit_for_a_counted_prior_solve(session, world):
+    """Решил до выдачи, зачёт дан; перепроверка после дедлайна его не снимает.
+
+    Студент открыл список раньше, чем преподаватель выдал задание, и решил.
+    Через неделю нажал Submit на LeetCode ещё раз, уже после срока, — и
+    задача ушла в «после дедлайна», хотя зачёт за неё уже стоял.
+    """
+    problem = world["problems"][0]
+    deadline = BASE + timedelta(days=7)
+    await _accept(session, world, problem, BASE - timedelta(hours=2), "early")
+    await _accept(session, world, problem, deadline + timedelta(hours=1), "recheck")
+    assignment = await _assignment(
+        session, world, assigned_at=BASE, deadline=deadline, count_prior=True
+    )
+
+    progress = await compute_progress(session, assignment, [world["student"]])
+    cell = progress.cell(world["student"].id, problem.id)
+    assert cell.status == SolveStatus.solved_in_time
+    assert cell.solved_at == BASE - timedelta(hours=2)
+    assert progress.solved_count(world["student"].id) == 1
+
+
 async def test_in_time_and_late(session, world):
     deadline = BASE + timedelta(days=7)
     await _accept(session, world, world["problems"][0], BASE + timedelta(days=1), "s1")

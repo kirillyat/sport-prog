@@ -34,12 +34,19 @@
           </span>
         </td>
         <td>
+          {# Роль меняют только в режиме администратора: кнопка стоит в каждой
+             строке, и случайный щелчок по ней открывал студенту панель жюри. #}
+          {% if admin_view %}
           <form method="post" action="/teacher/students/{{ student.id }}/role">
             <button class="ghost small" type="submit">
               {{ icon("shield") if student.is_teacher else icon("user") }}
               {{ _("преподаватель") if student.is_teacher else _("студент") }}
             </button>
           </form>
+          {% else %}
+          <span class="small">{{ icon("shield") if student.is_teacher else icon("user") }}
+            {{ _("преподаватель") if student.is_teacher else _("студент") }}</span>
+          {% endif %}
         </td>
         <td class="small">
           {% for account in student.accounts %}
@@ -68,7 +75,7 @@
 {% else %}
 <div class="card">
   {% if role == "teacher" %}
-    {{ empty("shield", _("Преподаватель пока один — ты. Роль выдаётся кнопкой в строке студента.")) }}
+    {{ empty("shield", _("Преподаватель пока один — ты. Роль выдаётся кнопкой в строке студента в режиме администратора.")) }}
   {% else %}
     {{ empty("user", _("Пока никто не зарегистрировался."), "/teacher/groups", _("Создать группу")) }}
   {% endif %}

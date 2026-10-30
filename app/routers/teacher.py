@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.deps import OptionalInt, SessionDep, TeacherUser
+from app.deps import AdminUser, OptionalInt, SessionDep, TeacherUser
 from app.i18n import translate as _
 from app.models import (
     Announcement,
@@ -250,7 +250,7 @@ INTEGRATIONS = "/teacher/integrations"
 
 
 @router.get("/integrations")
-async def integrations_page(request: Request, session: SessionDep, user: TeacherUser):
+async def integrations_page(request: Request, session: SessionDep, user: AdminUser):
     """Внешние сервисы портала: судья, языки программирования, языковая модель.
 
     Отдельный раздел, а не часть страницы задач: задачи заводят заранее и
@@ -277,14 +277,14 @@ async def integrations_page(request: Request, session: SessionDep, user: Teacher
 
 
 @router.get("/judge")
-async def judge_page_moved(user: TeacherUser):
+async def judge_page_moved(user: AdminUser):
     """Старый адрес раздела: он в закладках и в инструкциях к контрольной."""
     return _redirect(INTEGRATIONS)
 
 
 @router.post("/judge")
 async def judge_connect(
-    session: SessionDep, user: TeacherUser, url: str = Form(""), token: str = Form("")
+    session: SessionDep, user: AdminUser, url: str = Form(""), token: str = Form("")
 ):
     """Подключить тестирующую систему. Адрес пишем в базу — судью поднимают
     перед контрольной и гасят после, портал ради этого не перезапускают.
@@ -311,7 +311,7 @@ async def judge_connect(
 
 
 @router.post("/judge/check")
-async def judge_check(session: SessionDep, user: TeacherUser):
+async def judge_check(session: SessionDep, user: AdminUser):
     config, health = await judge.check(session)
     if not config.ready:
         return _redirect(INTEGRATIONS, error=_("Судья не подключён"))
@@ -326,14 +326,14 @@ async def judge_check(session: SessionDep, user: TeacherUser):
 
 
 @router.post("/judge/off")
-async def judge_off(session: SessionDep, user: TeacherUser):
+async def judge_off(session: SessionDep, user: AdminUser):
     """Отключить судью: решения снова принимаются как код, без вердикта."""
     await judge.disconnect(session)
     return _redirect(INTEGRATIONS, message=_("Судья отключён"))
 
 
 @router.post("/judge/languages")
-async def judge_languages(request: Request, session: SessionDep, user: TeacherUser):
+async def judge_languages(request: Request, session: SessionDep, user: AdminUser):
     """Какие языки судьи разрешены студентам.
 
     Имена берём у судьи, а не из формы: в посылку пишется имя языка, и
@@ -361,7 +361,7 @@ async def judge_languages(request: Request, session: SessionDep, user: TeacherUs
 
 
 @router.post("/judge/languages/refresh")
-async def judge_languages_refresh(session: SessionDep, user: TeacherUser):
+async def judge_languages_refresh(session: SessionDep, user: AdminUser):
     try:
         offered = await languages.refresh_offered(session, await judge.config(session))
     except judge.JudgeUnavailable as exc:
@@ -374,7 +374,7 @@ async def judge_languages_refresh(session: SessionDep, user: TeacherUser):
 @router.post("/llm")
 async def llm_connect(
     session: SessionDep,
-    user: TeacherUser,
+    user: AdminUser,
     url: str = Form(""),
     model: str = Form(""),
     token: str = Form(""),
@@ -392,7 +392,7 @@ async def llm_connect(
 
 
 @router.post("/llm/check")
-async def llm_check(session: SessionDep, user: TeacherUser):
+async def llm_check(session: SessionDep, user: AdminUser):
     config, health = await llm.check(session)
     if not config.url:
         return _redirect(INTEGRATIONS, error=_("Модель не подключена"))
@@ -404,7 +404,7 @@ async def llm_check(session: SessionDep, user: TeacherUser):
 
 
 @router.post("/llm/off")
-async def llm_off(session: SessionDep, user: TeacherUser):
+async def llm_off(session: SessionDep, user: AdminUser):
     await llm.disconnect(session)
     return _redirect(INTEGRATIONS, message=_("Модель отключена"))
 
@@ -416,7 +416,7 @@ async def llm_off(session: SessionDep, user: TeacherUser):
 @router.get("/llm")
 @router.get("/llm/check")
 @router.get("/llm/off")
-async def integration_action_reloaded(user: TeacherUser):
+async def integration_action_reloaded(user: AdminUser):
     """Пока POST ждёт ответа, в адресной строке уже стоит адрес действия, и
     обновление страницы приходит сюда GET-ом. Вместо голого 405 возвращаем
     в раздел: действие повторять не нужно, состояние и так видно там."""
@@ -424,7 +424,7 @@ async def integration_action_reloaded(user: TeacherUser):
 
 
 @router.post("/course-refresh")
-async def course_refresh(session: SessionDep, user: TeacherUser):
+async def course_refresh(session: SessionDep, user: AdminUser):
     """Забрать материалы курса прямо сейчас, не дожидаясь планировщика."""
     from app.scheduler import COURSE_KEY
     from app.services import course
@@ -451,7 +451,7 @@ async def sync_now(session: SessionDep, user: TeacherUser):
 
 
 @router.post("/catalog-refresh")
-async def catalog_refresh(session: SessionDep, user: TeacherUser):
+async def catalog_refresh(session: SessionDep, user: AdminUser):
     counts = await sync_catalog(session)
     fixed = await relink_orphan_submissions(session)
     total = sum(counts.values())
@@ -719,7 +719,7 @@ async def reviews_page(request: Request, session: SessionDep, user: TeacherUser)
 
 
 @router.get("/features")
-async def features_page(request: Request, session: SessionDep, user: TeacherUser):
+async def features_page(request: Request, session: SessionDep, user: AdminUser):
     flags = await features.load(session)
     rows = [
         {
@@ -742,7 +742,7 @@ async def features_page(request: Request, session: SessionDep, user: TeacherUser
 
 
 @router.post("/features")
-async def save_features(request: Request, session: SessionDep, user: TeacherUser):
+async def save_features(request: Request, session: SessionDep, user: AdminUser):
     """Галочки приходят только для включённых — остальное считаем выключенным."""
     form = await request.form()
     for section in features.SECTIONS:
@@ -1416,7 +1416,7 @@ async def grant_bonus(
 
 
 @router.post("/students/{user_id}/role")
-async def toggle_role(session: SessionDep, user: TeacherUser, user_id: int):
+async def toggle_role(session: SessionDep, user: AdminUser, user_id: int):
     target = await session.get(User, user_id)
     if target is None:
         return _redirect("/teacher/students", error=_("Студент не найден"))
@@ -1428,7 +1428,7 @@ async def toggle_role(session: SessionDep, user: TeacherUser, user_id: int):
 
 
 @router.get("/problems/unlinked")
-async def unlinked_submissions(request: Request, session: SessionDep, user: TeacherUser):
+async def unlinked_submissions(request: Request, session: SessionDep, user: AdminUser):
     """Посылки по задачам, которых нет в каталоге — обычно свежие контесты."""
     rows = list(
         (

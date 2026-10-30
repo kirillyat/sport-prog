@@ -28,8 +28,10 @@ PAGES = [
     "/", "/materials", "/course", "/announcements", "/feed", "/leaderboard", "/accounts", "/me",
     "/teacher", "/teacher/groups", "/teacher/sets", "/teacher/assignments",
     "/teacher/students", "/teacher/announcements", "/teacher/problems", "/teacher/reviews",
-    "/teacher/problems/unlinked",
 ]
+
+# Настройки портала: открываются только в режиме администратора.
+ADMIN_PAGES = ["/teacher/integrations", "/teacher/features", "/teacher/problems/unlinked"]
 
 
 class GetForms(HTMLParser):
@@ -88,6 +90,13 @@ async def world(session, client):
 
 @pytest.mark.parametrize("path", PAGES)
 async def test_page_opens(client, world, path):
+    response = await client.get(path)
+    assert response.status_code == 200, f"{path} → {response.status_code}"
+
+
+@pytest.mark.parametrize("path", ADMIN_PAGES)
+async def test_admin_page_opens_in_admin_mode(client, world, path):
+    await client.post("/view/admin")
     response = await client.get(path)
     assert response.status_code == 200, f"{path} → {response.status_code}"
 
