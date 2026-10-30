@@ -708,3 +708,171 @@ async def test_what_people_copy_has_a_copy_button(session, client):
     page = (await client.get("/ai")).text
     assert page.count("data-copy") >= 2          # адрес и настройки клиентов
     assert "/static/copy.js" in page
+
+
+# ---------------------------------------------------------------- сроки, проверка, студенты
+
+
+async def _late_solver(session, group_title, problem, *, deadline):
+    """Задание группы, которое студент решил после срока."""
+    student = await _user(session, f"Студент {group_title}")
+    group = await _group_with(session, group_title, student)
+    assignment = await _assignment(session, group, problem, deadline=deadline)
+    session.add(
+        Submission(user_id=student.id, platform=Platform.leetcode,
+                   external_id=f"late-{group_title}", problem_id=problem.id,
+                   verdict="Accepted", is_accepted=True,
+                   submitted_at=deadline + timedelta(hours=6))
+    )
+    await session.commit()
+    return assignment
+
+
+async def test_deadline_preview_shows_gained_credits_and_writes_nothing(session, client):
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    problem = await _problem(session, "two-sum")
+    old = utcnow() - timedelta(hours=12)
+    first = await _late_solver(session, "ПМИ-1", problem, deadline=old)
+    second = await _late_solver(session, "ПМИ-2", problem, deadline=old)
+    ids = [first.id, second.id]
+    key = await _key(session, teacher, can_write=True)
+    new = (utcnow() + timedelta(days=2)).isoformat()
+
+    preview = await _call(client, key, "extend_deadline",
+                          assignment_ids=ids, deadline=new, dry_run=True)
+    assert [(a["credits_before"], a["credits_after"]) for a in preview["assignments"]] == [
+        (0, 1), (0, 1)
+    ]
+    for assignment_id in ids:
+        stored = await session.get(Assignment, assignment_id)
+        await session.refresh(stored)
+        assert stored.deadline < utcnow()
+
+    await _call(client, key, "extend_deadline", assignment_ids=ids, deadline=new)
+    for assignment_id in ids:
+        stored = await session.get(Assignment, assignment_id)
+        await session.refresh(stored)
+        assert stored.deadline > utcnow()
+
+
+async def test_deadline_moves_for_all_assignments_or_for_none(session, client):
+    """Половина продлённых заданий хуже ни одного: не вспомнить, какие сдвинуты."""
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    problem = await _problem(session, "two-sum")
+    soon = utcnow() + timedelta(days=1)
+    later = await _late_solver(session, "ПМИ-1", problem, deadline=soon + timedelta(days=5))
+    earlier = await _late_solver(session, "ПМИ-2", problem, deadline=soon - timedelta(days=1))
+    ids = [later.id, earlier.id]
+    key = await _key(session, teacher, can_write=True)
+
+    refused = await _call(client, key, "extend_deadline",
+                          assignment_ids=ids, deadline=soon.isoformat())
+    assert "Ничего не изменено" in refused["error"]
+    assert f"задание {ids[0]}" in refused["error"]     # раньше прежнего — назад нельзя
+    # Второе задание само по себе продлевалось бы — но не продлено.
+    untouched = await session.get(Assignment, ids[1])
+    await session.refresh(untouched)
+    assert untouched.deadline < soon
+
+
+async def test_deadline_is_moved_or_removed_only_when_said_explicitly(session, client):
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    key = await _key(session, teacher, can_write=True)
+    refused = await _call(client, key, "extend_deadline", assignment_ids=[1])
+    assert "remove_deadline" in refused["error"]
+
+
+async def test_edit_assignment_keeps_what_was_not_passed(session, client):
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    problem = await _problem(session, "two-sum")
+    assignment = await _assignment(session, await _group_with(session, "ПМИ-1"), problem,
+                                   description="Бинпоиск")
+    assignment_id = assignment.id
+    key = await _key(session, teacher, can_write=True)
+
+    edited = await _call(client, key, "edit_assignment",
+                         assignment_id=assignment_id, title="ДЗ 3")
+    assert (edited["title"], edited["description"]) == ("ДЗ 3", "Бинпоиск")
+    refused = await _call(client, key, "edit_assignment", assignment_id=assignment_id, title=" ")
+    assert "Пустое название" in refused["error"]
+
+
+async def test_rejected_code_needs_a_reason_and_removes_the_credit(session, client):
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    anya = await _user(session, "Аня")
+    problem = await _problem(session, "two-sum")
+    assignment = await _assignment(session, await _group_with(session, "ПМИ-1", anya), problem,
+                                   requires_solution=True)
+    session.add_all([
+        SolutionUpload(assignment_id=assignment.id, problem_id=problem.id, user_id=anya.id,
+                       code="print('copied')"),
+        Submission(user_id=anya.id, platform=Platform.leetcode, external_id="a1",
+                   problem_id=problem.id, verdict="Accepted", is_accepted=True,
+                   submitted_at=utcnow()),
+    ])
+    await session.commit()
+    assignment_id, anya_id = assignment.id, anya.id
+    key = await _key(session, teacher, can_write=True)
+
+    waiting = await _call(client, key, "list_pending_reviews")
+    assert [(p["student_id"], p["code"]) for p in waiting["pending"]] == [
+        (anya_id, "print('copied')")
+    ]
+
+    refused = await _call(client, key, "review_solution", assignment_id=assignment_id,
+                          problem="two-sum", student_id=anya_id, decision="reject")
+    assert "без объяснения" in refused["error"]
+
+    reviewed = await _call(client, key, "review_solution", assignment_id=assignment_id,
+                           problem="two-sum", student_id=anya_id, decision="reject",
+                           comment="Совпадает с решением соседа")
+    assert reviewed["status"] == "rejected"
+    matrix = await _call(client, key, "get_assignment_progress", assignment_id=assignment_id)
+    assert matrix["students"][0]["solved"] == 0
+    assert (await _call(client, key, "list_pending_reviews"))["pending"] == []
+
+
+async def test_announcement_is_not_sent_to_everyone_by_accident(session, client):
+    from app.models import Announcement
+
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    group = await _group_with(session, "ПМИ-1")
+    group_id = group.id
+    key = await _key(session, teacher, can_write=True)
+
+    refused = await _call(client, key, "create_announcement", title="Контест в субботу")
+    assert "кому" in refused["error"].lower()
+    assert await session.scalar(select(Announcement)) is None
+
+    created = await _call(client, key, "create_announcement", title="Контест в субботу",
+                          group_id=group_id, url="https://codeforces.com/contests")
+    assert created["for"] == "ПМИ-1"
+
+
+async def test_student_is_found_by_name_in_any_case(session, client):
+    """SQLite сравнивает без регистра только латиницу — а фамилии кириллицей."""
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    petrov = await _user(session, "vasya")
+    petrov.official_name = "Петров Василий"
+    await session.commit()
+    await _group_with(session, "ПМИ-1", petrov)
+    key = await _key(session, teacher)
+
+    found = await _call(client, key, "find_students", query="петров")
+    assert [(s["name"], s["groups"]) for s in found["students"]] == [("vasya", ["ПМИ-1"])]
+
+
+async def test_student_overview_counts_like_the_matrix(session, client):
+    teacher = await _user(session, "Кирилл", Role.teacher)
+    problem = await _problem(session, "two-sum")
+    assignment = await _late_solver(session, "ПМИ-1", problem,
+                                    deadline=utcnow() - timedelta(hours=12))
+    student = await session.scalar(select(User).where(User.display_name == "Студент ПМИ-1"))
+    student_id, assignment_id = student.id, assignment.id
+    key = await _key(session, teacher)
+
+    overview = await _call(client, key, "get_student", student_id=student_id)
+    assert overview["groups"] == [{"id": assignment.group_id, "title": "ПМИ-1"}]
+    # Решено после срока: в матрице не засчитано — и здесь тоже.
+    row = next(a for a in overview["assignments"] if a["id"] == assignment_id)
+    assert (row["solved"], row["total"]) == (0, 1)

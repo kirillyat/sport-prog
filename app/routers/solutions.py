@@ -218,12 +218,11 @@ async def review_solution(
     from app.models import ReviewStatus
 
     status = ReviewStatus.accepted if decision == "accept" else ReviewStatus.rejected
-    if status == ReviewStatus.rejected and not comment.strip():
-        return RedirectResponse(
-            f"/solutions/{upload_id}?err=" + quote(_("Отклонять без объяснения нельзя")),
-            status_code=303,
-        )
-    await solutions.review(session, upload, status=status, comment=comment, reviewer_id=user.id)
+    error = await solutions.review(
+        session, upload, status=status, comment=comment, reviewer_id=user.id
+    )
+    if error:
+        return RedirectResponse(f"/solutions/{upload_id}?err=" + quote(error), status_code=303)
     message = _("Решение принято") if status == ReviewStatus.accepted else _("Решение отклонено")
 
     # Дальше — следующее в очереди: проверяют подряд, а не по одному

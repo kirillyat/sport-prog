@@ -89,3 +89,20 @@ async def issue(
         if assignment.announced:
             delivered += await notify.notify_assignment(assignment, int(problems or 0), session)
     return created, delivered
+
+
+async def edit(
+    session: AsyncSession, assignment: Assignment, *, title: str, description: str
+) -> None:
+    """Правится только то, что не меняет подсчёт: название и описание.
+
+    Список задач, адресат и баллы задаются при создании — иначе рейтинг
+    задним числом менялся бы у всех участников. Срок двигается отдельно
+    и только вперёд (`deadlines.extend_deadline`).
+    """
+    title = title.strip()
+    if not title:
+        raise AssignmentError(_("Пустое название"))
+    assignment.title = title
+    assignment.description = description.strip() or None
+    await session.commit()

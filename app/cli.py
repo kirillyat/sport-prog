@@ -123,24 +123,15 @@ async def list_assignments() -> None:
                   f"  выдано {fmt_dt(item.assigned_at)}  · дедлайн {deadline}")
 
 
-async def _credits(session, assignment) -> int:
-    from app.services.progress import compute_progress
-
-    progress = await compute_progress(session, assignment)
-    return sum(progress.solved_count(user.id) for user in progress.participants)
-
-
 async def extend_deadlines(raw_deadline: str, ids: list[int], apply: bool) -> int:
     """Тот же перенос, что кнопкой на странице задания, но сразу для многих.
 
     Сначала всё проверяется и считается, и только если ни одно задание не
-    отказало — пишется одной транзакцией. Половина продлённых заданий хуже,
-    чем ни одного: потом не вспомнить, какие уже сдвинуты.
+    отказало — пишется одной транзакцией (`deadlines.extend_many`).
     """
     from datetime import datetime
 
-    from app.models import Assignment
-    from app.services.deadlines import extend_deadline
+    from app.services.deadlines import extend_many
     from app.templating import fmt_dt, parse_local_input
 
     new_deadline = parse_local_input(raw_deadline)
@@ -149,23 +140,24 @@ async def extend_deadlines(raw_deadline: str, ids: list[int], apply: bool) -> in
         return 1
 
     async with SessionLocal() as session:
+        shifts = await extend_many(session, ids, new_deadline)
         failed = False
-        for assignment_id in ids:
-            assignment = await session.get(Assignment, assignment_id)
+        for shift in shifts:
+            assignment = shift.assignment
             if assignment is None:
-                print(f"{assignment_id:>5}  задания нет")
+                print(f"{shift.assignment_id:>5}  задания нет")
                 failed = True
                 continue
-            before = await _credits(session, assignment)
-            old = fmt_dt(assignment.deadline) if assignment.deadline else "без дедлайна"
-            error = extend_deadline(assignment, new_deadline)
-            if error:
-                print(f"{assignment_id:>5}  {assignment.title} [{_target(assignment)}]: {error}")
+            if shift.error:
+                print(f"{assignment.id:>5}  {assignment.title} [{_target(assignment)}]: "
+                      f"{shift.error}")
                 failed = True
                 continue
-            after = await _credits(session, assignment)
-            print(f"{assignment_id:>5}  {assignment.title} [{_target(assignment)}]: "
-                  f"{old} → {fmt_dt(new_deadline)}, зачётов {before} → {after} (+{after - before})")
+            old = fmt_dt(shift.old_deadline) if shift.old_deadline else "без дедлайна"
+            gained = shift.credits_after - shift.credits_before
+            print(f"{assignment.id:>5}  {assignment.title} [{_target(assignment)}]: "
+                  f"{old} → {fmt_dt(new_deadline)}, "
+                  f"зачётов {shift.credits_before} → {shift.credits_after} (+{gained})")
 
         if failed:
             await session.rollback()

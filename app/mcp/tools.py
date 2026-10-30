@@ -25,14 +25,18 @@ from app.i18n import mark as N_
 from app.mcp.registry import STUDENT, STUDENT_ONLY, TEACHER, Context, ToolError, tool
 from app.models import (
     Assignment,
+    BonusPoint,
     Group,
     GroupMembership,
     Platform,
+    PlatformAccount,
     Problem,
     ProblemSet,
     ProblemSetItem,
+    ReviewStatus,
     SheetKind,
     SheetScale,
+    SolutionUpload,
     Task,
     TaskTest,
     User,
@@ -40,8 +44,9 @@ from app.models import (
 )
 from app.notify import portal_url
 from app.routers.announcements import list_visible
+from app.services import announcements as announcements_service
 from app.services import assignments as assignments_service
-from app.services import messages, problem_sets, sheet, similarity, solutions
+from app.services import deadlines, messages, problem_sets, sheet, similarity, solutions
 from app.services import tasks as tasks_service
 from app.services.problem_parser import parse_problem_list, search_problems
 from app.services.progress import (
@@ -1169,9 +1174,9 @@ async def create_assignment(ctx: Context, args: CreateAssignmentParams) -> dict:
     уходит сообщение. Отменить рассылку нельзя.
 
     Перед вызовом покажи человеку название, список, группы, начало и дедлайн
-    и дождись явного «да». После выдачи меняются только название, описание и
-    дедлайн (вперёд) — на сайте; задачи — remove_problems_from_set и
-    add_problems_to_set.
+    и дождись явного «да». После выдачи меняются только название и описание
+    (edit_assignment), дедлайн — вперёд (extend_deadline), задачи —
+    remove_problems_from_set и add_problems_to_set.
 
     Начало в будущем: до него студенты не видят задание нигде (ни на портале,
     ни через MCP), а сообщение в Telegram уходит в момент начала —
@@ -1200,6 +1205,457 @@ async def create_assignment(ctx: Context, args: CreateAssignmentParams) -> dict:
     return {
         "assignments": await _describe(ctx, created, teacher=True),
         "telegram_messages": delivered,
+    }
+
+
+class ExtendDeadlineParams(Params):
+    assignment_ids: list[int] = Field(
+        min_length=1,
+        max_length=50,
+        description="Номера заданий из list_assignments. Контрольная на несколько групп — "
+        "это несколько заданий, по одному на группу.",
+    )
+    deadline: datetime | None = Field(
+        None, description="Новый дедлайн, ISO 8601. Без пояса — местное время портала."
+    )
+    remove_deadline: bool = Field(
+        False, description="Снять дедлайн совсем вместо переноса. Нужно сказать явно."
+    )
+    dry_run: bool = Field(
+        False,
+        description="Только посчитать, что изменится, и ничего не записывать.",
+    )
+
+
+@tool(
+    "extend_deadline",
+    title=N_("Перенести дедлайн"),
+    hint=N_("только вперёд; зачёт пересчитывается сразу"),
+    roles=TEACHER,
+    writes=True,
+)
+async def extend_deadline(ctx: Context, args: ExtendDeadlineParams) -> dict:
+    """Переносит дедлайн заданий вперёд или снимает его — как форма «Дедлайн»
+    на странице задания, но сразу для нескольких.
+
+    Только вперёд: ранний срок задним числом снял бы зачёт с тех, кто решил
+    честно. Заданию без дедлайна срок не ставится. Всё или ничего: если хоть
+    одно задание отказало, не меняется ни одно — причина придёт в ошибке.
+
+    Зачёт считается из посылок и дедлайна, поэтому решённое между старым и
+    новым сроком сразу станет «в срок» на табло, в матрице и в CSV:
+    `credits_before` → `credits_after` — сколько зачётов было и станет у
+    студентов. Бот напомнит о новом сроке заново; отдельного сообщения
+    в Telegram не уходит — хочешь сказать группе, post_assignment_message.
+
+    Порядок: вызови с dry_run=true, покажи человеку задания, старый и новый
+    срок и прирост зачётов, дождись явного «да» — и вызови без dry_run.
+    """
+    if (args.deadline is None) == (not args.remove_deadline):
+        raise ToolError("Передай либо deadline (новый срок), либо remove_deadline=true.")
+    new_deadline = None if args.remove_deadline else _moment(args.deadline)
+    shifts = await deadlines.extend_many(ctx.session, args.assignment_ids, new_deadline)
+
+    failed = [shift for shift in shifts if shift.error]
+    if failed:
+        lines = [
+            f"задание {shift.assignment_id}"
+            + (f" «{shift.assignment.title}»" if shift.assignment else "")
+            + f": {shift.error}"
+            for shift in failed
+        ]
+        raise ToolError("Ничего не изменено. " + "; ".join(lines))
+
+    # Описание собираем до записи: после commit поля заданий сброшены,
+    # а подгружать их заново в асинхронной сессии нельзя.
+    groups = await _group_titles(ctx, (shift.assignment.group_id for shift in shifts))
+    out = {
+        "dry_run": args.dry_run,
+        "new_deadline": _when(new_deadline),
+        "assignments": [
+            {
+                "id": shift.assignment_id,
+                "title": shift.assignment.title,
+                "for": _target(shift.assignment.group_id, shift.assignment.user_id, groups),
+                "old_deadline": _when(shift.old_deadline),
+                "new_deadline": _when(new_deadline),
+                "credits_before": shift.credits_before,
+                "credits_after": shift.credits_after,
+                "url": portal_url(f"/teacher/assignments/{shift.assignment_id}"),
+            }
+            for shift in shifts
+        ],
+    }
+    if args.dry_run:
+        await ctx.session.rollback()
+    else:
+        await ctx.session.commit()
+    return out
+
+
+class EditAssignmentParams(Params):
+    assignment_id: int
+    title: str | None = Field(None, max_length=200, description="Новое название. Пусто — прежнее.")
+    description: str | None = Field(
+        None, max_length=2000, description="Новое описание. Пустая строка — убрать описание."
+    )
+
+
+@tool(
+    "edit_assignment",
+    title=N_("Переименовать задание"),
+    hint=N_("название и описание; задачи и кому — нет"),
+    roles=TEACHER,
+    writes=True,
+)
+async def edit_assignment(ctx: Context, args: EditAssignmentParams) -> dict:
+    """Меняет название и описание выданного задания — как форма на его странице.
+
+    Больше после выдачи ничего не правится: кому выдано и правила зачёта
+    задаются при создании. Срок — extend_deadline, задачи —
+    add_problems_to_set и remove_problems_from_set.
+    """
+    if args.title is None and args.description is None:
+        raise ToolError("Нечего менять: передай title или description.")
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    try:
+        await assignments_service.edit(
+            ctx.session,
+            assignment,
+            title=assignment.title if args.title is None else args.title,
+            description=(
+                (assignment.description or "") if args.description is None else args.description
+            ),
+        )
+    except assignments_service.AssignmentError as exc:
+        raise ToolError(str(exc)) from exc
+    await ctx.session.refresh(assignment)
+    return (await _describe(ctx, [assignment], teacher=True))[0]
+
+
+# ---------------------------------------------------------------- преподавателю: проверка кода
+
+
+class PendingReviewsParams(Params):
+    assignment_id: int | None = Field(None, description="Только это задание.")
+
+
+@tool(
+    "list_pending_reviews",
+    title=N_("Очередь проверки"),
+    hint=N_("присланный код, который ждёт проверки"),
+    roles=TEACHER,
+)
+async def list_pending_reviews(ctx: Context, args: PendingReviewsParams) -> dict:
+    """Код, который студенты прислали к задачам с площадок и который ждёт
+    проверки, — то же, что страница «Проверка». Сначала присланное раньше.
+
+    Принять или отклонить — review_solution с теми же assignment_id,
+    problem и student_id. Если ответ обрезан (`truncated`), сужай выборку
+    параметром assignment_id.
+    """
+    waiting = await solutions.pending(ctx.session, limit=200)
+    if args.assignment_id is not None:
+        waiting = [upload for upload in waiting if upload.assignment_id == args.assignment_id]
+    users = {
+        user.id: user
+        for user in (
+            await ctx.session.execute(
+                select(User).where(User.id.in_({upload.user_id for upload in waiting}))
+            )
+        ).scalars()
+    }
+    problems = {
+        problem.id: problem
+        for problem in (
+            await ctx.session.execute(
+                select(Problem).where(Problem.id.in_({upload.problem_id for upload in waiting}))
+            )
+        ).scalars()
+    }
+    titles = dict(
+        (
+            await ctx.session.execute(
+                select(Assignment.id, Assignment.title).where(
+                    Assignment.id.in_({upload.assignment_id for upload in waiting})
+                )
+            )
+        ).all()
+    )
+    budget = MAX_CODE_CHARS
+    truncated = False
+    out = []
+    for upload in waiting:
+        student = users[upload.user_id]
+        entry = {
+            "assignment_id": upload.assignment_id,
+            "assignment": titles.get(upload.assignment_id),
+            "problem": _ref(problems[upload.problem_id]),
+            "problem_title": problems[upload.problem_id].title,
+            "student_id": student.id,
+            "student": student.display_name,
+            "official_name": student.official_name,
+            "submitted_at": _when(upload.submitted_at),
+            "url": portal_url(f"/solutions/{upload.id}"),
+        }
+        if len(upload.code) <= budget:
+            entry["code"] = upload.code
+            budget -= len(upload.code)
+        else:
+            entry["code"] = None
+            truncated = True
+        out.append(entry)
+    return {"pending": out, "truncated": truncated}
+
+
+class ReviewParams(Params):
+    assignment_id: int
+    problem: str = Field(description="Задача задания: ссылка, слаг, cf:4A или task:слаг.")
+    student_id: int
+    decision: Literal["accept", "reject"]
+    comment: str = Field(
+        "",
+        max_length=500,
+        description="Что не так и что исправить. Студент его увидит. Для reject обязателен.",
+    )
+
+
+@tool(
+    "review_solution",
+    title=N_("Принять или отклонить код"),
+    hint=N_("отклонённый код снимает зачёт по задаче"),
+    roles=TEACHER,
+    writes=True,
+)
+async def review_solution(ctx: Context, args: ReviewParams) -> dict:
+    """Принимает или отклоняет код, присланный студентом к задаче, — как
+    кнопки на странице решения. Проверяется только присланный код (`source`
+    = upload в get_assignment_solutions), посылки с площадок не проверяются.
+
+    Отклонение снимает зачёт по задаче, пока студент не пришлёт код заново;
+    без комментария отклонить нельзя — студент должен понять, что исправить.
+    Перед отклонением покажи человеку студента, задачу и комментарий и
+    дождись явного «да»: подозрение на списывание — повод посмотреть, а не
+    приговор.
+    """
+    assignment = await _assignment_for(ctx, args.assignment_id)
+    problem = await _resolve(ctx, args.problem)
+    upload = await ctx.session.scalar(
+        select(SolutionUpload).where(
+            SolutionUpload.assignment_id == assignment.id,
+            SolutionUpload.problem_id == problem.id,
+            SolutionUpload.user_id == args.student_id,
+        )
+    )
+    if upload is None:
+        raise ToolError(
+            "Студент не присылал код к этой задаче в этом задании — проверять нечего. "
+            "Проверяется только присланный код (source = upload)."
+        )
+    status = ReviewStatus.accepted if args.decision == "accept" else ReviewStatus.rejected
+    error = await solutions.review(
+        ctx.session, upload, status=status, comment=args.comment, reviewer_id=ctx.user.id
+    )
+    if error:
+        raise ToolError(error)
+    await ctx.session.refresh(upload)
+    return {
+        "assignment_id": upload.assignment_id,
+        "problem": _ref(problem),
+        "student_id": upload.user_id,
+        "status": upload.status.value,
+        "comment": upload.comment,
+        "url": portal_url(f"/solutions/{upload.id}"),
+    }
+
+
+# ---------------------------------------------------------------- преподавателю: объявления
+
+
+class CreateAnnouncementParams(Params):
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field("", max_length=4000)
+    url: str = Field("", max_length=500, description="Ссылка на контест или регистрацию.")
+    url_label: str = Field("", max_length=80, description="Подпись кнопки со ссылкой.")
+    group_id: int | None = Field(None, description="Только этой группе (номер из list_groups).")
+    for_everyone: bool = Field(
+        False, description="Всем студентам портала, без группы. Нужно сказать явно."
+    )
+    starts_at: datetime | None = Field(
+        None,
+        description="Когда событие начнётся — к нему идёт обратный отсчёт. ISO 8601, "
+        "без пояса — местное время портала.",
+    )
+    ends_at: datetime | None = Field(None, description="Когда событие закончится.")
+    pinned: bool = Field(False, description="Закрепить сверху.")
+
+
+@tool(
+    "create_announcement",
+    title=N_("Опубликовать объявление"),
+    hint=N_("видно в «Анонсах», в Telegram уходит сообщение"),
+    roles=TEACHER,
+    writes=True,
+    notifies=True,
+)
+async def create_announcement(ctx: Context, args: CreateAnnouncementParams) -> dict:
+    """Публикует объявление — контест, сбор, организационную новость — как
+    форма в разделе «Анонсы». Студенты сразу видят его на портале, в Telegram
+    уходит сообщение. Отменить рассылку нельзя (удалить объявление — на сайте).
+
+    Перед вызовом покажи человеку заголовок, текст, кому и даты и дождись
+    явного «да». Про конкретное задание лучше post_assignment_message: оно
+    приходит только его участникам.
+    """
+    if (args.group_id is None) == (not args.for_everyone):
+        raise ToolError(
+            "Укажи, кому: group_id (номер из list_groups) или for_everyone=true, "
+            "если объявление действительно для всех."
+        )
+    try:
+        item, delivered = await announcements_service.publish(
+            ctx.session,
+            ctx.user,
+            title=args.title,
+            body=args.body,
+            url=args.url,
+            url_label=args.url_label,
+            group_id=args.group_id,
+            starts_at=_moment(args.starts_at),
+            ends_at=_moment(args.ends_at),
+            pinned=args.pinned,
+        )
+    except announcements_service.AnnouncementError as exc:
+        raise ToolError(str(exc)) from exc
+    groups = await _group_titles(ctx, [item.group_id])
+    return {
+        "id": item.id,
+        "title": item.title,
+        "for": groups.get(item.group_id, "") if item.group_id else "все",
+        "starts_at": _when(item.starts_at),
+        "telegram_messages": delivered,
+        "url": portal_url("/announcements"),
+    }
+
+
+# ---------------------------------------------------------------- преподавателю: студенты
+
+
+class FindStudentsParams(Params):
+    query: str = Field(
+        min_length=2, max_length=120, description="Часть имени на портале или в вузе."
+    )
+
+
+@tool(
+    "find_students",
+    title=N_("Найти студента"),
+    hint=N_("по имени или фамилии, с группами"),
+    roles=TEACHER,
+)
+async def find_students(ctx: Context, args: FindStudentsParams) -> dict:
+    """Студенты, у которых в имени на портале или в имени из учётной записи
+    вуза есть `query`; регистр не важен. Номер — для get_student и других
+    инструментов. Не больше 30 совпадений: много — уточни запрос.
+    """
+    # Без LIKE в базе: SQLite сравнивает без регистра только латиницу,
+    # а «петров» должен находить «Петров».
+    needle = args.query.strip().casefold()
+    people = (
+        await ctx.session.execute(
+            select(User).where(User.is_active.is_(True)).order_by(User.display_name)
+        )
+    ).scalars()
+    found = [
+        user for user in people
+        if needle in user.display_name.casefold()
+        or needle in (user.official_name or "").casefold()
+    ][:30]
+    memberships = (
+        await ctx.session.execute(
+            select(GroupMembership.user_id, Group.title)
+            .join(Group, Group.id == GroupMembership.group_id)
+            .where(
+                GroupMembership.user_id.in_([user.id for user in found]),
+                Group.is_archived.is_(False),
+            )
+        )
+    ).all()
+    groups: dict[int, list[str]] = {}
+    for user_id, title in memberships:
+        groups.setdefault(user_id, []).append(title)
+    return {
+        "students": [
+            {
+                "id": user.id,
+                "name": user.display_name,
+                "official_name": user.official_name,
+                "role": user.role.value,
+                "groups": sorted(groups.get(user.id, [])),
+            }
+            for user in found
+        ]
+    }
+
+
+class StudentParams(Params):
+    student_id: int = Field(description="Номер из find_students или get_group.")
+
+
+@tool(
+    "get_student",
+    title=N_("Студент целиком"),
+    hint=N_("группы, аккаунты и зачёт по всем заданиям"),
+    roles=TEACHER,
+)
+async def get_student(ctx: Context, args: StudentParams) -> dict:
+    """Всё о студенте на одной странице: группы, аккаунты на площадках
+    (подтверждены ли, когда обновлялись), бонусные баллы и по каждому
+    начавшемуся заданию — сколько засчитано из скольких.
+
+    Зовут на «почему у него ноль» и «как дела у Петрова»: неподтверждённый
+    аккаунт или давнее обновление — частая причина пустой строки.
+    Подробности задания — get_assignment_progress.
+    """
+    student = await ctx.session.get(User, args.student_id)
+    if student is None:
+        raise ToolError(f"Человека {args.student_id} нет")
+    accounts = (
+        await ctx.session.execute(
+            select(PlatformAccount).where(PlatformAccount.user_id == student.id)
+        )
+    ).scalars()
+    bonus = await ctx.session.scalar(
+        select(func.coalesce(func.sum(BonusPoint.points), 0)).where(
+            BonusPoint.user_id == student.id
+        )
+    )
+    mine = await assignments_for_user(ctx.session, student)
+    items = await _describe(ctx, mine, teacher=True)
+    for item, assignment in zip(items, mine, strict=True):
+        progress = await compute_progress(ctx.session, assignment, [student])
+        item.update(solved=progress.solved_count(student.id), total=progress.total_problems)
+    return {
+        "id": student.id,
+        "name": student.display_name,
+        "official_name": student.official_name,
+        "role": student.role.value,
+        "active": student.is_active,
+        "groups": [
+            {"id": group.id, "title": group.title}
+            for group in await groups_for_user(ctx.session, student)
+        ],
+        "accounts": [
+            {
+                "platform": account.platform.value,
+                "handle": account.handle,
+                "verified": account.verified_at is not None,
+                "last_synced_at": _when(account.last_synced_at),
+            }
+            for account in accounts
+        ],
+        "bonus_points": float(bonus or 0),
+        "assignments": items,
     }
 
 
@@ -1355,18 +1811,30 @@ TEACHER_GUIDE = """\
 
 На паре: post_assignment_message — ссылка на комнату или пара слов участникам
 задания; видно сразу на странице задания и на главной. Тоже только после «да».
+create_announcement — объявление группе или всем (контест, сбор), уходит в
+Telegram; только после «да».
+
+Сроки: extend_deadline — перенос вперёд или снятие, сразу для нескольких
+заданий. Сначала dry_run=true: покажи человеку, сколько зачётов прибавится,
+и запиши только после «да». edit_assignment — название и описание.
 
 Проверка: get_assignment_progress — кто сколько решил (так же, как матрица
 и табло на сайте); get_assignment_solutions — код решений для проверки и
 поиска списывания; find_similar_solutions — готовые пары похожих решений,
 как на странице «Похожие решения». Похожесть — повод посмотреть, а не приговор.
+list_pending_reviews — присланный код, который ждёт проверки; review_solution —
+принять или отклонить (отклонение снимает зачёт — только после «да»).
+
+Студенты: find_students — найти по имени; get_student — группы, аккаунты на
+площадках и зачёт по всем заданиям. Это первый шаг на «почему у него ноль».
 
 Записи задач: ссылка, слаг LeetCode (two-sum), cf:4A, task:слаг своей задачи.
 Время без пояса — местное время портала (см. whoami).
 """
 
 READ_ONLY_NOTE = """
-Ключ выпущен только на чтение: создать список или выдать задание нельзя.
+Ключ выпущен только на чтение: создать список, выдать задание, перенести
+срок или написать студентам нельзя.
 Нужно — выпусти на странице «ИИ» ключ с разрешением на изменения.
 """
 

@@ -17,6 +17,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import translate as _
 from app.models import Assignment, ReviewStatus, SolutionUpload, Submission, utcnow
 
 # Потолок на длину: решение задачи столько не занимает, а вставленный по
@@ -91,12 +92,20 @@ async def review(
     status: ReviewStatus,
     comment: str,
     reviewer_id: int,
-) -> None:
+) -> str | None:
+    """Решение проверяющего. Возвращает текст отказа или None.
+
+    Отклонение снимает зачёт, поэтому без объяснения его не принимаем:
+    студент должен понять, что исправлять, а не гадать.
+    """
+    if status == ReviewStatus.rejected and not comment.strip():
+        return _("Отклонять без объяснения нельзя")
     upload.status = status
     upload.comment = comment.strip()[:500] or None
     upload.reviewed_by_id = reviewer_id
     upload.reviewed_at = utcnow()
     await session.commit()
+    return None
 
 
 @dataclass(slots=True)

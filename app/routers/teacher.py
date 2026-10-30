@@ -11,7 +11,6 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import notify
 from app.config import settings
 from app.deps import OptionalInt, SessionDep, TeacherUser
 from app.i18n import translate as _
@@ -35,6 +34,7 @@ from app.models import (
 )
 from app.routers.leaderboard import PERIODS
 from app.services import (
+    announcements,
     assignments,
     export,
     features,
@@ -1200,21 +1200,15 @@ async def edit_assignment(
     title: str = Form(...),
     description: str = Form(""),
 ):
-    """Правится только то, что не меняет подсчёт: название и описание.
-
-    Список задач, адресат и баллы задаются при создании — иначе рейтинг
-    задним числом менялся бы у всех участников. Срок двигается отдельной
-    формой и только вперёд (`shift_deadline`).
-    """
+    """Что правится после выдачи — решает `assignments.edit`; срок двигается
+    отдельной формой (`shift_deadline`)."""
     assignment = await session.get(Assignment, assignment_id)
     if assignment is None:
         return _redirect("/teacher/assignments", error=_("Задание не найдено"))
-    title = title.strip()
-    if not title:
-        return _redirect(f"/teacher/assignments/{assignment_id}", error=_("Пустое название"))
-    assignment.title = title
-    assignment.description = description.strip() or None
-    await session.commit()
+    try:
+        await assignments.edit(session, assignment, title=title, description=description)
+    except assignments.AssignmentError as exc:
+        return _redirect(f"/teacher/assignments/{assignment_id}", error=str(exc))
     return _redirect(f"/teacher/assignments/{assignment_id}", message=_("Сохранено"))
 
 
@@ -1289,34 +1283,21 @@ async def create_announcement(
     ends_at: str = Form(""),
     pinned: bool = Form(False),
 ):
-    title = title.strip()
-    if not title:
-        return _redirect("/teacher/announcements", error=_("Пустой заголовок"))
-
-    link = url.strip()
-    if link and not link.startswith(("http://", "https://")):
-        return _redirect("/teacher/announcements", error=_("Ссылка должна начинаться с http"))
-
-    start = parse_local_input(starts_at)
-    end = parse_local_input(ends_at)
-    if start and end and end <= start:
-        return _redirect("/teacher/announcements", error=_("Конец раньше начала"))
-
-    item = Announcement(
-        title=title,
-        body=body.strip() or None,
-        url=link or None,
-        url_label=url_label.strip() or None,
-        group_id=int(group_id) if group_id.strip() else None,
-        starts_at=start,
-        ends_at=end,
-        pinned=pinned,
-        created_by_id=user.id,
-    )
-    session.add(item)
-    await session.commit()
-    await session.refresh(item)
-    delivered = await notify.notify_announcement(item, session)
+    try:
+        _item, delivered = await announcements.publish(
+            session,
+            user,
+            title=title,
+            body=body,
+            url=url,
+            url_label=url_label,
+            group_id=int(group_id) if group_id.strip() else None,
+            starts_at=parse_local_input(starts_at),
+            ends_at=parse_local_input(ends_at),
+            pinned=pinned,
+        )
+    except announcements.AnnouncementError as exc:
+        return _redirect("/teacher/announcements", error=str(exc))
     return _redirect(
         "/teacher/announcements",
         message=_("Объявление опубликовано и отправлено в Telegram")
