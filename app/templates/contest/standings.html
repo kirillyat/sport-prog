@@ -21,7 +21,14 @@
 {% endif %}
 {# Живое табло в заморозку видит только преподаватель — оно и в пунктире. #}
 <div class="card table-wrap {{ 'staff-only' if teacher_view and contest.frozen(now()) }}" style="padding:6px">
-  <table class="standings">
+  {# Ширины заданы колонками: задачи и итоги — ровные узкие, команде — остальное.
+     Задач много, экран узкий — табло прокручивается вбок, а не сжимает клетки. #}
+  <table class="standings" style="min-width: {{ 200 + 76 * (board.problems | length) + (180 if icpc else 90) }}px">
+    <colgroup>
+      <col class="c-place"><col>
+      {% for item in board.problems %}<col class="c-problem">{% endfor %}
+      {% if icpc %}<col class="c-total"><col class="c-total">{% else %}<col class="c-total">{% endif %}
+    </colgroup>
     <thead>
       <tr>
         <th>#</th>
@@ -58,7 +65,7 @@
       <tr>
         <td></td><td class="team-cell">{{ _("решили / пробовали") }}</td>
         {% for item in board.problems %}<td class="num">{{ board.solved_by(item.problem_id) }}/{{ board.tried_by(item.problem_id) }}</td>{% endfor %}
-        <td colspan="2"></td>
+        <td colspan="{{ 2 if icpc else 1 }}"></td>
       </tr>
     </tfoot>
     {% endif %}

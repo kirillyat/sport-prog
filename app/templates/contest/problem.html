@@ -11,7 +11,7 @@
     <p class="eyebrow"><a href="/contest/{{ contest.id }}">{{ contest.title }}</a> / {{ _("задача") }} {{ item.letter }}</p>
     <h1><span class="letter">{{ item.letter }}</span> {{ problem.title }}</h1>
   </div>
-  {% if task %}<span class="badge">{{ task.time_limit_ms / 1000 }} {{ _("с") }} · {{ task.memory_limit_mb }} {{ _("МБ") }}</span>{% endif %}
+  {% if task %}<span class="badge">{{ "%g" % (task.time_limit_ms / 1000) }} {{ _("с") }} · {{ task.memory_limit_mb }} {{ _("МБ") }}</span>{% endif %}
 </div>
 
 {# Задачи соревнования — в одну строку, чтобы переходить между ними, не

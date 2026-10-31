@@ -3,9 +3,11 @@
 {% from "contest/_bits.html" import phase_badge, rules_label %}
 {% block title %}{{ _("Соревнования") }} — {{ settings.app_name }}{% endblock %}
 
+{# Колонки одной ширины во всех группах — даты и статусы стоят друг под другом. #}
 {% macro contest_rows(items) -%}
 <div class="card table-wrap {{ 'staff-only' if items and items[0].phase(now()) == 'draft' }}" style="padding:6px">
-  <table>
+  <table class="contest-table">
+    <colgroup><col><col class="c-when"><col class="c-me"><col class="c-phase"></colgroup>
     <tbody>
     {% for item in items %}
       <tr>
@@ -91,9 +93,9 @@
 {% endif %}
 
 {% if teacher_view %}
+<h2>{{ icon("plus") }} {{ _("Новое соревнование") }}</h2>
 <div class="card staff-only">
   <p class="staff-note">{{ icon("shield") }} {{ _("Видно только преподавателю") }}</p>
-  <h3>{{ icon("plus") }} {{ _("Новое соревнование") }}</h3>
   <form method="post" action="/contest">
     {% include "contest/_settings_fields.html" %}
     <button type="submit">{{ icon("plus") }} {{ _("Создать черновик") }}</button>

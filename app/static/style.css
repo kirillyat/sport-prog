@@ -2239,8 +2239,13 @@ h1 .letter { font-size: .62em; width: 1.5em; height: 1.5em; min-width: 0; paddin
 
 /* Табло: место, команда, клетка на задачу, итог. Клетка — плюс с числом
    неудачных попыток и минутой, как на табло ICPC; в IOI — баллы. */
+.standings { table-layout: fixed; }
+.standings .c-place { width: 48px; }
+.standings .c-problem { width: 76px; }
+.standings .c-total { width: 90px; }
 .standings td, .standings th { text-align: center; padding: 6px 4px; }
-.standings td.team-cell, .standings th.team-cell { text-align: left; position: sticky; left: 0; background: var(--panel); min-width: 200px; }
+.standings td.team-cell { overflow: hidden; text-overflow: ellipsis; }
+.standings td.team-cell, .standings th.team-cell { text-align: left; background: var(--panel); }
 .standings tr.mine td { background: var(--panel-2); }
 .standings tr.mine td.team-cell { background: var(--panel-2); }
 .standings .place { font-family: "Unbounded", sans-serif; font-weight: 800; width: 44px; }
@@ -2284,6 +2289,9 @@ tr.staff-only td { border-bottom-style: dashed; }
 .staff-note .icon { width: 14px; height: 14px; }
 /* Длинная подпись в рейке («Соревнования») — чуть мельче, чтобы не рвалась. */
 .nav a.nav-long span { font-size: 8px; letter-spacing: .02em; }
+.nav-short { display: none; }
+.tabbar .nav-full { display: none; }
+.tabbar .nav-short { display: inline; }
 
 /* Главная раздела соревнований: идущее — крупно сверху. */
 .contest-live { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
@@ -2291,13 +2299,25 @@ tr.staff-only td { border-bottom-style: dashed; }
   line-height: 1.15; color: var(--text); text-transform: uppercase; }
 .contest-live .grow { flex: 1 1 260px; min-width: 0; }
 .contest-live .countdown { font-size: 18px; padding: 6px 14px; }
+.contest-table { table-layout: fixed; }
+.contest-table .c-when { width: 22%; }
+.contest-table .c-me { width: 20%; }
+.contest-table .c-phase { width: 130px; }
+.contest-table td { vertical-align: middle; }
+/* Форма настройки: ровная сетка, подписи в одну строку, пояснения под полем. */
+.contest-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; align-items: start; }
+.contest-form .wide { grid-column: 1 / -1; }
+.contest-form label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contest-form textarea { min-height: 72px; }
+.field-hint { font-size: 11px; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }
 .contest-filter { display: flex; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
 
-/* Шаги пульта: что уже сделано и что дальше. */
-.steps { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px 18px; }
-.steps li { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.steps li b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+/* Шаги пульта: что уже сделано и что дальше. Не `.steps` — так зовутся
+   карточки первых шагов на панели преподавателя, и рамка приезжала оттуда. */
+.run-steps { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.run-steps li { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.run-steps li b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
   border: 2px solid currentColor; font-size: 11px; }
-.steps li.done { color: var(--text); }
-.steps li.done b { background: var(--inv-bg); color: var(--inv-text); border-color: var(--inv-bg); }
-.steps li.next { color: var(--text); font-weight: 700; }
+.run-steps li.done { color: var(--text); }
+.run-steps li.done b { background: var(--inv-bg); color: var(--inv-text); border-color: var(--inv-bg); }
+.run-steps li.next { color: var(--text); font-weight: 700; }

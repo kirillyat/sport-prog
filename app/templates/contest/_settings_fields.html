@@ -1,6 +1,10 @@
-{# Поля настройки — одни на «создать» и на «изменить». `contest` может быть None. #}
-<div class="grid two">
-  <div class="field">
+{#
+  Поля настройки — одни на «создать» и на «изменить». `contest` может быть None.
+  Подписи короткие, в одну строку, а пояснение — под полем: длинная подпись
+  переносилась, и поля одного ряда вставали на разной высоте.
+#}
+<div class="contest-form">
+  <div class="field wide">
     <label for="title">{{ _("Название") }}</label>
     <input type="text" id="title" name="title" required value="{{ contest.title if contest else '' }}"
            placeholder="{{ _("Осеннее командное соревнование") }}">
@@ -8,28 +12,32 @@
   <div class="field">
     <label for="rules">{{ _("Правила") }}</label>
     <select id="rules" name="rules">
-      <option value="icpc" {{ 'selected' if contest and contest.rules == 'icpc' }}>{{ _("ICPC — решённые задачи и штрафное время") }}</option>
-      <option value="ioi" {{ 'selected' if contest and contest.rules == 'ioi' }}>{{ _("IOI — баллы за пройденные тесты") }}</option>
+      <option value="icpc" {{ 'selected' if contest and contest.rules == 'icpc' }}>ICPC</option>
+      <option value="ioi" {{ 'selected' if contest and contest.rules == 'ioi' }}>IOI</option>
     </select>
+    <p class="field-hint">{{ _("ICPC — задачи и штраф, IOI — баллы за тесты") }}</p>
   </div>
   <div class="field">
-    <label for="team_size">{{ _("Человек в команде (1 — личное соревнование)") }}</label>
+    <label for="team_size">{{ _("Человек в команде") }}</label>
     <input type="number" id="team_size" name="team_size" min="1" max="10" value="{{ contest.team_size if contest else 3 }}">
+    <p class="field-hint">{{ _("1 — личное соревнование") }}</p>
   </div>
   <div class="field">
-    <label for="planned_at">{{ _("Плановое начало — только подпись, задачи откроет кнопка «Старт»") }}</label>
-    <input type="datetime-local" id="planned_at" name="planned_at" value="{{ contest.planned_at | dtinput if contest else '' }}">
-  </div>
-  <div class="field">
-    <label for="duration_min">{{ _("Длительность, минут") }}</label>
+    <label for="duration_min">{{ _("Длительность, мин") }}</label>
     <input type="number" id="duration_min" name="duration_min" min="1" max="1440" value="{{ contest.duration_min if contest else 300 }}">
   </div>
   <div class="field">
-    <label for="freeze_min">{{ _("Заморозить табло за столько минут до конца (0 — не замораживать)") }}</label>
+    <label for="freeze_min">{{ _("Заморозка табло, мин") }}</label>
     <input type="number" id="freeze_min" name="freeze_min" min="0" max="1439" value="{{ contest.freeze_min if contest else 60 }}">
+    <p class="field-hint">{{ _("до конца; 0 — без заморозки") }}</p>
   </div>
-</div>
-<div class="field">
-  <label for="description">{{ _("Описание (необязательно)") }}</label>
-  <textarea id="description" name="description" rows="3" placeholder="{{ _("Ауд. 612, с собой ноутбук на команду") }}">{{ contest.description or '' if contest else '' }}</textarea>
+  <div class="field">
+    <label for="planned_at">{{ _("Плановое начало") }}</label>
+    <input type="datetime-local" id="planned_at" name="planned_at" value="{{ contest.planned_at | dtinput if contest else '' }}">
+    <p class="field-hint">{{ _("только подпись — задачи откроет «Старт»") }}</p>
+  </div>
+  <div class="field wide">
+    <label for="description">{{ _("Описание (необязательно)") }}</label>
+    <textarea id="description" name="description" rows="2" placeholder="{{ _("Ауд. 612, с собой ноутбук на команду") }}">{{ contest.description or '' if contest else '' }}</textarea>
+  </div>
 </div>

@@ -20,7 +20,7 @@
   {# Шаги по порядку: что сделано и что дальше. Без них «Старт» молча не
      нажимался, пока не заданы задачи, и было непонятно почему. #}
   {% set has_problems = contest.problems | length > 0 %}
-  <ol class="steps">
+  <ol class="run-steps">
     <li class="{{ 'done' if has_problems else 'next' }}"><b>1</b>
       {{ _("Задачи: %(n)s") % {"n": contest.problems | length} if has_problems else _("Задать задачи") }}</li>
     <li class="{{ 'done' if contest.published else ('next' if has_problems else '') }}"><b>2</b>{{ _("Открыть регистрацию") }}</li>

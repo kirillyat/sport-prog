@@ -59,12 +59,14 @@
   он вообще только для преподавателя). Обводится пунктиром: это общий знак
   портала «студенту этого не видно», чтобы не гадать, открыт ли раздел.
 #}
-{% macro navlink(href, name, label, extra="", exact=False, count=0, new=False, also=(), staff=False) -%}
+{# short — подпись для нижней панели телефона, когда полная в неё не влезает. #}
+{% macro navlink(href, name, label, extra="", exact=False, count=0, new=False, also=(), staff=False, short=None) -%}
   {% set ns = namespace(on=(path == href) if exact else is_under(href) == 'y') %}
   {% for prefix in also %}{% if is_under(prefix) == 'y' %}{% set ns.on = True %}{% endif %}{% endfor %}
   <a href="{{ href }}" class="{{ 'active' if ns.on }} {{ extra }} {{ 'staff-only' if staff }}"
      title="{{ label }}{{ ' — ' ~ _('студенты не видят') if staff }}">
-    {{ icon(name) }}<span>{{ label }}</span>
+    {% if short %}{{ icon(name) }}<span class="nav-full">{{ label }}</span><span class="nav-short">{{ short }}</span>
+    {% else %}{{ icon(name) }}<span>{{ label }}</span>{% endif %}
     {% if count %}<span class="nav-count" title="{{ _("ждут проверки") }}">{{ count }}</span>{% endif %}
     {% if new %}<span class="nav-new">{{ _("новое") }}</span>{% endif %}
   </a>
@@ -151,7 +153,7 @@
 #}
 {% macro contest_navitems() -%}
   {{ navlink("/contest", "flame", _("Соревнования"), "nav-long", exact=True,
-             staff="contest" in student_closed) }}
+             staff="contest" in student_closed, short=_("Контесты")) }}
   {% if contest %}
     {% set home = "/contest/" ~ contest.id %}
     {{ navlink(home, "tasks", _("Задачи"), exact=True, also=(home ~ "/problems",)) }}
@@ -173,7 +175,7 @@
     {{ navlink("/teacher/sets", "code", _("Задачи"), also=("/teacher/tasks", "/teacher/problems")) }}
     {{ navlink("/teacher/reviews", "search", _("Проверка"), count=pending_reviews) }}
     {% if "grades" in sections_on %}{{ navlink("/grades", "edit", _("Оценки"), staff="grades" in student_closed) }}{% endif %}
-    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long", staff="contest" in student_closed) }}{% endif %}
+    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long", staff="contest" in student_closed, short=_("Контесты")) }}{% endif %}
     {% if admin_view %}
     {{ navlink("/teacher/integrations", "plug", _("Интеграции"), also=("/teacher/judge", "/teacher/llm")) }}
     {% endif %}
@@ -195,7 +197,7 @@
     {% if "materials" in sections_on %}{{ navlink("/materials", "book", _("Материалы")) }}{% endif %}
     {% if course_available and "course" in sections_on %}{{ navlink("/course", "layers", _("Курс")) }}{% endif %}
     {% if "ai" in sections_on %}{{ navlink("/ai", "spark", _("ИИ"), new="ai" in sections_new) }}{% endif %}
-    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long") }}{% endif %}
+    {% if "contest" in sections_on %}{{ navlink("/contest", "flame", _("Соревнования"), "nav-long", short=_("Контесты")) }}{% endif %}
     {{ navlink("/announcements", "megaphone", _("Анонсы")) }}
     {{ navlink("/feed", "activity", _("Лента")) }}
     {{ navlink("/leaderboard", "trophy", _("Лидерборд")) }}
